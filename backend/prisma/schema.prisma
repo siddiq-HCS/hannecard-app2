@@ -1,0 +1,233 @@
+// Hanycard Saudi — Field Sales & Roller Configurator
+// PostgreSQL 18 | Prisma 7
+// الشركة: هانيكارد السعودية (تصنيع وتلبيس المحابر والاسطوانات)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ======================= الأدوار =======================
+
+enum Role {
+  SALES_MANAGER
+  REPRESENTATIVE
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  phone        String   @unique
+  email        String?  @unique
+  passwordHash String
+  role         Role     @default(REPRESENTATIVE)
+  isActive     Boolean  @default(true)
+  fcmToken     String?
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  clients      Client[]
+  quotations   Quotation[]
+  visits       Visit[]
+  attendance   Attendance[]
+  syncQueue    SyncQueue[]
+
+  @@map("users")
+}
+
+// ======================= العملاء =======================
+
+model Client {
+  id            String   @id @default(cuid())
+  companyName   String
+  contactPerson String
+  phone         String
+  email         String?
+  taxNumber     String?
+  latitude      Float?
+  longitude     Float?
+  address       String?
+  createdById   String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  createdBy    User         @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  rollerSpecs  RollerSpec[]
+  quotations   Quotation[]
+  visits       Visit[]
+
+  @@index([companyName])
+  @@map("clients")
+}
+
+// ======================= مواصفات الأسطوانة =======================
+
+enum ServiceType {
+  NEW_MANUFACTURE
+  RECOATING
+  REPAIR_GRINDING
+  CHROME_PLATING
+}
+
+enum CoatingMaterial {
+  NATURAL_RUBBER
+  POLYURETHANE
+  SILICONE
+  CHROME
+  CERAMIC
+}
+
+enum GroovingType {
+  SMOOTH
+  AXIAL
+  SPIRAL
+  CROWNED
+  HELIBONE
+}
+
+model RollerSpec {
+  id               String          @id @default(cuid())
+  clientId         String
+  serviceType      ServiceType
+  // الأبعاد بالمليمتر
+  outerDiameterOd  Float
+  coreDiameter     Float
+  faceLength       Float
+  totalLength      Float
+  coatingMaterial  CoatingMaterial
+  hardnessShore    String
+  groovingType     GroovingType
+  operatingTemp    Float?
+  chemicalExposure String?
+  damagePhotos     Json? // مصفوفة روابط/قيم Base64 لصور التلف
+  notes            String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  client      Client      @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  quotations  Quotation[]
+
+  @@index([clientId])
+  @@map("roller_specs")
+}
+
+// ======================= عروض الأسعار =======================
+
+enum QuotationStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  CONVERTED_TO_WORK_ORDER
+}
+
+model Quotation {
+  id                 String          @id @default(cuid())
+  quotationNumber    String          @unique
+  clientId           String
+  rollerSpecId       String
+  // تفصيل الأسعار (ريال سعودي)
+  baseMaterialCost   Decimal         @db.Decimal(12, 2)
+  laborMachiningCost Decimal         @db.Decimal(12, 2)
+  subtotal           Decimal         @db.Decimal(12, 2)
+  discountPercentage Decimal         @db.Decimal(5, 2)
+  discountAmount     Decimal         @db.Decimal(12, 2) @default(0)
+  vatAmount          Decimal         @db.Decimal(12, 2)
+  grandTotal         Decimal         @db.Decimal(12, 2)
+  vatRate            Decimal         @db.Decimal(5, 2) @default(15)
+  status             QuotationStatus @default(DRAFT)
+  clientSignature    Json? // نقاط توقيع العميل (strokes)
+  clientSignatureUrl String?
+  qrCodeUrl          String?
+  pdfUrl             String?
+  terms              String?
+  createdByUserId    String
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  client    Client @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  rollerSpec RollerSpec @relation(fields: [rollerSpecId], references: [id], onDelete: Restrict)
+  createdBy User   @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+
+  @@index([clientId])
+  @@index([createdByUserId])
+  @@index([status])
+  @@map("quotations")
+}
+
+// ======================= تسجيل دخول GPS (زيارات ميدانية) =======================
+
+model Visit {
+  id        String   @id @default(cuid())
+  userId    String
+  clientId  String?
+  lat       Float
+  lng       Float
+  accuracy  Float?
+  notes     String?
+  visitedAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  @@index([userId, visitedAt])
+  @@map("visits")
+}
+
+// ======================= الحضور اليومي (بدون تسجيل انصراف) =======================
+// لا يوجد تسجيل انصراف إطلاقاً — وجود السجل يعني أن المستخدم حضر ذلك اليوم.
+
+model Attendance {
+  id          String   @id @default(cuid())
+  userId      String
+  // تاريخ اليوم (بالتوقيت السعودي) مخزّن على أنه منتصف اليوم UTC
+  date        DateTime
+  checkInTime DateTime @default(now())
+  lat         Float
+  lng         Float
+  accuracy    Float?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([date])
+  @@map("attendance")
+}
+
+// ======================= طابور المزامنة (Offline-First) =======================
+
+enum SyncStatus {
+  PENDING
+  SYNCED
+  FAILED
+}
+
+enum SyncEntityType {
+  CLIENT
+  ROLLER_SPEC
+  QUOTATION
+  VISIT
+}
+
+model SyncQueue {
+  id         String         @id @default(cuid())
+  deviceId   String
+  entityType SyncEntityType
+  payload    Json
+  status     SyncStatus     @default(PENDING)
+  serverId   String?
+  attempts   Int            @default(0)
+  error      String?
+  userId     String?
+  createdAt  DateTime       @default(now())
+  syncedAt   DateTime?
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([deviceId, status])
+  @@map("sync_queue")
+}

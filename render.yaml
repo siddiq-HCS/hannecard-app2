@@ -1,0 +1,34 @@
+# Render Blueprint — Hanycard Saudi (Backend)
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: hanycard-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    plan: free
+    healthCheckPath: /health
+    numInstances: 1
+    autoDeploy: true
+    envVars:
+      # تُضبط من لوحة تحكم Render (لا تُرفع للريبو لحمايتها)
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      # قيم افتراضية غير سرّية
+      - key: UPLOAD_DIR
+        value: ./uploads
+      - key: HANYCARD_CR
+        value: "1010000000"
+      - key: HANYCARD_VAT
+        value: "300000000000003"
+      - key: HANYCARD_ARABIC_NAME
+        value: "شركة هانيكارد السعودية لتصنيع وتلبيس المحابر والاسطوانات"
+      - key: HANYCARD_ENGLISH_NAME
+        value: "Hanycard Saudi — Roller Manufacturing & Recoating"

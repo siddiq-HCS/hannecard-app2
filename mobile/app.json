@@ -1,0 +1,31 @@
+{
+  "expo": {
+    "name": "Hanycard Field Sales",
+    "slug": "hanycard-field-sales",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "hanycard",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#1d4ed8"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "يتطلب التطبيق الوصول لموقعك لتسجيل زيارات العملاء ومقاسات الأسطوانات."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "يتطلب التطبيق الوصول للكاميرا والمعرض لتصوير الأسطوانات التالفة."
+        }
+      ],
+      "expo-secure-store",
+      "expo-sqlite"
+    ]
+  }
+}

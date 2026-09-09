@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:18
+    container_name: hanycard_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: hanycard
+      POSTGRES_PASSWORD: hanycard
+      POSTGRES_DB: hanycard
+    ports:
+      - "5433:5432"
+    volumes:
+      - hanycard_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hanycard -d hanycard"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  hanycard_pgdata:
