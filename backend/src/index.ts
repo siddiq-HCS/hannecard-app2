@@ -18,8 +18,11 @@ const ioServer = initSocket(server);
 startJobs();
 startTaskReminders();
 
-server.listen(config.port, () => {
-  console.log(`[hanycard-backend] listening on :${config.port}`);
+// Render يعيّن PORT تلقائياً — نستخدمه بأولوية، ونسند 10000 كافتراضي، ونربط على 0.0.0.0
+const PORT = Number(process.env.PORT) || 10000;
+
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server is running on port ${PORT}`);
 });
 
 // ===== تسجيل انصراف تلقائي لمن لم يغادر بنهاية اليوم (18:00 بتوقيت الرياض) =====

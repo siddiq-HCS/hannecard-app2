@@ -29,15 +29,36 @@ import { documentsRouter } from './routes/documents.routes.js';
 
 export const app = express();
 
+// ===== كشف مسارات الواجهات مبكراً (قبل أي Middleware) =====
+// حتى يستجيب /health فوراً عند تشغيل Render، مهما استغرق تحميل بقية التطبيق.
+function resolveDist(name: string): string | null {
+  return [
+    path.resolve(__dirname, `../../${name}/dist`), // backend/dist -> repo root
+    path.resolve(process.cwd(), `../${name}/dist`),
+    path.resolve(process.cwd(), `${name}/dist`),
+  ].find((p) => fs.existsSync(p)) ?? null;
+}
+
+const webDistPath = resolveDist('web');
+const mobileDistPath = resolveDist('mobile');
+
+// ===== مسار الصحة — أول مسجل، يرد 200 فوراً =====
+// Render يعتمد عليه في فحوص الجاهزية (Health Check) وبورت سكانز، فلا يوجد خلف أي Middleware ثقيل.
+app.get('/health', (_req, res) =>
+  res.status(200).json({
+    status: 'ok',
+    ts: new Date().toISOString(),
+    cwd: process.cwd(),
+    webDist: webDistPath,
+    mobileDist: mobileDistPath,
+  }),
+);
+
 app.use(cors({ origin: config.corsOrigins }));
 app.use(express.json({ limit: '10mb' }));
 
 // ملفات مرفوعة (صور التلف، QR، PDF) — عامة
 app.use('/uploads', express.static(path.join(process.cwd(), config.uploadDir)));
-
-app.get('/health', (_req, res) =>
-  res.json({ ok: true, ts: new Date().toISOString(), cwd: process.cwd(), webDist: webDistPath ?? null, mobileDist: mobileDistPath ?? null }),
-);
 
 // REST API — تطبيق الجوال الجديد
 app.use('/api/v1/auth', authRouter);
@@ -61,24 +82,12 @@ app.use('/api/v1/locations', locationsRouter);
 app.use('/api/v1', attachmentsRouter);
 app.use('/api/v1', documentsRouter);
 
-// ===== لوحة الإدارة (SPA) =====
-// الملفات مبنية في web/dist (جذر الريبو) ويُقدَّم من نفس الخدمة لتوحيد المنشأ مع Socket.IO.
-const webDistCandidates = [
-  path.resolve(__dirname, '../../web/dist'), // backend/dist -> repo root
-  path.resolve(process.cwd(), '../web/dist'),
-  path.resolve(process.cwd(), 'web/dist'),
-];
-const webDistPath = webDistCandidates.find((p) => fs.existsSync(p));
+console.log('[app] cwd =', process.cwd());
+console.log('[app] selected web/dist =', webDistPath ?? 'none');
+console.log('[app] selected mobile/dist =', mobileDistPath ?? 'none');
 
-// ===== تطبيق الجوال (SPA) على مسار /app =====
+// ===== تطبيق الجوال (SPA) على /app =====
 // الملفات مبنية عبر `npm run export:web --prefix mobile` (npx expo export --platform web) في mobile/dist
-const mobileDistCandidates = [
-  path.resolve(__dirname, '../../mobile/dist'), // backend/dist -> repo root
-  path.resolve(process.cwd(), '../mobile/dist'),
-  path.resolve(process.cwd(), 'mobile/dist'),
-];
-const mobileDistPath = mobileDistCandidates.find((p) => fs.existsSync(p));
-
 let appIndexHtml: string | null = null;
 
 if (mobileDistPath) {
@@ -86,32 +95,37 @@ if (mobileDistPath) {
   if (fs.existsSync(indexPath)) {
     // expo export يكتب مسارات أصول مطلقة من جذر النطاق (/assets، /_expo) —
     // نُعيد كتابتها لتصبح تحت /app حتى يعمل التطبيق من مساره الفرعي.
-    appIndexHtml = fs
-      .readFileSync(indexPath, 'utf8')
-      .replace(/(["'])\/(assets|_expo)\//g, '$1/app/$2/');
+    appIndexHtml = fs.readFileSync(indexPath, 'utf8').replace(/(["'])\/(assets|_expo)\//g, '$1/app/$2/');
   }
-  // index: false → لا نقدّم index.html الخام هنا؛ التوجيه من catch-all لإعادة المكتوب
+  // index: false → لا نقدّم index.html الخام هنا؛ التوجيه من مسار /app للنسخة المعاد كتابتها
   app.use('/app', express.static(mobileDistPath, { index: false, etag: false, maxAge: 0 }));
+
+  // أي مسار /app بدون امتداد → index.html (SPA fallback) — مستقل عن وجود لوحة الإدارة
+  const serveAppIndex = (req: express.Request, res: express.Response): void => {
+    if (path.extname(req.path)) {
+      res.status(404).send(`Asset ${req.path} not found on server`);
+      return;
+    }
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    res.send(appIndexHtml ?? fs.readFileSync(path.join(mobileDistPath, 'index.html')));
+  };
+  app.get('/app', serveAppIndex);
+  app.get('/app/{*splat}', serveAppIndex);
   console.log('[app] serving /app from', mobileDistPath);
+} else {
+  console.warn('[app] mobile/dist not found — تطبيق الجوال غير مبنى (شغّل: npm ci --prefix ../mobile && npm run export:web --prefix ../mobile)');
 }
 
-console.log('[app] cwd =', process.cwd());
-console.log('[app] web/dist candidates:', webDistCandidates);
-console.log('[app] selected web/dist =', webDistPath ?? 'none');
-console.log('[app] mobile/dist candidates:', mobileDistCandidates);
-console.log('[app] selected mobile/dist =', mobileDistPath ?? 'none');
-
+// ===== لوحة الإدارة (SPA) على الجذر / =====
+// الملفات مبنية في web/dist (جذر الريبو) ويُقدَّم من نفس الخدمة لتوحيد المنشأ مع Socket.IO.
 if (webDistPath) {
   app.use(express.static(webDistPath, { etag: false, maxAge: 0 }));
 
   // أي مسار بدون امتداد → index.html (SPA fallback) بشرط ألا يكون API
   app.get('/{*splat}', (req, res, next) => {
-    if (req.path.startsWith('/api') || req.path.startsWith('/health') || req.path.startsWith('/uploads')) return next();
+    if (req.path.startsWith('/api') || req.path.startsWith('/health') || req.path.startsWith('/uploads') || req.path.startsWith('/app')) return next();
     if (path.extname(req.path)) return res.status(404).send(`Asset ${req.path} not found on server`);
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-    // تطبيق الجوال تحت /app
-    if (req.path.startsWith('/app') && appIndexHtml) return res.send(appIndexHtml);
-    // لوحة الإدارة على الجذر
     return res.sendFile(path.join(webDistPath, 'index.html'));
   });
 } else {

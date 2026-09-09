@@ -6,7 +6,7 @@ function int(name: string, fallback: number): number {
 }
 
 export const config = {
-  port: int('PORT', 4001),
+  port: int('PORT', 10000),
   databaseUrl: process.env.DATABASE_URL!,
   jwtSecret: process.env.JWT_SECRET ?? 'dev-secret-change-me',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '7d',
