@@ -93,9 +93,12 @@ let appIndexHtml: string | null = null;
 if (mobileDistPath) {
   const indexPath = path.join(mobileDistPath, 'index.html');
   if (fs.existsSync(indexPath)) {
-    // expo export يكتب مسارات أصول مطلقة من جذر النطاق (/assets، /_expo) —
-    // نُعيد كتابتها لتصبح تحت /app حتى يعمل التطبيق من مساره الفرعي.
-    appIndexHtml = fs.readFileSync(indexPath, 'utf8').replace(/(["'])\/(assets|_expo)\//g, '$1/app/$2/');
+    // expo export يكتب مسارات أصول مطلقة من جذر النطاق (/assets، /_expo).
+    // عند تفعيل experiments.baseUrl في mobile/app.json تُسبق تلقائياً بـ /app —
+    // نضيف البادئة فقط لمن لم تُسبق لتفادي تكرارها (negative lookahead).
+    appIndexHtml = fs
+      .readFileSync(indexPath, 'utf8')
+      .replace(/(["'])\/(?!app\/)(assets|_expo)\//g, '$1/app/$2/');
   }
   // index: false → لا نقدّم index.html الخام هنا؛ التوجيه من مسار /app للنسخة المعاد كتابتها
   app.use('/app', express.static(mobileDistPath, { index: false, etag: false, maxAge: 0 }));

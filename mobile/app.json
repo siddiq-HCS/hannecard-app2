@@ -7,6 +7,9 @@
     "scheme": "hanycard",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "experiments": {
+      "baseUrl": "/app"
+    },
     "splash": {
       "backgroundColor": "#1d4ed8"
     },
