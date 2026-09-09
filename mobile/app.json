@@ -1,34 +1,62 @@
 {
   "expo": {
-    "name": "Hanycard Field Sales",
-    "slug": "hanycard-field-sales",
+    "name": "Hannecard Sales",
+    "slug": "hannecard-sales",
     "version": "0.1.0",
     "orientation": "portrait",
-    "scheme": "hanycard",
-    "userInterfaceStyle": "light",
+    "scheme": "hannecardsales",
+    "userInterfaceStyle": "dark",
+    "owner": "alshehm13",
     "newArchEnabled": true,
+    "web": {
+      "output": "single"
+    },
     "experiments": {
+      "tsconfigPaths": true,
       "baseUrl": "/app"
     },
     "splash": {
-      "backgroundColor": "#1d4ed8"
+      "backgroundColor": "#0f172a"
+    },
+    "android": {
+      "package": "com.hannecard.sales",
+      "adaptiveIcon": {
+        "backgroundColor": "#0f172a"
+      },
+      "permissions": [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "plugins": [
       "expo-router",
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "يتطلب التطبيق الوصول لموقعك لتسجيل زيارات العملاء ومقاسات الأسطوانات."
+          "locationAlwaysAndWhenInUsePermission": "يتطلب التطبيق الوصول لموقعك لتسجيل GPS أثناء العمل."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "يتطلب التطبيق الوصول للكاميرا والمعرض لتصوير الأسطوانات التالفة."
+          "photosPermission": "يتطلب التطبيق الوصول للمعرض لإرفاق الفواتير ومستندات التسليم."
         }
       ],
+      "expo-notifications",
       "expo-secure-store",
-      "expo-sqlite"
-    ]
+      "expo-asset",
+      "expo-font"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "0eb069a5-f423-4f56-b8c1-2494b8589bc9"
+      }
+    }
   }
 }
