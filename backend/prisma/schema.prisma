@@ -14,7 +14,9 @@ datasource db {
 
 enum Role {
   SALES_MANAGER
+  DEPUTY_SALES_MANAGER
   REPRESENTATIVE
+  DEVELOPER
 }
 
 model User {
