@@ -1,4 +1,4 @@
-// Hanycard Saudi — Field Sales & Roller Configurator
+// Hanycard Saudi — Field Sales & Roller Configurator (دُمجت مع لوحة الإدارة القديمة)
 // PostgreSQL 18 | Prisma 7
 // الشركة: هانيكارد السعودية (تصنيع وتلبيس المحابر والاسطوانات)
 
@@ -19,26 +19,78 @@ enum Role {
   DEVELOPER
 }
 
+enum Permission {
+  TASK_CREATE
+  TASK_VIEW
+  TASK_UPDATE
+  TASK_DELETE
+  VISIT_CREATE
+  VISIT_VIEW
+  ATTACHMENT_UPLOAD
+  ATTACHMENT_VIEW
+  REPORT_WRITE
+  REPORT_VIEW
+  LOCATION_SEND
+  PAGE_DASHBOARD_ACCESS
+  PAGE_MAP_ACCESS
+  PAGE_REPS_ACCESS
+  PAGE_RFQS_ACCESS
+  PAGE_ANALYTICS_ACCESS
+  PAGE_CHAT_ACCESS
+  PAGE_WEEKLY_PLANS_ACCESS
+  PAGE_ATTENDANCE_ACCESS
+  PAGE_MANAGERS_ACCESS
+  PAGE_ROLL_MATERIALS_ACCESS
+  AUTO_PRICING_ACCESS
+}
+
 model User {
   id           String   @id @default(cuid())
   name         String
   phone        String   @unique
   email        String?  @unique
   passwordHash String
+  plainPassword String? // كلمة المرور النصية (ظاهرة للمدراء فقط في لوحة التحكم)
   role         Role     @default(REPRESENTATIVE)
   isActive     Boolean  @default(true)
-  fcmToken     String?
+  fcmToken     String? // Expo push token
   lastLoginAt  DateTime?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  clients      Client[]
-  quotations   Quotation[]
-  visits       Visit[]
-  attendance   Attendance[]
-  syncQueue    SyncQueue[]
+  clients                 Client[]
+  quotations              Quotation[]
+  visits                  Visit[]
+  attendance              Attendance[]
+  syncQueue               SyncQueue[]
+  permissions             UserPermission[]
+  tasks                   Task[]
+  locations               Location[]
+  reports                 Report[]
+  rfqs                    Rfq[]
+  weeklyPlans             WeeklyPlan[]
+  dailySummaries          DailySummary[]
+  activityLogs            ActivityLog[]
+  conversationParticipants ConversationParticipant[]
+  messagesSent            Message[]
+  attendances             LegacyAttendance[]
+  rfqComments             RfqComment[]
 
   @@map("users")
+}
+
+// صلاحيات ممنوحة/مسحوبة لكل مندوب من قبل الإدارة
+model UserPermission {
+  id         String     @id @default(cuid())
+  userId     String
+  permission Permission
+  grantedBy  String?
+  createdAt  DateTime   @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permission])
+  @@map("user_permissions")
 }
 
 // ======================= العملاء =======================
@@ -161,26 +213,58 @@ model Quotation {
   @@map("quotations")
 }
 
-// ======================= تسجيل دخول GPS (زيارات ميدانية) =======================
+// ======================= الزيارات الميدانية (مدمجة: لوحة الإدارة + تطبيق الجوال) =======================
+
+enum VisitPurpose {
+  PRODUCT_PRESENTATION
+  PAYMENT_COLLECTION
+  DELIVERY
+}
 
 model Visit {
-  id        String   @id @default(cuid())
-  userId    String
-  clientId  String?
-  lat       Float
-  lng       Float
-  accuracy  Float?
-  notes     String?
-  visitedAt DateTime @default(now())
+  id              String        @id @default(cuid())
+  userId          String
+  clientId        String? // عميل تطبيق الجوال (اختياري — زيارات اللوحة القديمة لا تملكه)
+  clientName      String? // اسم العميل (زيارات اللوحة القديمة)
+  clientPhone     String?
+  clientAddress   String?
+  purpose         VisitPurpose? // غرض الزيارة (زيارات اللوحة القديمة)
+  notes           String?
+  collectedAmount Decimal?      @db.Decimal(12, 2) // المحصل من الزيارة (لوحة قديمة)
+  lat             Float? // موقع الزيارة
+  lng             Float?
+  accuracy        Float? // دقة الموقع (تطبيق الجوال الجديد)
+  visitedAt       DateTime      @default(now())
+  createdAt       DateTime      @default(now())
 
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  client Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client      Client?            @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  attachments VisitAttachment[]
 
   @@index([userId, visitedAt])
   @@map("visits")
 }
 
-// ======================= الحضور اليومي (بدون تسجيل انصراف) =======================
+enum AttachmentType {
+  INVOICE
+  DELIVERY_DOC
+}
+
+model VisitAttachment {
+  id        String         @id @default(cuid())
+  visitId   String
+  type      AttachmentType
+  filePath  String
+  size      Int?
+  createdAt DateTime       @default(now())
+
+  visit Visit @relation(fields: [visitId], references: [id], onDelete: Cascade)
+
+  @@index([visitId])
+  @@map("visit_attachments")
+}
+
+// ======================= الحضور اليومي (تطبيق الجوال الجديد — بدون تسجيل انصراف) =======================
 // لا يوجد تسجيل انصراف إطلاقاً — وجود السجل يعني أن المستخدم حضر ذلك اليوم.
 
 model Attendance {
@@ -198,6 +282,414 @@ model Attendance {
   @@unique([userId, date])
   @@index([date])
   @@map("attendance")
+}
+
+// ======================= الحضور والانصراف (لوحة الإدارة القديمة) =======================
+
+enum AttendanceStatus {
+  CHECKED_IN
+  CHECKED_OUT
+}
+
+// سجل حضور/انصراف المندوب: سجل واحد لكل مندوب لكل يوم
+// الحضور يكتب checkInTime + GPS، والانصراف يكتب checkOutTime + GPS.
+model LegacyAttendance {
+  id               String           @id @default(cuid())
+  userId           String
+  date             DateTime         @db.Date
+  checkInTime      DateTime? // وقت الحضور الفعلي
+  checkInLat       Float? // GPS الحضور
+  checkInLng       Float?
+  checkInAccuracy  Float?
+  checkOutTime     DateTime? // وقت الانصراف الفعلي
+  checkOutLat      Float? // GPS الانصراف
+  checkOutLng      Float?
+  checkOutAccuracy Float?
+  status           AttendanceStatus @default(CHECKED_IN)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([date])
+  @@map("attendances")
+}
+
+// ======================= المهام (اليومية والأسبوعية) =======================
+
+enum TaskType {
+  DAILY
+  WEEKLY
+}
+
+enum TaskCategory {
+  NEW_CLIENT // عرض منتجات الشركة
+  EXISTING_CLIENT // تحصيل الأموال / التوقيع على Delivery Doc
+  DAILY_REPORT // كتابة التقرير اليومي
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+model Task {
+  id          String       @id @default(cuid())
+  userId      String
+  type        TaskType
+  category    TaskCategory
+  title       String
+  description String?
+  status      TaskStatus   @default(PENDING)
+  dueDate     DateTime     @db.Date
+  dueTime     DateTime? // وقت الاستحقاق في ذلك اليوم (اختياري)
+  completedAt DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attachments TaskAttachment[]
+
+  @@index([userId, status])
+  @@index([userId, dueDate])
+  @@map("tasks")
+}
+
+// صور/مرفقات المهام (يستخدمها المندوب لتوثيق التنفيذ)
+model TaskAttachment {
+  id        String   @id @default(cuid())
+  taskId    String
+  filePath  String
+  size      Int?
+  createdAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@map("task_attachments")
+}
+
+// ======================= GPS والتتبع =======================
+
+enum LocationAction {
+  LOGIN
+  LOGOUT
+  TASK_CREATE
+  TASK_UPDATE
+  TASK_COMPLETE
+  VISIT_CREATE
+  ATTACHMENT_UPLOAD
+  REPORT_SUBMIT
+  GENERIC_ACTION
+}
+
+model Location {
+  id         String         @id @default(cuid())
+  userId     String
+  lat        Float
+  lng        Float
+  accuracy   Float?
+  action     LocationAction
+  recordedAt DateTime       @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, recordedAt])
+  @@index([recordedAt])
+  @@map("locations")
+}
+
+// ======================= التقارير =======================
+
+model Report {
+  id          String    @id @default(cuid())
+  userId      String
+  reportDate  DateTime  @db.Date
+  content     String
+  isDraft     Boolean   @default(true)
+  submittedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, reportDate])
+  @@map("reports")
+}
+
+// التقرير اليومي التلقائي الذي يولّده الـ cron لكل مندوب
+model DailySummary {
+  id              String    @id @default(cuid())
+  userId          String
+  summaryDate     DateTime  @db.Date
+  totalVisits     Int       @default(0)
+  totalCollected  Decimal?  @db.Decimal(12, 2)
+  tasksCompleted  Int       @default(0)
+  reportSubmitted Boolean   @default(false)
+  data            Json?
+  generatedAt     DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, summaryDate])
+  @@map("daily_summaries")
+}
+
+// ======================= سجل النشاط (الـ Activity Feed اللحظي) =======================
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  payload   Json?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+// ======================= طلبات التسعير (RFQ) =======================
+
+enum RequiredWork {
+  COMPLETE_MANUFACTURING
+  MANUFACTURING
+  RE_COVERING
+  RE_GRINDING
+  REPAIR
+  NORMAL
+  OTHERS
+}
+
+enum RequiredTime {
+  TOP_URGENT
+  URGENT
+  NORMAL
+  OTHERS
+}
+
+enum PaymentTerms {
+  CASH
+  CREDIT
+}
+
+enum RfqPricingStatus {
+  UNPRICED
+  PRICED
+  APPROVED
+}
+
+model Rfq {
+  id                String       @id @default(cuid())
+  serialNumber      String       @unique // الرقم التسلسلي: RFQ-0001
+  userId            String // حساب المندوب المقدِّم للطلب
+  clientName        String // اسم العميل / الشركة
+  contactName       String       @default("") // اسم المسؤول (Contact Person)
+  contactPhone      String       @default("") // رقم هاتف المسؤول
+  items             Json // قائمة العناصر الديناميكية
+  requiredTime      RequiredTime // الوقت المطلوب
+  requiredTimeOther String? // توضيح "أخرى" للوقت المطلوب
+  workOrderDate     DateTime     @db.Date // تاريخ أمر العمل
+  paymentTerms      PaymentTerms
+  imageUrl          String? // مرفق صورة قديم (للتوافق)
+  imageUrls         Json?   // مصفوفة صور المرفق
+  price             Decimal?   @db.Decimal(15, 2) // سعر التسعير من المدير
+  currency          String     @default("SAR") // عملة السعر
+  pricingNotes      String? // ملاحظات التسعير
+  pricedAt          DateTime? // وقت آخر تسعير
+  pricingStatus     RfqPricingStatus @default(UNPRICED) // حالة التسعير
+  approvedAt        DateTime? // وقت اعتماد عرض السعر
+  approvedBy        String? // اسم المدير الذي اعتمد العرض
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  documents RfqDocument[]
+  comments RfqComment[]
+
+  @@index([userId, createdAt])
+  @@index([pricingStatus])
+  @@map("rfqs")
+}
+
+// ملاحظات/تعليقات المدراء على طلبات التسعير (تُعرض للمندوب لحظة بلحظة)
+model RfqComment {
+  id        String   @id @default(cuid())
+  rfqId     String
+  authorId  String
+  text      String // نص الملاحظة مع تحديثها في نفس الحقل عند التعديل
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rfq    Rfq  @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([rfqId, createdAt])
+  @@map("rfq_comments")
+}
+
+// ملفات مرفقة بطلب التسعير (عروض أسعار PDF/مستندات فنية)
+model RfqDocument {
+  id         String   @id @default(cuid())
+  rfqId      String
+  filePath   String // اسم الملف المخزن على القرص
+  fileName   String // الاسم الأصلي للملف
+  mimeType   String
+  size       Int?
+  uploadedBy String?
+  createdAt  DateTime @default(now())
+
+  rfq Rfq @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+
+  @@index([rfqId])
+  @@map("rfq_documents")
+}
+
+// ======================= الخطط الأسبوعية (Weekly Plans) =======================
+
+enum WeeklyPlanStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+}
+
+enum PlanDayName {
+  SUNDAY
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+}
+
+enum CompanyCategory {
+  PLASTICS
+  PRINTING
+  PACKAGING
+  WOOD
+  METAL
+  PAPER
+  TISSUES
+  TEXTILES
+  FOOD_INDUSTRY
+  OTHERS
+}
+
+model WeeklyPlan {
+  id           String           @id @default(cuid())
+  userId       String // المندوب صاحب الخطة
+  year         Int // سنة الخطة
+  weekNumber   Int // رقم الأسبوع (ISO)
+  serialNumber String // الرقم التسلسلي الظاهر: YYYY-Www
+  startDate    DateTime         @db.Date // الأحد
+  endDate      DateTime         @db.Date // الخميس
+  status       WeeklyPlanStatus @default(DRAFT)
+  submittedAt  DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  user User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  days PlanDay[]
+
+  @@index([userId, startDate])
+  @@index([status])
+  @@map("weekly_plans")
+}
+
+model PlanDay {
+  id      String      @id @default(cuid())
+  planId  String
+  dayName PlanDayName // الأيام الخمسة الثابتة: الأحد → الخميس
+
+  plan   WeeklyPlan  @relation(fields: [planId], references: [id], onDelete: Cascade)
+  visits PlanVisit[]
+
+  @@unique([planId, dayName])
+  @@map("plan_days")
+}
+
+model PlanVisit {
+  id              String          @id @default(cuid())
+  planDayId       String
+  companyName     String // اسم الشركة / العميل (إجباري)
+  contactPerson   String          @default("") // اسم المسؤول
+  phone           String          @default("") // هاتف التواصل
+  address         String          @default("") // العنوان
+  purpose         String          @default("") // الغرض من الزيارة (نص حر)
+  companyCategory CompanyCategory // فئة الشركة
+  categoryOther   String          @default("") // توضيح "أخرى" للفئة
+  notes           String          @default("") // الملاحظات
+  imageUrl        String? // اسم الملف المخزن لصورة الزيارة
+  createdAt       DateTime        @default(now())
+
+  day       PlanDay               @relation(fields: [planDayId], references: [id], onDelete: Cascade)
+  documents PlanVisitDocument[]
+
+  @@index([planDayId])
+  @@map("plan_visits")
+}
+
+// ملفات مرفقة بزيارة ضمن الخطة الأسبوعية (مستندات/عروض PDF)
+model PlanVisitDocument {
+  id           String   @id @default(cuid())
+  planVisitId  String
+  filePath     String // اسم الملف المخزن على القرص
+  fileName     String // الاسم الأصلي للملف
+  mimeType     String
+  size         Int?
+  uploadedBy   String?
+  createdAt    DateTime @default(now())
+
+  visit PlanVisit @relation(fields: [planVisitId], references: [id], onDelete: Cascade)
+
+  @@index([planVisitId])
+  @@map("plan_visit_documents")
+}
+
+// ======================= المحادثات والرسائل (1-1 بين مندوب ومدير) =======================
+
+model Conversation {
+  id           String                     @id @default(cuid())
+  createdAt    DateTime                   @default(now())
+  updatedAt    DateTime                   @updatedAt
+
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@index([updatedAt])
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id             String       @id @default(cuid())
+  conversationId String
+  userId         String
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id             String    @id @default(cuid())
+  conversationId String
+  senderId       String
+  content        String
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("messages")
 }
 
 // ======================= طابور المزامنة (Offline-First) =======================
@@ -232,4 +724,50 @@ model SyncQueue {
 
   @@index([deviceId, status])
   @@map("sync_queue")
+}
+
+// ======================= أسعار خام المواد (Roll Materials) =======================
+
+model RollMaterial {
+  id                  String   @id @default(cuid())
+  name                String   @unique
+  density             Float    // الكثافة (kg/m³)
+  materialCostPerKg   Float    // سعر الكيلو (SAR)
+  baseWorkmanshipCost Float    // المصنعية الأساسية (SAR)
+  isActive            Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  rolls Roll[]
+
+  @@map("roll_materials")
+}
+
+// ======================= أسعار الرولات (Per-Roll Pricing) =======================
+
+model Roll {
+  id                String   @id @default(cuid())
+  materialId        String
+  name              String?  // وصف / اسم الرول
+  outerDiameter     Float    // القطر الخارجي D (ملم)
+  innerDiameter     Float    // القطر الداخلي d (ملم)
+  length            Float    // الطول L (ملم)
+  // لقطة أسعار لحظة التسعير (حتى لا تتأثر أسعار الرولات المسجلة عند تعديل الخامة)
+  density           Float
+  materialCostPerKg Float
+  workmanshipCost   Float    // التكلفة الفعلية للمصنعية
+  volumeM3          Float
+  weightKg          Float
+  materialCost      Float
+  total             Float    // السعر النهائي للرول
+  currency          String   @default("SAR")
+  notes             String?
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  material RollMaterial @relation(fields: [materialId], references: [id], onDelete: Restrict)
+
+  @@index([materialId])
+  @@map("rolls")
 }

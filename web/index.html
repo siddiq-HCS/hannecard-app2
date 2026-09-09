@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>لوحة إدارة المبيعات</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+      @media print {
+        nav, .leaflet-container, button, select { display: none !important; }
+        table { border: none !important; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      (function () {
+        // حارس عام ضد الشاشة السوداء: أي خطأ JS غير مقتنص، أو بقاء جذر التطبيق فارغاً
+        // بعد مهلة، يعرض شاشة خطأ واضحة مع أزرار (إعادة المحاولة / إعادة الدخول).
+        var POPUP_AFTER = 300;
+        var WATCHDOG_AFTER = 10000;
+        var checkedVersion = 0;
+        var boxShown = false;
+
+        function rootEmpty() {
+          var root = document.getElementById('root');
+          return !root || root.childElementCount === 0;
+        }
+
+        function style() {
+          var s = document.createElement('style');
+          s.id = 'fatalScreenStyle';
+          s.textContent = '#fatalScreen{position:fixed;inset:0;background:#020617;color:#e2e8f0;font-family:Tahoma,Arial,sans-serif;display:flex;align-items:center;justify-content:center;z-index:99999;direction:rtl;text-align:center}#fatalScreen .box{max-width:420px;width:100%;padding:24px}#fatalScreen h1{font-size:20px;margin:0 0 10px;color:#f8fafc}#fatalScreen p{font-size:14px;color:#94a3b8;margin:0 0 20px;line-height:1.8}#fatalScreen button{display:inline-block;margin:4px;padding:10px 18px;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:600}#fatalScreen .primary{background:#2563eb;color:#fff}#fatalScreen .ghost{background:transparent;border:1px solid #94a3b8;color:#e2e8f0}';
+          (document.head || document.documentElement).appendChild(s);
+        }
+
+        function showFatal() {
+          if (boxShown) return;
+          boxShown = true;
+          style();
+          var el = document.createElement('div');
+          el.id = 'fatalScreen';
+          el.innerHTML = '<div class="box"><h1>تعذّر عرض الصفحة</h1><p>حدث خطأ غير متوقع أثناء تحميل اللوحة الإدارية.<br/>جرّب إعادة المحاولة، أو سجّل الدخول من جديد.</p><button class="primary" type="button" onclick="location.reload()">إعادة المحاولة</button><button class="ghost" type="button" onclick="localStorage.clear();location.replace(\'/\')">تسجيل الدخول من جديد</button></div>';
+          document.body.appendChild(el);
+        }
+
+        function checkAndShow(version, after) {
+          if (boxShown) return;
+          if (version !== checkedVersion) return;
+          setTimeout(function () {
+            if (version !== checkedVersion) return;
+            if (rootEmpty()) showFatal();
+          }, after);
+        }
+
+        // خطأ استثناء JavaScript
+        window.addEventListener('error', function (e) {
+          if (!e.error) return; // أخطاء الموارد (404...) يُلتقطها حارس المهلة تلقائياً
+          var v = ++checkedVersion;
+          checkAndShow(v, POPUP_AFTER);
+        });
+
+        // وعد مرفوض بدون معالجة
+        window.addEventListener('unhandledrejection', function () {
+          var v = ++checkedVersion;
+          checkAndShow(v, 1000);
+        });
+
+        // إذا لم يظهر أي محتوى بعد المهلة (فشل تحميل الحزمة كلياً مثلاً) → شاشة خطأ
+        setTimeout(function () {
+          var v = ++checkedVersion;
+          checkAndShow(v, 0);
+        }, WATCHDOG_AFTER);
+      })();
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

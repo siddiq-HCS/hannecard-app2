@@ -1,0 +1,120 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: #0f172a;
+  color: #e2e8f0;
+  min-height: 100vh;
+}
+
+/* ── Dark Glass Theme Globals ── */
+table {
+  background: rgba(30, 41, 59, 0.5);
+  color: #e2e8f0;
+}
+thead tr {
+  background: rgba(15, 23, 42, 0.8);
+}
+th {
+  color: #f8fafc;
+}
+td {
+  color: #e2e8f0;
+  border-color: rgba(148, 163, 184, 0.1);
+}
+
+input, select, textarea {
+  background: rgba(15, 23, 42, 0.7) !important;
+  color: #e2e8f0 !important;
+  border: 1px solid rgba(148, 163, 184, 0.2) !important;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15) !important;
+}
+input::placeholder, textarea::placeholder {
+  color: #64748b !important;
+}
+select option {
+  background: #1e293b;
+  color: #e2e8f0;
+}
+
+/* ── Glassmorphism utility ── */
+.glass {
+  background: rgba(30, 41, 59, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.glass-card {
+  background: rgba(30, 41, 59, 0.4);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(148, 163, 184, 0.08);
+  border-radius: 1rem;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+}
+
+.glass-card:hover {
+  border-color: rgba(245, 158, 11, 0.2);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), 0 0 40px rgba(245, 158, 11, 0.05);
+}
+
+/* ── Gradient buttons ── */
+.btn-gradient {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #fff;
+  border: none;
+  border-radius: 0.75rem;
+  padding: 0.625rem 1.25rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-gradient:hover {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+  transform: translateY(-1px);
+}
+
+/* ── Dark glass inputs ── */
+.input-glass {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 0.75rem;
+  padding: 0.625rem 1rem;
+  color: #e2e8f0;
+  outline: none;
+  transition: all 0.2s;
+}
+.input-glass:focus {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+}
+.input-glass::placeholder {
+  color: #64748b;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+
+/* ── Print ── */
+@media print {
+  nav, .leaflet-container, button, select { display: none !important; }
+  table { border: none !important; background: #fff !important; color: #000 !important; }
+  body { background: #fff; color: #000; }
+  td, th { color: #000 !important; border-color: #ddd !important; }
+}

@@ -16,6 +16,9 @@ export const config = {
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean),
+  dailyReportHour: int('DAILY_REPORT_HOUR', 17),
+  dailyReportTz: process.env.DAILY_REPORT_TZ ?? 'Asia/Riyadh',
+  expoPushUrl: 'https://exp.host/--/api/v2/push/send',
   hanycard: {
     cr: process.env.HANYCARD_CR ?? '',
     vat: process.env.HANYCARD_VAT ?? '',
