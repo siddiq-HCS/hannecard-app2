@@ -47,13 +47,13 @@ export function Chat() {
   const loadConversations = useCallback(async () => {
     if (!token) return;
     const res = await api.get('/conversations', authHeaders(token));
-    setConversations(res.data);
+    setConversations(Array.isArray(res.data) ? res.data : []);
   }, [token]);
 
   useEffect(() => {
     void loadConversations();
     if (token) {
-      api.get('/manager/reps', authHeaders(token)).then((r) => setReps(r.data));
+      api.get('/manager/reps', authHeaders(token)).then((r) => setReps(Array.isArray(r.data) ? r.data : []));
     }
   }, [token, loadConversations]);
 
@@ -85,7 +85,7 @@ export function Chat() {
     socket.on('message:new', (payload: { conversationId: string; message: ChatMessage }) => {
       const { conversationId, message } = payload;
       setConversations((prev) => {
-        const target = prev.find((c) => c.id === conversationId);
+        const target = (prev ?? []).find((c) => c.id === conversationId);
         if (!target) {
           void loadConversations();
           return prev;
@@ -117,7 +117,7 @@ export function Chat() {
     if (!token) return;
     setActiveId(convId);
     const res = await api.get(`/conversations/${convId}/messages`, { params: { limit: 200 }, ...authHeaders(token) });
-    setMessages(res.data);
+    setMessages(Array.isArray(res.data) ? res.data : []);
     await api.post(`/conversations/${convId}/read`, {}, authHeaders(token)).catch(() => {});
     setConversations((prev) => prev.map((c) => (c.id === convId ? { ...c, unreadCount: 0 } : c)));
   }
@@ -147,7 +147,7 @@ export function Chat() {
     );
   }
 
-  const activeConv = conversations.find((c) => c.id === activeId);
+  const activeConv = (conversations ?? []).find((c) => c.id === activeId);
 
   return (
     <div>

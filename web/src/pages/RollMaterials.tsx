@@ -221,7 +221,7 @@ export function RollMaterials() {
 
   // معاينة سعر الرول محلياً بنفس معادلة الخادم
   useEffect(() => {
-    const mat = materials.find((m) => m.id === rollMaterialId);
+    const mat = (materials ?? []).find((m) => m.id === rollMaterialId);
     const od = parseFloat(rOD);
     const id = parseFloat(rID);
     const len = parseFloat(rLen);

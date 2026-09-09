@@ -69,7 +69,7 @@ export function Tasks() {
       if (selectedRepId) params.set('repId', selectedRepId);
       if (status) params.set('status', status);
       const res = await api.get(`/tasks?${params.toString()}`, authHeaders(token));
-      setTasks(res.data);
+      setTasks(Array.isArray(res.data) ? res.data : []);
     } finally {
       setLoading(false);
     }
@@ -77,7 +77,7 @@ export function Tasks() {
 
   useEffect(() => {
     if (!token) return;
-    api.get('/manager/reps', authHeaders(token)).then((r) => setReps(r.data));
+    api.get('/manager/reps', authHeaders(token)).then((r) => setReps(Array.isArray(r.data) ? r.data : []));
   }, [token]);
 
   useEffect(() => {
@@ -99,7 +99,7 @@ export function Tasks() {
     }
     await load();
     if (selectedRepId && assignRepId && assignRepId !== selectedRepId) {
-      await api.get('/manager/reps', authHeaders(token)).then((r) => setReps(r.data));
+      await api.get('/manager/reps', authHeaders(token)).then((r) => setReps(Array.isArray(r.data) ? r.data : []));
     }
   }
 
@@ -115,16 +115,16 @@ export function Tasks() {
     if (!window.confirm(`${t('tasks.deleteConfirm')} «${task.title}»؟`)) return;
     await api.delete(`/tasks/${task.id}`, authHeaders(token));
     await load();
-    if (selectedRepId) await api.get('/manager/reps', authHeaders(token)).then((r) => setReps(r.data));
+    if (selectedRepId) await api.get('/manager/reps', authHeaders(token)).then((r) => setReps(Array.isArray(r.data) ? r.data : []));
   }
 
-  const selectedRep = selectedRepId ? reps.find((r) => r.id === selectedRepId) : null;
+  const selectedRep = selectedRepId ? (reps ?? []).find((r) => r.id === selectedRepId) : null;
 
   // تجميع المهام حسب التاريخ (أحدث يوم في الأعلى)
   const groups: { date: string; items: Task[] }[] = [];
-  for (const t of tasks) {
+  for (const t of (tasks ?? [])) {
     const date = String(t.dueDate).slice(0, 10);
-    const g = groups.find((x) => x.date === date);
+    const g = (groups ?? []).find((x) => x.date === date);
     if (g) g.items.push(t);
     else groups.push({ date, items: [t] });
   }

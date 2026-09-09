@@ -29,6 +29,12 @@ const todayLocal = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
+// استجابة /attendance/manage: { date, records } — نضمن دوماً مصفوفة بدل null/undefined لتفادي انهيار .find
+function toRecords(data: unknown): AttendanceRecord[] {
+  const records = (data as { records?: unknown } | null)?.records;
+  return Array.isArray(records) ? (records as AttendanceRecord[]) : [];
+}
+
 export function Attendance() {
   const { token } = useAuth();
   const { t, lang } = useI18n();
@@ -40,7 +46,7 @@ export function Attendance() {
 
   useEffect(() => {
     if (!token) return;
-    api.get('/manager/reps', authHeaders(token)).then((res) => setReps(res.data)).catch(() => undefined);
+    api.get('/manager/reps', authHeaders(token)).then((res) => setReps(Array.isArray(res.data) ? res.data : [])).catch(() => undefined);
   }, [token]);
 
   useEffect(() => {
@@ -49,8 +55,8 @@ export function Attendance() {
     const params = new URLSearchParams({ date });
     if (repId) params.set('repId', repId);
     api
-      .get(`/attendance?${params.toString()}`, authHeaders(token))
-      .then((res) => setRecords((res.data as { records: AttendanceRecord[] }).records))
+      .get(`/attendance/manage?${params.toString()}`, authHeaders(token))
+      .then((res) => setRecords(toRecords(res.data)))
       .catch(() => setRecords([]))
       .finally(() => setLoading(false));
   }, [token, date, repId]);
@@ -61,8 +67,8 @@ export function Attendance() {
       const params = new URLSearchParams({ date });
       if (repId) params.set('repId', repId);
       api
-        .get(`/attendance?${params.toString()}`, authHeaders(token))
-        .then((res) => setRecords((res.data as { records: AttendanceRecord[] }).records))
+        .get(`/attendance/manage?${params.toString()}`, authHeaders(token))
+        .then((res) => setRecords(toRecords(res.data)))
         .catch(() => {});
     }, 5_000);
     return () => clearInterval(id);
@@ -99,8 +105,8 @@ export function Attendance() {
     );
   };
 
-  const rows = reps.map((rep) => {
-    const record = records.find((r) => r.userId === rep.id);
+  const rows = (reps ?? []).map((rep) => {
+    const record = (records ?? []).find((r) => r.userId === rep.id);
     return { rep, record };
   });
 
@@ -129,8 +135,8 @@ export function Attendance() {
             const params = new URLSearchParams({ date });
             if (repId) params.set('repId', repId);
             api
-              .get(`/attendance?${params.toString()}`, authHeaders(token))
-              .then((res) => setRecords((res.data as { records: AttendanceRecord[] }).records))
+              .get(`/attendance/manage?${params.toString()}`, authHeaders(token))
+              .then((res) => setRecords(toRecords(res.data)))
               .catch(() => setRecords([]))
               .finally(() => setLoading(false));
           }}

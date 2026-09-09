@@ -11,16 +11,15 @@ interface State {
   message: string;
 }
 
-// أخطاء ترتبط بالجلسة/التخزين المؤقت التالف — نتعامل معها تلقائياً بالمسح والتوجيه لصفحة الدخول
+// أخطاء ترتبط فعلياً بالجلسة/التخزين المؤقت التالف — نتعامل معها تلقائياً بالمسح والتوجيه لصفحة الدخول.
+// ملاحظة: أخطاء العارض العامة (مثل "Cannot read properties of undefined") ليست أسباباً لمسح الجلسة
+// لأنها غالباً أخطاء واجهة مؤقتة/بيانات ناقصة، ومسح التوكن عندها يسبّب خروجاً إجبارياً غير مبرر.
 const SESSION_ERROR_PATTERNS = [
   /storage/i,
   /localStorage/i,
+  /sessionStorage/i,
   /quota/i,
   /token/i,
-  /user\./i,
-  /cannot read propert/i,
-  /cannot read properties of undefined/i,
-  /cannot read properties of null/i,
   /json\.parse/i,
   /unexpected token/i,
   /invalid_login_response/i,

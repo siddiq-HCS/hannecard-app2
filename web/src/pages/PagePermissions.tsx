@@ -64,7 +64,7 @@ export function PagePermissions() {
     setSaving((p) => ({ ...p, [m.id]: true }));
     try {
       for (const p of PAGE_PERMISSIONS) {
-        if (!m.permissions.includes(p)) {
+        if (!(m.permissions ?? []).includes(p)) {
           await api.post(`/manager/managers/${m.id}/permissions`, { permission: p }, authHeaders(token));
         }
       }
@@ -81,7 +81,7 @@ export function PagePermissions() {
     setSaving((p) => ({ ...p, [m.id]: true }));
     try {
       for (const p of PAGE_PERMISSIONS) {
-        if (m.permissions.includes(p)) {
+        if ((m.permissions ?? []).includes(p)) {
           await api.delete(`/manager/managers/${m.id}/permissions/${p}`, authHeaders(token));
         }
       }
@@ -106,8 +106,9 @@ export function PagePermissions() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {managers.map((m) => {
-          const hasSpecific = m.permissions.length > 0;
-          const limited = m.permissions.length > 0;
+          const perms = (m.permissions ?? []) as string[];
+          const hasSpecific = perms.length > 0;
+          const limited = perms.length > 0;
           return (
             <div key={m.id} style={{ background: 'rgba(30, 41, 59, 0.4)', borderRadius: 10, padding: 16, border: '1px solid rgba(148, 163, 184, 0.08)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
@@ -133,7 +134,7 @@ export function PagePermissions() {
 
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {PAGE_PERMISSIONS.map((p) => {
-                  const has = m.permissions.includes(p);
+                  const has = perms.includes(p);
                   return (
                     <button
                       key={p}

@@ -30,12 +30,14 @@ router.get('/me', authenticate, async (req, res) => {
       where: { userId: req.user.id },
       select: { permission: true },
     });
-    permissions = rows.map((p) => p.permission);
+    permissions = Array.isArray(rows) ? rows.map((p) => p.permission) : [];
   } catch (err) {
     console.error('[me] failed to load permissions, using empty (full-access for managers):', err);
+    permissions = [];
   }
 
-  res.json({ user, permissions });
+  // دوماً مصفوفة فارغة [] عند غياب صلاحيات مخصصة (لا null ولا undefined) حتى لا تنهار الواجهة
+  res.json({ user, permissions: Array.isArray(permissions) ? permissions : [] });
 });
 
 // تسجيل رمز الإشعارات (Expo push token)
