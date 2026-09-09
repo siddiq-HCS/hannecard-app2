@@ -100,6 +100,11 @@ if (mobileDistPath) {
   // index: false → لا نقدّم index.html الخام هنا؛ التوجيه من مسار /app للنسخة المعاد كتابتها
   app.use('/app', express.static(mobileDistPath, { index: false, etag: false, maxAge: 0 }));
 
+  // expo-sqlite على الويب يحمّل wa-sqlite.wasm من مسار مطلق /assets/... وليس نسبي —
+  // نعرض مجلد أصول الجوال أيضاً من الجذر كي يعمل المتجر المحلي بدون 404،
+  // وملفات لوحة الإدارة التي بنفس الثاناس لا تتطابق مع أسماء مجلد الجوال (تميّز بالتجزئة).
+  app.use('/assets', express.static(path.join(mobileDistPath, 'assets'), { etag: false, maxAge: 0 }));
+
   // أي مسار /app بدون امتداد → index.html (SPA fallback) — مستقل عن وجود لوحة الإدارة
   const serveAppIndex = (req: express.Request, res: express.Response): void => {
     if (path.extname(req.path)) {
