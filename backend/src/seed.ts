@@ -6,29 +6,48 @@ import { hashPassword } from './lib/password.js';
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: config.databaseUrl }) });
 
 async function main() {
-  const managerPassword = await hashPassword('manager123');
+  // كلمات مرور تجريبية ثابتة — تُعاد هذه القيم عند كل تشغيل (idempotent)
+  const adminPassword = await hashPassword('admin123');
   const repPassword = await hashPassword('rep123');
 
+  // حساب إداري للوحة الإدارة (Web Panel): دخول بالبريد الإلكتروني + app:"web"
   const manager = await prisma.user.upsert({
     where: { phone: '01100000001' },
-    update: {},
+    update: {
+      name: 'مدير المبيعات (تجريبي)',
+      email: 'manager@hanycard.sa',
+      passwordHash: adminPassword,
+      plainPassword: 'admin123',
+      role: 'SALES_MANAGER',
+      isActive: true,
+    },
     create: {
-      name: 'مدير المبيعات',
+      name: 'مدير المبيعات (تجريبي)',
       phone: '01100000001',
       email: 'manager@hanycard.sa',
-      passwordHash: managerPassword,
+      passwordHash: adminPassword,
+      plainPassword: 'admin123',
       role: 'SALES_MANAGER',
     },
   });
 
+  // حساب مندوب لتطبيق الجوال (Mobile App): دخول برقم الهاتف فقط
   const rep = await prisma.user.upsert({
     where: { phone: '01100000002' },
-    update: {},
+    update: {
+      name: 'مندوب هانيكارد (تجريبي)',
+      email: 'rep@hanycard.sa',
+      passwordHash: repPassword,
+      plainPassword: 'rep123',
+      role: 'REPRESENTATIVE',
+      isActive: true,
+    },
     create: {
-      name: 'مندوب هانيكارد',
+      name: 'مندوب هانيكارد (تجريبي)',
       phone: '01100000002',
       email: 'rep@hanycard.sa',
       passwordHash: repPassword,
+      plainPassword: 'rep123',
       role: 'REPRESENTATIVE',
     },
   });
@@ -71,8 +90,8 @@ async function main() {
   });
 
   console.log('seed done:', {
-    manager: manager.phone,
-    rep: rep.phone,
+    adminWebPanel: { email: manager.email, password: 'admin123', app: 'web', role: manager.role },
+    repMobileApp: { phone: rep.phone, password: 'rep123', role: rep.role },
     client: client.companyName,
     spec: spec.id,
   });
