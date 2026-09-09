@@ -2,7 +2,11 @@ import express from 'express';
 import cors from 'cors';
 import path from 'node:path';
 import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import { authRouter } from './routes/auth.routes.js';
 import { clientsRouter } from './routes/clients.routes.js';
 import { rollersRouter } from './routes/rollers.routes.js';
@@ -31,7 +35,7 @@ app.use(express.json({ limit: '10mb' }));
 // ملفات مرفوعة (صور التلف، QR، PDF) — عامة
 app.use('/uploads', express.static(path.join(process.cwd(), config.uploadDir)));
 
-app.get('/health', (_req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
+app.get('/health', (_req, res) => res.json({ ok: true, ts: new Date().toISOString(), cwd: process.cwd(), webDist: webDistPath ?? null }));
 
 // REST API — تطبيق الجوال الجديد
 app.use('/api/v1/auth', authRouter);
@@ -58,10 +62,15 @@ app.use('/api/v1', documentsRouter);
 // ===== لوحة الإدارة (SPA) =====
 // الملفات مبنية في web/dist (جذر الريبو) ويُقدَّم من نفس الخدمة لتوحيد المنشأ مع Socket.IO.
 const webDistCandidates = [
+  path.resolve(__dirname, '../../web/dist'), // backend/dist -> repo root
   path.resolve(process.cwd(), '../web/dist'),
   path.resolve(process.cwd(), 'web/dist'),
 ];
 const webDistPath = webDistCandidates.find((p) => fs.existsSync(p));
+
+console.log('[app] cwd =', process.cwd());
+console.log('[app] web/dist candidates:', webDistCandidates);
+console.log('[app] selected web/dist =', webDistPath ?? 'none');
 
 if (webDistPath) {
   app.use(express.static(webDistPath, { etag: false, maxAge: 0 }));
