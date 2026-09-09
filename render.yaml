@@ -5,7 +5,7 @@ services:
     name: hanycard-backend
     runtime: node
     rootDir: backend
-    buildCommand: npm ci && npm run build && npm ci --prefix ../web && npm run build --prefix ../web
+    buildCommand: npm ci && npm run build && npm ci --prefix ../web && npm run build --prefix ../web && npm ci --prefix ../mobile && npm run export:web --prefix ../mobile
     startCommand: npm start
     plan: free
     healthCheckPath: /health

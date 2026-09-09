@@ -35,7 +35,9 @@ app.use(express.json({ limit: '10mb' }));
 // ملفات مرفوعة (صور التلف، QR، PDF) — عامة
 app.use('/uploads', express.static(path.join(process.cwd(), config.uploadDir)));
 
-app.get('/health', (_req, res) => res.json({ ok: true, ts: new Date().toISOString(), cwd: process.cwd(), webDist: webDistPath ?? null }));
+app.get('/health', (_req, res) =>
+  res.json({ ok: true, ts: new Date().toISOString(), cwd: process.cwd(), webDist: webDistPath ?? null, mobileDist: mobileDistPath ?? null }),
+);
 
 // REST API — تطبيق الجوال الجديد
 app.use('/api/v1/auth', authRouter);
@@ -68,9 +70,36 @@ const webDistCandidates = [
 ];
 const webDistPath = webDistCandidates.find((p) => fs.existsSync(p));
 
+// ===== تطبيق الجوال (SPA) على مسار /app =====
+// الملفات مبنية عبر `npm run export:web --prefix mobile` (npx expo export --platform web) في mobile/dist
+const mobileDistCandidates = [
+  path.resolve(__dirname, '../../mobile/dist'), // backend/dist -> repo root
+  path.resolve(process.cwd(), '../mobile/dist'),
+  path.resolve(process.cwd(), 'mobile/dist'),
+];
+const mobileDistPath = mobileDistCandidates.find((p) => fs.existsSync(p));
+
+let appIndexHtml: string | null = null;
+
+if (mobileDistPath) {
+  const indexPath = path.join(mobileDistPath, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    // expo export يكتب مسارات أصول مطلقة من جذر النطاق (/assets، /_expo) —
+    // نُعيد كتابتها لتصبح تحت /app حتى يعمل التطبيق من مساره الفرعي.
+    appIndexHtml = fs
+      .readFileSync(indexPath, 'utf8')
+      .replace(/(["'])\/(assets|_expo)\//g, '$1/app/$2/');
+  }
+  // index: false → لا نقدّم index.html الخام هنا؛ التوجيه من catch-all لإعادة المكتوب
+  app.use('/app', express.static(mobileDistPath, { index: false, etag: false, maxAge: 0 }));
+  console.log('[app] serving /app from', mobileDistPath);
+}
+
 console.log('[app] cwd =', process.cwd());
 console.log('[app] web/dist candidates:', webDistCandidates);
 console.log('[app] selected web/dist =', webDistPath ?? 'none');
+console.log('[app] mobile/dist candidates:', mobileDistCandidates);
+console.log('[app] selected mobile/dist =', mobileDistPath ?? 'none');
 
 if (webDistPath) {
   app.use(express.static(webDistPath, { etag: false, maxAge: 0 }));
@@ -80,6 +109,9 @@ if (webDistPath) {
     if (req.path.startsWith('/api') || req.path.startsWith('/health') || req.path.startsWith('/uploads')) return next();
     if (path.extname(req.path)) return res.status(404).send(`Asset ${req.path} not found on server`);
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    // تطبيق الجوال تحت /app
+    if (req.path.startsWith('/app') && appIndexHtml) return res.send(appIndexHtml);
+    // لوحة الإدارة على الجذر
     return res.sendFile(path.join(webDistPath, 'index.html'));
   });
 } else {
