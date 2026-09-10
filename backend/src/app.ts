@@ -23,6 +23,7 @@ import { weeklyPlansRouter } from './routes/weeklyPlans.routes.js';
 import { analyticsRouter } from './routes/analytics.routes.js';
 import { rollMaterialsRouter } from './routes/rollMaterials.routes.js';
 import { reportsRouter } from './routes/reports.routes.js';
+import { permissionsRouter } from './routes/permissions.routes.js';
 import { locationsRouter } from './routes/locations.routes.js';
 import { attachmentsRouter } from './routes/attachments.routes.js';
 import { documentsRouter } from './routes/documents.routes.js';
@@ -77,6 +78,7 @@ app.use('/api/v1/rfqs', rfqsRouter);
 app.use('/api/v1/weekly-plans', weeklyPlansRouter);
 app.use('/api/v1/analytics', analyticsRouter);
 app.use('/api/v1/roll-materials', rollMaterialsRouter);
+app.use('/api/v1/permissions', permissionsRouter);
 app.use('/api/v1/reports', reportsRouter);
 app.use('/api/v1/locations', locationsRouter);
 app.use('/api/v1', attachmentsRouter);
@@ -142,11 +144,28 @@ if (webDistPath) {
 
 // معالج أخطاء موحد
 app.use(
-  (err: Error & { status?: number; code?: string }, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  (
+    err: Error & { status?: number; code?: string; type?: string; statusCode?: number },
+    _req: express.Request,
+    res: express.Response,
+    _next: express.NextFunction,
+  ) => {
+    const status = err.status ?? err.statusCode ?? 500;
+
+    if (err.type === 'entity.parse.failed') {
+      return res.status(400).json({ error: 'invalid_json', message: 'Request body is not valid JSON' });
+    }
+    if (err.type === 'entity.too.large') {
+      return res.status(413).json({ error: 'payload_too_large' });
+    }
+    if (err.type === 'entity.verify.failed') {
+      return res.status(415).json({ error: 'unsupported_media_type' });
+    }
     if (err.message === 'only_images' || err.message === 'unsupported_file_type' || err.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({ error: err.message });
     }
+
     console.error(err);
-    res.status(err.status ?? 500).json({ error: 'internal_error' });
+    res.status(status).json({ error: 'internal_error' });
   },
 );
