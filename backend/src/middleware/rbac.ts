@@ -36,6 +36,17 @@ export function requirePermission(permission: Permission) {
     });
     if (granted) return next();
 
+    // مصفوفة الصلاحيات المحددة للدور (RolePermission):
+    // دور مُهيأ → تُحسم الصفحات من قائمة دوره فقط، ودور غير مُهيأ → السلوك الافتراضي أدناه.
+    const roleRows = await prisma.rolePermission.findMany({
+      where: { role: req.user.role },
+      select: { permission: true },
+    });
+    if (roleRows.length > 0) {
+      if (roleRows.some((r) => r.permission === permission)) return next();
+      return res.status(403).json({ error: 'forbidden' });
+    }
+
     if (MANAGER_ROLES.includes(req.user.role)) {
       // المديرون: إن لم تُحدد لهم أي صلاحيات فلديهم كل الصلاحيات.
       const any = await prisma.userPermission.findFirst({ where: { userId: req.user.id } });

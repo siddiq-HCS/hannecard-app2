@@ -14,6 +14,7 @@ import { Analytics } from './pages/Analytics';
 import { Attendance } from './pages/Attendance';
 import { RollMaterials } from './pages/RollMaterials';
 import { PagePermissions } from './pages/PagePermissions';
+import { Permissions } from './pages/Permissions';
 import { Logo } from './components/Logo';
 import { Home, Map, Users, FileText, BarChart2, MessageSquare, Calendar, ClipboardCheck, Layers, Settings, ShieldCheck } from 'lucide-react';
 
@@ -100,6 +101,9 @@ const devItems = [
   { href: '/page-permissions', label: 'pagePerms.title', icon: ShieldCheck },
 ];
 
+// إدارة صلاحيات الأدوار — لمدير المبيعات (سيديك) والمطوّر
+const ownerItems = [{ href: '/admin/permissions', label: 'nav.permissions', icon: ShieldCheck }];
+
 function Shell({ children }: { children: React.ReactNode }) {
   const { t } = useI18n();
   const { user, logout } = useAuth();
@@ -168,6 +172,26 @@ function Shell({ children }: { children: React.ReactNode }) {
             {/* Developer-only items */}
             {roleEq(user?.role, 'DEVELOPER') &&
               devItems.map(({ href, label, icon: Icon }) => {
+                const active = location.pathname === href;
+                return (
+                  <a
+                    key={href}
+                    href={href}
+                    className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all shrink-0 ${
+                      active
+                        ? 'bg-amber-500/15 text-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.1)]'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                    }`}
+                  >
+                    <Icon size={18} strokeWidth={active ? 2.2 : 1.8} />
+                    <span className="hidden lg:block">{t(label)}</span>
+                  </a>
+                );
+              })}
+
+            {/* إدارة صلاحيات الأدوار: لمدير المبيعات (سيديك) والمطوّر */}
+            {(roleEq(user?.role, 'SALES_MANAGER') || roleEq(user?.role, 'DEVELOPER')) &&
+              ownerItems.map(({ href, label, icon: Icon }) => {
                 const active = location.pathname === href;
                 return (
                   <a
@@ -264,6 +288,7 @@ export function App() {
       <Route path="/attendance" element={isStaff && hasPermission(user, 'PAGE_ATTENDANCE_ACCESS') ? <Shell><Attendance /></Shell> : <Navigate to="/login" replace />} />
       <Route path="/roll-materials" element={isStaff && hasPermission(user, 'PAGE_ROLL_MATERIALS_ACCESS') ? <Shell><RollMaterials /></Shell> : <Navigate to="/login" replace />} />
       <Route path="/page-permissions" element={isStaff && isDev ? <Shell><PagePermissions /></Shell> : <Navigate to="/login" replace />} />
+      <Route path="/admin/permissions" element={isStaff && (roleEq(user?.role, 'SALES_MANAGER') || isDev) ? <Shell><Permissions /></Shell> : <Navigate to="/login" replace />} />
       <Route path="/reports" element={<Navigate to="/weekly-plans" />} />
       {/* أي مسار مجهول → أول صفحة مسموحة للحساب إن كانت جلسة سارية، وإلا صفحة الدخول */}
       <Route path="*" element={<Navigate to={isStaff ? firstAllowedHref(user) : '/login'} replace />} />

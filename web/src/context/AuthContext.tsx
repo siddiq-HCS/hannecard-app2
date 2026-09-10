@@ -17,6 +17,7 @@ interface AuthState {
   ready: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  refresh: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthState>(null as unknown as AuthState);
@@ -69,51 +70,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   });
 
-  // Fetch latest user + permissions on mount if token exists
-  useEffect(() => {
+  // Fetch latest user + permissions (reusable: mount + manual refresh after permission changes)
+  const refreshMe = useCallback(async () => {
     if (!token) return;
     setReady(false);
-    api
-      .get('/me', authHeaders(token))
-      .then((res) => {
-        const data = res.data as { user?: User | null; permissions?: unknown };
-        // استجابة غير متوقعة (حساب محذوف/تالف) → تنظيف الجلسة بأمان وبدون انهيار
-        const me = data?.user;
-        if (!me || typeof me !== 'object' || typeof me.role !== 'string') {
+    try {
+      const res = await api.get('/me', authHeaders(token));
+      const data = res.data as { user?: User | null; permissions?: unknown };
+      // استجابة غير متوقعة (حساب محذوف/تالف) → تنظيف الجلسة بأمان وبدون انهيار
+      const me = data?.user;
+      if (!me || typeof me !== 'object' || typeof me.role !== 'string') {
+        storageClear();
+        setToken(null);
+        setUser(null);
+        setReady(true);
+        return;
+      }
+      setUser(me as User);
+      // الصلاحيات: القيم الفارغة/التالفة تُعامل كقائمة فارغة بدلاً من انهيار العرض
+      const perms = Array.isArray((res.data as { permissions?: unknown }).permissions)
+        ? (res.data as { permissions: string[] }).permissions
+        : [];
+      const merged = { ...me, permissions: perms };
+      setUser(merged);
+      try {
+        storageSet('user', JSON.stringify(merged));
+      } catch {
+        /* ignore */
+      }
+      setReady(true);
+    } catch (err) {
+      // الجلسة غير صالحة عند السيرفر (401/403/منتهية) → تنظيف فوري والتوجيه لـ /login؛
+      // أخطاء الشبكة المؤقتة تُبقي الجلسة ولا تُسجّل المستخدم خارجاً
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (typeof status === 'number' && status >= 400 && status < 500) {
+        if (storageGet('token')) {
           storageClear();
           setToken(null);
           setUser(null);
-          setReady(true);
-          return;
         }
-        setUser(me as User);
-        // الصلاحيات: القيم الفارغة/التالفة تُعامل كقائمة فارغة بدلاً من انهيار العرض
-        const perms = Array.isArray((res.data as { permissions?: unknown }).permissions)
-          ? (res.data as { permissions: string[] }).permissions
-          : [];
-        const merged = { ...me, permissions: perms };
-        setUser(merged);
-        try {
-          storageSet('user', JSON.stringify(merged));
-        } catch {
-          /* ignore */
-        }
-        setReady(true);
-      })
-      .catch((err) => {
-        // الجلسة غير صالحة عند السيرفر (401/403/منتهية) → تنظيف فوري والتوجيه لـ /login؛
-        // أخطاء الشبكة المؤقتة تُبقي الجلسة ولا تُسجّل المستخدم خارجاً
-        const status = (err as { response?: { status?: number } })?.response?.status;
-        if (typeof status === 'number' && status >= 400 && status < 500) {
-          if (storageGet('token')) {
-            storageClear();
-            setToken(null);
-            setUser(null);
-          }
-        }
-        setReady(true);
-      });
+      }
+      setReady(true);
+    }
   }, [token]);
+
+  useEffect(() => {
+    void refreshMe();
+  }, [refreshMe]);
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await api.post('/auth/login', { email, password, app: 'web' });
@@ -145,7 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setReady(true);
   }, []);
 
-  return <AuthContext.Provider value={{ token, user, ready, login, logout }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ token, user, ready, login, logout, refresh: refreshMe }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

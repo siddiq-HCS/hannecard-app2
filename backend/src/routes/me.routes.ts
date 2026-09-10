@@ -36,6 +36,23 @@ router.get('/me', authenticate, async (req, res) => {
     permissions = [];
   }
 
+  // دمج الصلاحيات المحددة للدور (RolePermission) — تتحكم بظهور/إخفاء صفحات اللوحة:
+  // دور مُهيأ يقيّد حساباته بالصلاحيات المحفوظة (+ ما لديه من صلاحيات شخصية)،
+  // ودور غير مُهيأ يبقى على السلوك الحالي (مدير بلا صلاحيات = كامل الصلاحيات).
+  try {
+    const roleRows = await prisma.rolePermission.findMany({
+      where: { role: user.role },
+      select: { permission: true },
+    });
+    if (roleRows.length > 0) {
+      const effective = new Set<string>(permissions);
+      for (const row of roleRows) effective.add(row.permission);
+      permissions = [...effective];
+    }
+  } catch (err) {
+    console.error('[me] failed to load role permissions:', err);
+  }
+
   // دوماً مصفوفة فارغة [] عند غياب صلاحيات مخصصة (لا null ولا undefined) حتى لا تنهار الواجهة
   res.json({ user, permissions: Array.isArray(permissions) ? permissions : [] });
 });
