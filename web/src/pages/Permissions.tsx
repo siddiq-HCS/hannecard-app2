@@ -52,27 +52,42 @@ export function Permissions() {
   const [roleList, setRoles] = useState<string[]>([]);
   const [pagesMap, setPagesMap] = useState<Record<string, PageDef>>({});
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [errMsg, setErrMsg] = useState('');
   const [okMsg, setOkMsg] = useState('');
 
   const load = useCallback(async () => {
     if (!token) return;
     setErrMsg('');
+    setLoading(true);
 
-    const res = await api.get<{ pages: PageDef[]; roles: string[]; rolePermissions: Record<string, string[]> }>(
-      '/permissions',
-      authHeaders(token),
-    );
-    setPagesMap(
-      res.data.pages.reduce((acc, p) => {
-        acc[p.permission] = p;
-        return acc;
-      }, {} as Record<string, PageDef>),
-    );
-    setRoles(res.data.roles);
-    setDraft(res.data.rolePermissions);
-    setExisting(res.data.rolePermissions);
-  }, [token]);
+    try {
+      const res = await api.get<{ pages?: PageDef[]; roles?: string[]; rolePermissions?: Record<string, string[]> }>(
+        '/permissions',
+        authHeaders(token),
+      );
+      const pages = Array.isArray(res.data?.pages) ? res.data.pages : [];
+      const roles = Array.isArray(res.data?.roles) ? res.data.roles : [];
+      const rolePermissions =
+        res.data?.rolePermissions && typeof res.data.rolePermissions === 'object' && !Array.isArray(res.data.rolePermissions)
+          ? res.data.rolePermissions
+          : {};
+      setPagesMap(
+        pages.reduce((acc, p) => {
+          if (p && typeof p.permission === 'string') acc[p.permission] = p;
+          return acc;
+        }, {} as Record<string, PageDef>),
+      );
+      setRoles(roles);
+      setDraft(rolePermissions);
+      setExisting(rolePermissions);
+      if (pages.length === 0) setErrMsg(t('permsPage.noData'));
+    } catch {
+      setErrMsg(t('permsPage.loadError'));
+    } finally {
+      setLoading(false);
+    }
+  }, [token, t]);
 
   useEffect(() => {
     void load();
@@ -130,7 +145,7 @@ export function Permissions() {
                   <th className="py-3 px-4 text-right font-semibold text-secondary whitespace-nowrap">
                     {t('permsPage.page')}
                   </th>
-                  {roleList.map((role) => {
+                  {(roleList ?? []).map((role) => {
                     const st = status(role);
                     return (
                       <th key={role} className="py-3 px-4 text-center font-semibold text-secondary whitespace-nowrap">
@@ -152,7 +167,7 @@ export function Permissions() {
                 {Object.values(pagesMap).map((page) => (
                   <tr key={page.permission} className="border-b border-[#f8fafc0d] hover:bg-[#ffffff05]">
                     <td className="py-2.5 px-4 text-secondary">{t(page.labelKey)}</td>
-                    {roleList.map((role) => {
+                    {(roleList ?? []).map((role) => {
                       const disabled = role.toUpperCase() === 'DEVELOPER';
                       return (
                         <td key={role} className="py-2.5 px-4 text-center">
@@ -176,11 +191,11 @@ export function Permissions() {
             <button
               type="button"
               onClick={() => void saveAll()}
-              disabled={busy || !changed}
-              className={['btn-grad inline-flex items-center gap-2', !changed || busy ? 'opacity-50 cursor-not-allowed' : ''].join(' ')}
+              disabled={busy || loading || !changed}
+              className={['btn-grad inline-flex items-center gap-2', busy || loading || !changed ? 'opacity-50 cursor-not-allowed' : ''].join(' ')}
             >
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              {busy ? t('permsPage.saving') : t('permsPage.save')}
+              {busy || loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {busy ? t('permsPage.saving') : loading ? t('permsPage.loading') : t('permsPage.save')}
             </button>
             {errMsg && <span className="text-rose-400 text-sm">{errMsg}</span>}
             {okMsg && (

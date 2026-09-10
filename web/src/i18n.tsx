@@ -219,8 +219,11 @@ const ar = {
     developerAlways: 'المطوّر يملك كامل الصلاحيات دائماً',
     save: 'حفظ',
     saving: 'جارٍ الحفظ...',
+    loading: 'جارٍ تحميل الصلاحيات...',
     saved: 'تم حفظ الصلاحيات وتحديث القائمة فوراً',
     saveError: 'تعذر حفظ الصلاحيات',
+    loadError: 'تعذر تحميل الصلاحيات، يرجى المحاولة لاحقاً',
+    noData: 'لا توجد صفحات لإدارتها بعد',
     roleNames: {
       SALES_MANAGER: 'مدير مبيعات',
       DEPUTY_SALES_MANAGER: 'نائب مدير مبيعات',
@@ -729,8 +732,11 @@ pagePerms: {
     developerAlways: "Developer always has full access",
     save: 'Save',
     saving: 'Saving...',
+    loading: 'Loading permissions...',
     saved: 'Permissions saved and menu updated immediately',
     saveError: 'Failed to save permissions',
+    loadError: 'Failed to load permissions, please try again later',
+    noData: 'No pages to manage yet',
     roleNames: {
       SALES_MANAGER: 'Sales Manager',
       DEPUTY_SALES_MANAGER: 'Deputy Sales Manager',
