@@ -79,6 +79,18 @@ model User {
   @@map("users")
 }
 
+// صلاحيات صفحات اللوحة لكل دور (Role → Pages) — تتحكم بظهور/إخفاء صفحات اللوحة لكل مدير
+model RolePermission {
+  id         String     @id @default(cuid())
+  role       Role
+  permission Permission
+
+  createdAt  DateTime   @default(now())
+
+  @@unique([role, permission])
+  @@map("role_permissions")
+}
+
 // صلاحيات ممنوحة/مسحوبة لكل مندوب من قبل الإدارة
 model UserPermission {
   id         String     @id @default(cuid())
