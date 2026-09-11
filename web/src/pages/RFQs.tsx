@@ -29,6 +29,7 @@ interface Rfq {
   items: RfqItem[];
   requiredTime: string;
   requiredTimeOther?: string | null;
+  rollLocation?: string;
   workOrderDate: string;
   paymentTerms: string;
   imageUrl?: string | null;
@@ -136,6 +137,7 @@ function printRfq(r: Rfq, t: T, lang: Lang) {
     [t('rfq.contactPhone'), r.contactPhone || '—'],
     [t('rfq.priority'), optLabel(t, 'rfqTime', r.requiredTime)],
     ...(r.requiredTime === 'OTHERS' && r.requiredTimeOther ? [[t('rfq.othersDetail'), r.requiredTimeOther] as [string, string]] : []),
+    [t('rfq.rollLocation'), optLabel(t, 'rfqLocation', r.rollLocation ?? 'NOT_SPECIFIED')],
     [t('rfq.workOrderDate'), formatDate(r.workOrderDate, lang)],
     [t('rfq.paymentTerms'), optLabel(t, 'rfqPay', r.paymentTerms)],
   ];
@@ -216,6 +218,20 @@ function pricingChip(pricingStatus: string | undefined, t: T) {
   );
 }
 
+function locationChip(value: string | undefined, t: T) {
+  const colors =
+    value === 'AT_FACTORY'
+      ? { background: 'rgba(37, 99, 235, 0.12)', color: '#2563eb' }
+      : value === 'AT_CUSTOMER'
+        ? { background: 'rgba(124, 58, 237, 0.12)', color: '#7c3aed' }
+        : { background: 'rgba(148, 163, 184, 0.12)', color: '#64748b' };
+  return (
+    <span style={{ ...colors, padding: '2px 10px', borderRadius: 999, fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>
+      {optLabel(t, 'rfqLocation', value ?? 'NOT_SPECIFIED')}
+    </span>
+  );
+}
+
 // معاينة صور مرفق RFQ مع التكبير والتنزيل
 function RfqImages({ rfqId, imageUrl, imageUrls, token, t }: { rfqId: string; imageUrl?: string | null; imageUrls?: string[] | null; token: string; t: T }) {
   const [urls, setUrls] = useState<string[]>([]);
@@ -277,7 +293,7 @@ function RfqImages({ rfqId, imageUrl, imageUrls, token, t }: { rfqId: string; im
 }
 
 function downloadRfqs(list: Rfq[], t: T, lang: Lang) {
-  const header = [t('rfq.serial'), t('rfq.clientName'), t('rfq.salesman'), t('rfq.contactName'), t('rfq.contactPhone'), t('rfq.desc'), t('rfq.qty'), t('rfq.finishType'), t('rfq.requiredWork'), t('rfq.workEnv'), t('rfq.requiredTime'), t('rfq.workOrderDate'), t('rfq.paymentTerms'), t('rfq.price'), t('rfq.sentOn')].join(' | ');
+  const header = [t('rfq.serial'), t('rfq.clientName'), t('rfq.salesman'), t('rfq.contactName'), t('rfq.contactPhone'), t('rfq.desc'), t('rfq.qty'), t('rfq.finishType'), t('rfq.requiredWork'), t('rfq.workEnv'), t('rfq.requiredTime'), t('rfq.rollLocation'), t('rfq.workOrderDate'), t('rfq.paymentTerms'), t('rfq.price'), t('rfq.sentOn')].join(' | ');
   const lines: string[] = [];
   for (const r of list) {
     const items = (r.items ?? []).length ? r.items : [{ description: '—', quantity: '—', finishingType: '—', requiredWork: ['—'] as string[], workEnvironment: '—' }];
@@ -297,6 +313,7 @@ function downloadRfqs(list: Rfq[], t: T, lang: Lang) {
           workWithOther(t, it.requiredWork, it.requiredWorkOther),
           envWithOther(t, it.workEnvironment, it.workEnvironmentOther),
           optLabel(t, 'rfqTime', r.requiredTime),
+          optLabel(t, 'rfqLocation', r.rollLocation ?? 'NOT_SPECIFIED'),
           formatDate(r.workOrderDate, lang),
           optLabel(t, 'rfqPay', r.paymentTerms),
           r.pricingStatus === 'APPROVED' || (r.pricingStatus === 'PRICED' && r.price != null && String(r.price) !== '')
@@ -348,6 +365,7 @@ export function RFQs() {
   const [commenting, setCommenting] = useState(false);
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [commentEditText, setCommentEditText] = useState('');
+  const [savingLocation, setSavingLocation] = useState(false);
 
   const [rollMaterials, setRollMaterials] = useState<{ id: string; name: string; density: number; materialCostPerKg: number; baseWorkmanshipCost: number }[]>([]);
   const [calcMaterialId, setCalcMaterialId] = useState('');
@@ -462,6 +480,21 @@ export function RFQs() {
       alert(notPriced ? t('rfq.notPriced') : t('rfq.fail'));
     } finally {
       setApproving(false);
+    }
+  }
+
+  async function setRollLocation(value: string) {
+    if (!token || !detail || savingLocation) return;
+    setSavingLocation(true);
+    try {
+      const res = await api.patch(`/rfqs/${detail.id}/roll-location`, { rollLocation: value }, authHeaders(token));
+      const updated = res.data as Rfq;
+      setRfqs((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+      setDetail(updated);
+    } catch {
+      alert(t('rfq.fail'));
+    } finally {
+      setSavingLocation(false);
     }
   }
 
@@ -677,6 +710,7 @@ export function RFQs() {
             <th style={thStyle}>{t('rfq.workEnv')}</th>
             <th style={thStyle}>{t('rfq.itemsCount')}</th>
             <th style={thStyle}>{t('rfq.totalRolls')}</th>
+            <th style={thStyle}>{t('rfq.rollLocation')}</th>
             <th style={thStyle}>{t('rfq.requiredTime')}</th>
             <th style={thStyle}>{t('rfq.paymentTerms')}</th>
             <th style={thStyle}>{t('rfq.price')}</th>
@@ -692,6 +726,7 @@ export function RFQs() {
               <td style={tdStyle}>{distinctLabels(t, r.items, 'rfqEnv', (i) => i.workEnvironment)}</td>
               <td style={tdStyle}>{r.items?.length ?? 0}</td>
               <td style={tdStyle}><strong>{totalRolls(r.items)}</strong></td>
+              <td style={tdStyle}>{locationChip(r.rollLocation, t)}</td>
               <td style={tdStyle}><span style={timeChip}>{optLabel(t, 'rfqTime', r.requiredTime)}</span></td>
               <td style={tdStyle}>{optLabel(t, 'rfqPay', r.paymentTerms)}</td>
               <td style={tdStyle}>
@@ -738,6 +773,7 @@ export function RFQs() {
               [t('rfq.contactPhone'), detail.contactPhone || '—'],
               [t('rfq.requiredTime'), optLabel(t, 'rfqTime', detail.requiredTime)],
               ...(detail.requiredTime === 'OTHERS' && detail.requiredTimeOther ? [[t('rfq.othersDetail'), detail.requiredTimeOther] as [string, string]] : []),
+              [t('rfq.rollLocation'), optLabel(t, 'rfqLocation', detail.rollLocation ?? 'NOT_SPECIFIED')],
               [t('rfq.workOrderDate'), formatDate(detail.workOrderDate, lang)],
               [t('rfq.paymentTerms'), optLabel(t, 'rfqPay', detail.paymentTerms)],
               [t('rfq.sentOn'), formatDateTime(detail.createdAt, lang)],
@@ -747,6 +783,24 @@ export function RFQs() {
                 <span style={{ fontSize: 15 }}>{v}</span>
               </div>
             ))}
+
+            {isManager && (
+              <div style={{ padding: '10px 0', borderBottom: '1px solid #f3f4f6' }}>
+                <span style={{ color: '#6b7280', fontSize: 13, display: 'block', marginBottom: 6 }}>
+                  {t('rfq.rollLocation')} — {t('rfq.setRollLocation')}
+                </span>
+                <select
+                  value={detail.rollLocation ?? 'NOT_SPECIFIED'}
+                  onChange={(e) => void setRollLocation(e.target.value)}
+                  disabled={savingLocation}
+                  style={{ ...inputStyle, width: '100%', background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(148, 163, 184, 0.2)', color: '#e2e8f0' }}
+                >
+                  <option value="NOT_SPECIFIED">{t('rfqLocation.NOT_SPECIFIED')}</option>
+                  <option value="AT_FACTORY">{t('rfqLocation.AT_FACTORY')}</option>
+                  <option value="AT_CUSTOMER">{t('rfqLocation.AT_CUSTOMER')}</option>
+                </select>
+              </div>
+            )}
 
             <div style={{ padding: '8px 0', borderBottom: '1px solid #f3f4f6' }}>
               <span style={{ color: '#6b7280', fontSize: 13, display: 'block' }}>{t('rfq.price')}</span>

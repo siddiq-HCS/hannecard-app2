@@ -44,6 +44,7 @@ const rfqSchema = z.object({
   items: z.array(itemSchema).min(1).max(50),
   requiredTime: z.enum(['TOP_URGENT', 'URGENT', 'NORMAL', 'OTHERS']),
   requiredTimeOther: z.string().max(300).optional(),
+  rollLocation: z.enum(['AT_FACTORY', 'AT_CUSTOMER', 'NOT_SPECIFIED']).optional(),
   workOrderDate: z.string(), // YYYY-MM-DD
   paymentTerms: z.enum(['CASH', 'CREDIT']),
 });
@@ -234,6 +235,7 @@ router.post(
         })),
         requiredTime: parsed.data.requiredTime,
         requiredTimeOther: parsed.data.requiredTimeOther ?? null,
+        rollLocation: parsed.data.rollLocation,
         workOrderDate: toDate(parsed.data.workOrderDate),
         paymentTerms: parsed.data.paymentTerms,
       },
@@ -321,6 +323,7 @@ router.put(
     }
     if (d.requiredTime != null) updateData.requiredTime = d.requiredTime;
     if (d.requiredTimeOther != null) updateData.requiredTimeOther = d.requiredTimeOther;
+    if (d.rollLocation != null) updateData.rollLocation = d.rollLocation;
     if (d.workOrderDate != null) updateData.workOrderDate = toDate(d.workOrderDate);
     if (d.paymentTerms != null) updateData.paymentTerms = d.paymentTerms;
 
@@ -378,6 +381,32 @@ router.patch(
       include: rfqInclude,
     });
     await logActivity(req.user.id, 'rfq.price', { rfqId: rfq.id, clientName: rfq.clientName, price: updated.price?.toString() ?? null }, req.user.name);
+    res.json(updated);
+  },
+);
+
+// تعيين مكان الرول (المدير فقط): في المصنع أو عند العميل — دون المساس بحالة التسعير
+const rollLocationSchema = z.object({ rollLocation: z.enum(['AT_FACTORY', 'AT_CUSTOMER', 'NOT_SPECIFIED']) });
+
+router.patch(
+  '/:id/roll-location',
+  authenticate,
+  requireRole('SALES_MANAGER', 'DEPUTY_SALES_MANAGER'),
+  async (req, res) => {
+    const parsed = rollLocationSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: 'invalid_input', details: parsed.error.flatten() });
+
+    const rfq = await prisma.rfq.findFirst({ where: { id: String(req.params.id) } });
+    if (!rfq) return res.status(404).json({ error: 'not_found' });
+
+    const updated = await prisma.rfq.update({
+      where: { id: rfq.id },
+      data: { rollLocation: parsed.data.rollLocation },
+      include: rfqInclude,
+    });
+    await logActivity(req.user.id, 'rfq.roll-location', { rfqId: rfq.id, clientName: rfq.clientName, rollLocation: updated.rollLocation }, req.user.name);
+    // بث فوري للمندوب صاحب الطلب حتى تظهر مكان الرول في واجهته لحظياً
+    emitRfqUpdated(rfq.userId, updated);
     res.json(updated);
   },
 );

@@ -496,6 +496,12 @@ enum RfqPricingStatus {
   APPROVED
 }
 
+enum RollLocation {
+  AT_FACTORY // في المصنع
+  AT_CUSTOMER // عند العميل
+  NOT_SPECIFIED // غير محدد (افتراضي)
+}
+
 model Rfq {
   id                String       @id @default(cuid())
   serialNumber      String       @unique // الرقم التسلسلي: RFQ-0001
@@ -506,6 +512,7 @@ model Rfq {
   items             Json // قائمة العناصر الديناميكية
   requiredTime      RequiredTime // الوقت المطلوب
   requiredTimeOther String? // توضيح "أخرى" للوقت المطلوب
+  rollLocation      RollLocation @default(NOT_SPECIFIED) // مكان الرول: في المصنع أو عند العميل
   workOrderDate     DateTime     @db.Date // تاريخ أمر العمل
   paymentTerms      PaymentTerms
   imageUrl          String? // مرفق صورة قديم (للتوافق)
