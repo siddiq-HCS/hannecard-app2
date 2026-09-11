@@ -98,24 +98,24 @@ function itemsTable(t: T, items: RfqItem[]) {
       const finish = optLabel(t, 'rfqFinish', it.finishingType);
       const finishOther = it.finishingType === 'OTHERS' && it.finishingTypeOther ? ` (${it.finishingTypeOther})` : '';
       return `<tr>
-          <td style="padding:8px;border:1px solid #ddd;text-align:center;background:#f9fafb;width:36px;">${i + 1}</td>
-          <td style="padding:8px;border:1px solid #ddd;">${it.description || '—'}</td>
-          <td style="padding:8px;border:1px solid #ddd;">${it.quantity || '—'}</td>
-          <td style="padding:8px;border:1px solid #ddd;">${finish}${finishOther}</td>
-          <td style="padding:8px;border:1px solid #ddd;">${workWithOther(t, it.requiredWork, it.requiredWorkOther)}</td>
-          <td style="padding:8px;border:1px solid #ddd;">${envWithOther(t, it.workEnvironment, it.workEnvironmentOther)}</td>
+          <td style="padding:5px 8px;border:1px solid #d3dae3;text-align:center;background:#f9fafb;width:34px;">${i + 1}</td>
+          <td style="padding:5px 8px;border:1px solid #d3dae3;">${it.description || '—'}</td>
+          <td style="padding:5px 8px;border:1px solid #d3dae3;text-align:center;">${it.quantity || '—'}</td>
+          <td style="padding:5px 8px;border:1px solid #d3dae3;">${finish}${finishOther}</td>
+          <td style="padding:5px 8px;border:1px solid #d3dae3;">${workWithOther(t, it.requiredWork, it.requiredWorkOther)}</td>
+          <td style="padding:5px 8px;border:1px solid #d3dae3;">${envWithOther(t, it.workEnvironment, it.workEnvironmentOther)}</td>
         </tr>`;
     })
     .join('');
-  return `<table style="border-collapse:collapse;width:100%;font-size:14px;margin-top:8px;">
+  return `<table style="border-collapse:collapse;width:100%;font-size:12.5px;margin-top:6px;">
     <thead><tr style="background:#1e293b;color:#fff;">
-      <th style="padding:8px;border:1px solid #1e293b;width:36px;">#</th>
-      <th style="padding:8px;border:1px solid #1e293b;">${t('rfq.desc')}</th>
-      <th style="padding:8px;border:1px solid #1e293b;">${t('rfq.qty')}</th>
-      <th style="padding:8px;border:1px solid #1e293b;">${t('rfq.finishType')}</th>
-      <th style="padding:8px;border:1px solid #1e293b;">${t('rfq.requiredWork')}</th>
-      <th style="padding:8px;border:1px solid #1e293b;">${t('rfq.workEnv')}</th>
-    </tr></thead><tbody>${rows || `<tr><td colspan="6" style="padding:8px;border:1px solid #ddd;">${t('rfq.noItems')}</td></tr>`}</tbody></table>`;
+      <th style="padding:6px 8px;border:1px solid #1e293b;width:34px;">#</th>
+      <th style="padding:6px 8px;border:1px solid #1e293b;">${t('rfq.desc')}</th>
+      <th style="padding:6px 8px;border:1px solid #1e293b;">${t('rfq.qty')}</th>
+      <th style="padding:6px 8px;border:1px solid #1e293b;">${t('rfq.finishType')}</th>
+      <th style="padding:6px 8px;border:1px solid #1e293b;">${t('rfq.requiredWork')}</th>
+      <th style="padding:6px 8px;border:1px solid #1e293b;">${t('rfq.workEnv')}</th>
+    </tr></thead><tbody>${rows || `<tr><td colspan="6" style="padding:6px 8px;border:1px solid #ddd;">${t('rfq.noItems')}</td></tr>`}</tbody></table>`;
 }
 
 function printRfq(r: Rfq, t: T, lang: Lang) {
@@ -129,44 +129,61 @@ function printRfq(r: Rfq, t: T, lang: Lang) {
     hour12: false,
   });
 
+  const origin = window.location.origin;
+
   const rows: [string, string][] = [
     [t('rfq.contactName'), r.contactName || '—'],
     [t('rfq.contactPhone'), r.contactPhone || '—'],
-    [t('rfq.requiredTime'), optLabel(t, 'rfqTime', r.requiredTime)],
+    [t('rfq.priority'), optLabel(t, 'rfqTime', r.requiredTime)],
     ...(r.requiredTime === 'OTHERS' && r.requiredTimeOther ? [[t('rfq.othersDetail'), r.requiredTimeOther] as [string, string]] : []),
     [t('rfq.workOrderDate'), formatDate(r.workOrderDate, lang)],
     [t('rfq.paymentTerms'), optLabel(t, 'rfqPay', r.paymentTerms)],
   ];
   const body = rows
-    .map(([k, v]) => `<tr><th style="width:45%;text-align:start;padding:8px;border:1px solid #ddd;background:#f9fafb;">${k}</th><td style="padding:8px;border:1px solid #ddd;">${v}</td></tr>`)
+    .map(([k, v]) => `<tr><th style="width:38%;text-align:start;padding:5px 8px;border:1px solid #d3dae3;background:#f1f5f9;font-weight:600;">${k}</th><td style="padding:5px 8px;border:1px solid #d3dae3;">${v}</td></tr>`)
     .join('');
 
-  w.document.write(`<!DOCTYPE html><html lang="${lang}" dir="${lang === 'ar' ? 'rtl' : 'ltr'}"><head><meta charset="utf-8"><title>${r.serialNumber || r.clientName}</title></head>
-<body style="font-family:Tahoma,Arial,sans-serif;margin:24px;">
-  <!-- Header -->
-  <div style="border-bottom:3px solid #1e293b;padding-bottom:16px;margin-bottom:16px;">
-    <!-- Row 1: Salesman name on top -->
-    <div style="font-size:18px;font-weight:bold;color:#111;margin-bottom:8px;">
-      ${t('rfq.rep')}: ${r.user?.name ?? '—'}
+  const dir = lang === 'ar' ? 'rtl' : 'ltr';
+  const headerFlex = lang === 'ar' ? 'row' : 'row-reverse';
+
+  w.document.write(`<!DOCTYPE html><html lang="${lang}" dir="${dir}"><head><meta charset="utf-8"><title>${r.serialNumber || r.clientName}</title>
+<style>
+  @page { size: A4; margin: 12mm; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Segoe UI', Tahoma, Arial, sans-serif; font-size: 13px; color: #111; line-height: 1.45; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; flex-direction: ${headerFlex}; border-bottom: 2.5px solid #1e293b; padding-bottom: 10px; margin-bottom: 12px; }
+  .hblock { display: flex; flex-direction: column; gap: 2px; }
+  .hblock.end { text-align: ${dir === 'rtl' ? 'left' : 'right'}; }
+  .logo { height: 54px; width: auto; object-fit: contain; }
+  .client-name { font-size: 16px; font-weight: 700; color: #111; margin-top: 4px; }
+  .label { font-size: 11px; color: #64748b; }
+  .rfq-no { font-size: 20px; font-weight: 800; color: #1e293b; letter-spacing: .5px; }
+  .rep-name { font-size: 14px; color: #334155; margin-top: 4px; }
+  h2.section { font-size: 13.5px; font-weight: 700; color: #1e293b; margin: 14px 0 6px; padding-bottom: 4px; border-bottom: 1px solid #cbd5e1; }
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border: 1px solid #d3dae3; padding: 5px 8px; font-size: 12.5px; text-align: start; }
+  thead th { background: #1e293b; color: #fff; font-weight: 600; }
+  tbody tr:nth-child(even) { background: #f8fafc; }
+  .timestamp { font-size: 10.5px; color: #94a3b8; margin-top: 10px; text-align: start; }
+</style></head>
+<body>
+  <div class="header">
+    <div class="hblock">
+      <img class="logo" src="${origin}/logo-hannecard.jpeg" alt="Hannecard">
+      <div class="client-name">${r.clientName}</div>
     </div>
-    <!-- Row 2: RFQ code + dates on the right -->
-    <div style="display:flex;justify-content:space-between;align-items:flex-end;">
-      <div>
-        <div style="font-size:28px;font-weight:bold;color:#1e293b;">${r.serialNumber || r.clientName}</div>
-        <div style="font-size:13px;color:#555;margin-top:4px;">${t('rfq.clientName')}: ${r.clientName}</div>
-      </div>
-      <div style="text-align:end;font-size:13px;color:#555;">
-        <div>${formatDate(r.workOrderDate, lang)} → ${formatDate(r.createdAt, lang)}</div>
-        <div style="margin-top:2px;">${t('rfq.paymentTerms')}: ${optLabel(t, 'rfqPay', r.paymentTerms)}</div>
-        <div style="margin-top:6px;font-size:11px;color:#999;">${t('rfq.printDetails')} · ${printTimestamp}</div>
-      </div>
+    <div class="hblock end">
+      <div class="label">${t('rfq.serial')}</div>
+      <div class="rfq-no">${r.serialNumber || '—'}</div>
+      <div class="rep-name">${t('rfq.rep')}: ${r.user?.name ?? '—'}</div>
     </div>
   </div>
 
-  <h2 style="font-size:15px;margin-top:16px;">${t('rfq.itemsTitle')}</h2>
+  <h2 class="section">${t('rfq.itemsTitle')}</h2>
   ${itemsTable(t, r.items)}
-  <h2 style="font-size:15px;margin-top:20px;">${t('rfq.details')}</h2>
-  <table style="border-collapse:collapse;width:100%;font-size:14px;">${body}</table>
+  <h2 class="section">${t('rfq.details')}</h2>
+  <table style="margin-top:2px;">${body}</table>
+  <div class="timestamp">${t('rfq.printDetails')} · ${printTimestamp}</div>
 </body></html>`);
   w.document.close();
   w.focus();
