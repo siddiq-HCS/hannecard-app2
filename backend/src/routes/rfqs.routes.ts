@@ -33,6 +33,9 @@ const itemSchema = z.object({
   innerDiameter: z.number().positive().optional(),
   rollLength: z.number().positive().optional(),
   calculatedPrice: z.number().optional(),
+  // تسعير الرول (لكل بند على حدة)
+  unitPrice: z.number().nonnegative().optional(),
+  totalPrice: z.number().nonnegative().optional(),
 });
 
 const rfqSchema = z.object({
@@ -51,6 +54,29 @@ const rfqSchema = z.object({
 
 function toDate(s: string) {
   return new Date(`${s}T00:00:00Z`);
+}
+
+// تحويل قيمة سعر من إدخال المستخدم إلى رقم صالح (null/'' → undefined)
+function toNumPrice(v: unknown): number | undefined {
+  if (v == null || v === '') return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : undefined;
+}
+
+// إجمالي البند = totalPrice إن وُجد، وإلا unitPrice × الكمية
+function itemLineTotal(it: { unitPrice?: unknown; totalPrice?: unknown; quantity?: unknown }): number {
+  const explicit = toNumPrice(it.totalPrice);
+  if (explicit != null) return explicit;
+  const unit = toNumPrice(it.unitPrice);
+  if (unit == null) return 0;
+  const m = String(it.quantity ?? '').match(/\d+(\.\d+)?/);
+  const qty = m ? parseFloat(m[0]) : 1;
+  return unit * qty;
+}
+
+// مجموع أسعار الرولات في الطلب = الإجمالي العام
+function rfqTotalAmount(items: Record<string, unknown>[]): number {
+  return (items ?? []).reduce((sum, it) => sum + itemLineTotal(it), 0);
 }
 
 // التحقق من صحة الإسناد: مندوب موجود فعلاً (المدير فقط يستطيع الإسناد)
@@ -232,6 +258,7 @@ router.post(
           workEnvironment: i.workEnvironment,
           workEnvironmentOther: i.workEnvironmentOther ?? '',
           ...(i.rollMaterialId ? { rollMaterialId: i.rollMaterialId, outerDiameter: i.outerDiameter, innerDiameter: i.innerDiameter, rollLength: i.rollLength, calculatedPrice: i.calculatedPrice } : {}),
+          ...(i.unitPrice != null || i.totalPrice != null ? { unitPrice: i.unitPrice, totalPrice: i.totalPrice } : {}),
         })),
         requiredTime: parsed.data.requiredTime,
         requiredTimeOther: parsed.data.requiredTimeOther ?? null,
@@ -319,6 +346,7 @@ router.put(
         workEnvironment: i.workEnvironment,
         workEnvironmentOther: i.workEnvironmentOther ?? '',
         ...(i.rollMaterialId ? { rollMaterialId: i.rollMaterialId, outerDiameter: i.outerDiameter, innerDiameter: i.innerDiameter, rollLength: i.rollLength, calculatedPrice: i.calculatedPrice } : {}),
+        ...(i.unitPrice != null || i.totalPrice != null ? { unitPrice: i.unitPrice, totalPrice: i.totalPrice } : {}),
       }));
     }
     if (d.requiredTime != null) updateData.requiredTime = d.requiredTime;
@@ -345,10 +373,17 @@ router.put(
 );
 
 // تسعير طلب من المدير (PATCH /:id/price) — إرسال price = null/فارغ لإلغاء التسعير
+// أو إرسال items = أسعار الرولات لكل بند (تسعير كل رول على حدة) فيُحتسب السعر الإجمالي تلقائياً
+const itemPriceSchema = z.object({
+  unitPrice: z.union([z.number(), z.string()]).optional().nullable(),
+  totalPrice: z.union([z.number(), z.string()]).optional().nullable(),
+});
+
 const priceSchema = z.object({
   price: z.union([z.number(), z.string()]).optional().nullable(),
   currency: z.string().max(10).optional(),
   pricingNotes: z.string().max(500).optional().nullable(),
+  items: z.array(itemPriceSchema).max(50).optional(),
 });
 
 router.patch(
@@ -362,18 +397,62 @@ router.patch(
     const rfq = await prisma.rfq.findFirst({ where: { id: String(req.params.id) } });
     if (!rfq) return res.status(404).json({ error: 'not_found' });
 
+    const currency = parsed.data.currency;
+    const pricingNotes = parsed.data.pricingNotes;
+    const approveReset = { approvedAt: null, approvedBy: null };
+
+    // وضع تسعير الرولات: تحديث سعر كل بند وحساب الإجمالي العام
+    if (Array.isArray(parsed.data.items) && parsed.data.items.length > 0) {
+      const existingItems = Array.isArray(rfq.items) ? (rfq.items as Record<string, unknown>[]) : [];
+      const merged = existingItems.map((it, i) => {
+        const entry = parsed.data.items![i];
+        if (!entry) return { ...it };
+        const next = { ...it };
+        const unit = toNumPrice(entry.unitPrice);
+        const total = toNumPrice(entry.totalPrice);
+        if (unit != null) next.unitPrice = unit;
+        else delete next.unitPrice;
+        if (total != null) next.totalPrice = total;
+        else delete next.totalPrice;
+        return next;
+      });
+      const totalAmount = rfqTotalAmount(merged);
+      const hasTotal = totalAmount > 0;
+
+      const data: Prisma.RfqUpdateInput = {
+        items: merged as Prisma.InputJsonValue,
+        totalAmount: hasTotal ? new Prisma.Decimal(totalAmount.toFixed(2)) : null,
+        price: hasTotal ? new Prisma.Decimal(totalAmount.toFixed(2)) : null,
+        pricingStatus: hasTotal ? 'PRICED' : 'UNPRICED',
+        pricedAt: hasTotal ? new Date() : null,
+        ...approveReset,
+      };
+      if (currency != null) data.currency = currency;
+      if (pricingNotes != null) data.pricingNotes = pricingNotes;
+
+      const updated = await prisma.rfq.update({
+        where: { id: rfq.id },
+        data,
+        include: rfqInclude,
+      });
+      await logActivity(req.user.id, 'rfq.price', { rfqId: rfq.id, clientName: rfq.clientName, price: updated.price?.toString() ?? null, totalAmount: updated.totalAmount?.toString() ?? null }, req.user.name);
+      return res.json(updated);
+    }
+
+    // وضع السعر اليدوي (القديم): سعر إجمالي واحد للطلب
     const price = parsed.data.price;
     const hasPrice = price != null && String(price).trim() !== '';
     const data: Prisma.RfqUpdateInput = {
       price: hasPrice ? new Prisma.Decimal(String(price)) : null,
+      totalAmount: hasPrice ? new Prisma.Decimal(String(price)) : null,
       pricingStatus: hasPrice ? 'PRICED' : 'UNPRICED',
       pricedAt: hasPrice ? new Date() : null,
       // أي تغيير في التسعير يلغي الاعتماد السابق (يُعاد الاعتماد بعد التعديل)
       approvedAt: null,
       approvedBy: null,
     };
-    if (parsed.data.currency != null) data.currency = parsed.data.currency;
-    if (parsed.data.pricingNotes != null) data.pricingNotes = parsed.data.pricingNotes;
+    if (currency != null) data.currency = currency;
+    if (pricingNotes != null) data.pricingNotes = pricingNotes;
 
     const updated = await prisma.rfq.update({
       where: { id: rfq.id },

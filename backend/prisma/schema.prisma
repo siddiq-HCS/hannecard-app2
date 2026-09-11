@@ -518,6 +518,7 @@ model Rfq {
   imageUrl          String? // مرفق صورة قديم (للتوافق)
   imageUrls         Json?   // مصفوفة صور المرفق
   price             Decimal?   @db.Decimal(15, 2) // سعر التسعير من المدير
+  totalAmount       Decimal?   @db.Decimal(15, 2) // الإجمالي العام (مجموع أسعار الرولات)
   currency          String     @default("SAR") // عملة السعر
   pricingNotes      String? // ملاحظات التسعير
   pricedAt          DateTime? // وقت آخر تسعير

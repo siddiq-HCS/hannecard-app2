@@ -17,6 +17,8 @@ interface RfqItem {
   innerDiameter?: number;
   rollLength?: number;
   calculatedPrice?: number;
+  unitPrice?: number | string | null;
+  totalPrice?: number | string | null;
 }
 
 interface Rfq {
@@ -35,6 +37,7 @@ interface Rfq {
   imageUrl?: string | null;
   imageUrls?: string[] | null;
   price?: string | number | null;
+  totalAmount?: string | number | null;
   currency?: string;
   pricingNotes?: string | null;
   pricingStatus?: string;
@@ -93,7 +96,39 @@ function totalRolls(items?: { quantity?: string }[]): number {
   return sum;
 }
 
-function itemsTable(t: T, items: RfqItem[]) {
+// تنسيق مبالغ الرولات
+function toNumPrice(v: unknown): number | undefined {
+  if (v == null || v === '') return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : undefined;
+}
+
+// إجمالي البند = totalPrice إن وُجد (سعر الرول النهائي)، وإلا unitPrice × الكمية
+function itemLineTotal(it: { unitPrice?: unknown; totalPrice?: unknown; quantity?: unknown }): number {
+  const explicit = toNumPrice(it.totalPrice);
+  if (explicit != null) return explicit;
+  const unit = toNumPrice(it.unitPrice);
+  if (unit == null) return 0;
+  const m = String(it.quantity ?? '').match(/\d+(\.\d+)?/);
+  const qty = m ? parseFloat(m[0]) : 1;
+  return unit * qty;
+}
+
+function rfqTotalAmount(items?: RfqItem[]): number {
+  return (items ?? []).reduce((sum, it) => sum + itemLineTotal(it), 0);
+}
+
+function anyItemPriced(items?: RfqItem[]): boolean {
+  return (items ?? []).some((it) => toNumPrice(it.unitPrice) != null || toNumPrice(it.totalPrice) != null);
+}
+
+function fmtAmount(v: string | number | null | undefined, lang: Lang): string {
+  const n = toNumPrice(v);
+  return n != null ? n.toLocaleString(lang === 'ar' ? 'ar-EG' : 'en') : '—';
+}
+
+function itemsTable(t: T, items: RfqItem[], currency = 'SAR') {
+  const showPrices = anyItemPriced(items);
   const rows = (items ?? [])
     .map((it, i) => {
       const finish = optLabel(t, 'rfqFinish', it.finishingType);
@@ -105,9 +140,14 @@ function itemsTable(t: T, items: RfqItem[]) {
           <td style="padding:5px 8px;border:1px solid #d3dae3;">${finish}${finishOther}</td>
           <td style="padding:5px 8px;border:1px solid #d3dae3;">${workWithOther(t, it.requiredWork, it.requiredWorkOther)}</td>
           <td style="padding:5px 8px;border:1px solid #d3dae3;">${envWithOther(t, it.workEnvironment, it.workEnvironmentOther)}</td>
+          ${showPrices ? `<td style="padding:5px 8px;border:1px solid #d3dae3;text-align:center;">${toNumPrice(it.unitPrice) == null ? '—' : Number(it.unitPrice).toLocaleString('en')}</td>
+          <td style="padding:5px 8px;border:1px solid #d3dae3;text-align:center;font-weight:600;">${itemLineTotal(it) > 0 ? Number(itemLineTotal(it)).toLocaleString('en') : '—'}</td>` : ''}
         </tr>`;
     })
     .join('');
+  const totalsRow = showPrices
+    ? `<tr><td colspan="6" style="padding:6px 8px;border:1px solid #1e293b;background:#f1f5f9;text-align:end;font-weight:700;">${t('rfq.totalAmount')}</td><td colspan="2" style="padding:6px 8px;border:1px solid #1e293b;background:#f1f5f9;text-align:center;font-weight:800;">${Number(rfqTotalAmount(items)).toLocaleString('en')} ${currency}</td></tr>`
+    : '';
   return `<table style="border-collapse:collapse;width:100%;font-size:12.5px;margin-top:6px;">
     <thead><tr style="background:#1e293b;color:#fff;">
       <th style="padding:6px 8px;border:1px solid #1e293b;width:34px;">#</th>
@@ -116,7 +156,9 @@ function itemsTable(t: T, items: RfqItem[]) {
       <th style="padding:6px 8px;border:1px solid #1e293b;">${t('rfq.finishType')}</th>
       <th style="padding:6px 8px;border:1px solid #1e293b;">${t('rfq.requiredWork')}</th>
       <th style="padding:6px 8px;border:1px solid #1e293b;">${t('rfq.workEnv')}</th>
-    </tr></thead><tbody>${rows || `<tr><td colspan="6" style="padding:6px 8px;border:1px solid #ddd;">${t('rfq.noItems')}</td></tr>`}</tbody></table>`;
+      ${showPrices ? `<th style="padding:6px 8px;border:1px solid #1e293b;">${t('rfq.unitPrice')}</th>
+      <th style="padding:6px 8px;border:1px solid #1e293b;">${t('rfq.lineTotal')}</th>` : ''}
+    </tr></thead><tbody>${rows || `<tr><td colspan="6" style="padding:6px 8px;border:1px solid #ddd;">${t('rfq.noItems')}</td></tr>`}${totalsRow}</tbody></table>`;
 }
 
 function printRfq(r: Rfq, t: T, lang: Lang) {
@@ -182,7 +224,7 @@ function printRfq(r: Rfq, t: T, lang: Lang) {
   </div>
 
   <h2 class="section">${t('rfq.itemsTitle')}</h2>
-  ${itemsTable(t, r.items)}
+  ${itemsTable(t, r.items, r.currency || 'SAR')}
   <h2 class="section">${t('rfq.details')}</h2>
   <table style="margin-top:2px;">${body}</table>
   <div class="timestamp">${t('rfq.printDetails')} · ${printTimestamp}</div>
@@ -316,8 +358,8 @@ function downloadRfqs(list: Rfq[], t: T, lang: Lang) {
           optLabel(t, 'rfqLocation', r.rollLocation ?? 'NOT_SPECIFIED'),
           formatDate(r.workOrderDate, lang),
           optLabel(t, 'rfqPay', r.paymentTerms),
-          r.pricingStatus === 'APPROVED' || (r.pricingStatus === 'PRICED' && r.price != null && String(r.price) !== '')
-            ? `${Number(r.price).toLocaleString('en')} ${r.currency || 'SAR'} (${r.pricingStatus === 'APPROVED' ? t('rfq.approved') : t('rfq.priced')})`
+          r.pricingStatus === 'APPROVED' || (r.pricingStatus === 'PRICED' && (r.totalAmount ?? r.price) != null && String(r.totalAmount ?? r.price ?? '') !== '')
+            ? `${Number(r.totalAmount ?? r.price).toLocaleString('en')} ${r.currency || 'SAR'} (${r.pricingStatus === 'APPROVED' ? t('rfq.approved') : t('rfq.priced')})`
             : t('rfq.unpriced'),
           formatDateTime(r.createdAt, lang),
         ].join(' | '),
@@ -366,6 +408,8 @@ export function RFQs() {
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [commentEditText, setCommentEditText] = useState('');
   const [savingLocation, setSavingLocation] = useState(false);
+  const [itemUnitInputs, setItemUnitInputs] = useState<string[]>([]);
+  const [savingItemPrices, setSavingItemPrices] = useState(false);
 
   const [rollMaterials, setRollMaterials] = useState<{ id: string; name: string; density: number; materialCostPerKg: number; baseWorkmanshipCost: number }[]>([]);
   const [calcMaterialId, setCalcMaterialId] = useState('');
@@ -410,6 +454,7 @@ export function RFQs() {
       setCalcID('');
       setCalcLen('');
       setCalcResult(null);
+      setItemUnitInputs((detail.items ?? []).map((it) => (toNumPrice(it.unitPrice) != null ? String(it.unitPrice) : '')));
     }
   }, [detail]);
 
@@ -463,6 +508,29 @@ export function RFQs() {
       alert(t('rfq.fail'));
     } finally {
       setSavingPrice(false);
+    }
+  }
+
+  async function saveItemPrices() {
+    if (!token || !detail || savingItemPrices) return;
+    const items = detail.items ?? [];
+    const payload: { unitPrice: number | null }[] = items.map((it, i) => {
+      const raw = (itemUnitInputs[i] ?? '').replace(/[^\d.]/g, '');
+      const num = Number(raw);
+      if (raw === '' || !Number.isFinite(num)) return { unitPrice: toNumPrice(it.unitPrice) ?? null };
+      return { unitPrice: num };
+    });
+    setSavingItemPrices(true);
+    try {
+      const res = await api.patch(`/rfqs/${detail.id}/price`, { items: payload, currency: currencyInput }, authHeaders(token));
+      const updated = res.data as Rfq;
+      setRfqs((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+      setDetail(updated);
+      alert(t('rfq.itemPricesSaved'));
+    } catch {
+      alert(t('rfq.fail'));
+    } finally {
+      setSavingItemPrices(false);
     }
   }
 
@@ -732,8 +800,8 @@ export function RFQs() {
               <td style={tdStyle}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {pricingChip(r.pricingStatus, t)}
-                  {(r.pricingStatus === 'PRICED' || r.pricingStatus === 'APPROVED') && r.price != null && String(r.price) !== '' && (
-                    <span style={{ fontSize: 13, fontWeight: 600 }}>{Number(r.price).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en')} {r.currency || 'SAR'}</span>
+                  {(r.pricingStatus === 'PRICED' || r.pricingStatus === 'APPROVED') && (r.totalAmount != null || r.price != null) && String(r.totalAmount ?? r.price ?? '') !== '' && (
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>{Number(r.totalAmount ?? r.price).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en')} {r.currency || 'SAR'}</span>
                   )}
                   {isManager && r.pricingStatus === 'PRICED' && (
                     <button
@@ -769,6 +837,7 @@ export function RFQs() {
               [t('rfq.rep'), detail.user?.name ?? '—'],
               [t('rfq.itemsCount'), String(detail.items?.length ?? 0)],
               [t('rfq.totalRolls'), String(totalRolls(detail.items))],
+              [t('rfq.totalAmount'), `${fmtAmount(detail.totalAmount ?? detail.price, lang)}${toNumPrice(detail.totalAmount ?? detail.price) != null ? ` ${detail.currency || 'SAR'}` : ''}`],
               [t('rfq.contactName'), detail.contactName || '—'],
               [t('rfq.contactPhone'), detail.contactPhone || '—'],
               [t('rfq.requiredTime'), optLabel(t, 'rfqTime', detail.requiredTime)],
@@ -966,6 +1035,57 @@ export function RFQs() {
                     </button>
                   )}
                 </div>
+                <div style={{ marginTop: 12, padding: 10, background: 'rgba(30, 41, 59, 0.5)', borderRadius: 8, border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                  <div style={{ fontWeight: 600, fontSize: 13, color: '#93c5fd', marginBottom: 8 }}>{t('rfq.perRollPricing')}</div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead>
+                      <tr>
+                        <th style={{ padding: '6px 8px', color: '#94a3b8', textAlign: 'start' }}>#</th>
+                        <th style={{ padding: '6px 8px', color: '#94a3b8', textAlign: 'start' }}>{t('rfq.desc')}</th>
+                        <th style={{ padding: '6px 8px', color: '#94a3b8', textAlign: 'center' }}>{t('rfq.qty')}</th>
+                        <th style={{ padding: '6px 8px', color: '#94a3b8', textAlign: 'center' }}>{t('rfq.unitPrice')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(detail.items ?? []).map((it, i) => (
+                        <tr key={i}>
+                          <td style={{ padding: '4px 8px' }}>{i + 1}</td>
+                          <td style={{ padding: '4px 8px' }}>{it.description || '—'}</td>
+                          <td style={{ padding: '4px 8px', textAlign: 'center' }}>{it.quantity || '—'}</td>
+                          <td style={{ padding: '4px 8px', textAlign: 'center' }}>
+                            <input
+                              type="number"
+                              min="0"
+                              step="any"
+                              value={itemUnitInputs[i] ?? ''}
+                              onChange={(e) => setItemUnitInputs((prev) => prev.map((v, j) => (j === i ? e.target.value : v)))}
+                              placeholder="0.00"
+                              style={{ ...inputStyle, width: 96, textAlign: 'center' }}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 13, fontWeight: 700 }}>
+                      {t('rfq.totalAmount')}:{' '}
+                      <span style={{ color: '#16a34a' }}>
+                        {itemUnitInputs
+                          .reduce((sum, raw, i) => {
+                            const unit = Number((raw ?? '').replace(/[^\d.]/g, ''));
+                            const qty = String(detail.items?.[i]?.quantity ?? '').match(/\d+(\.\d+)?/);
+                            return sum + (Number.isFinite(unit) && unit > 0 ? unit * (qty ? parseFloat(qty[0]) : 1) : 0);
+                          }, 0)
+                          .toLocaleString(lang === 'ar' ? 'ar-EG' : 'en')}{' '}
+                        {currencyInput}
+                      </span>
+                    </span>
+                    <button style={{ ...buttonStyle, background: '#16a34a' }} onClick={() => void saveItemPrices()} disabled={savingItemPrices}>
+                      {savingItemPrices ? t('rfq.saving') : t('rfq.saveItemPrices')}
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -983,6 +1103,12 @@ export function RFQs() {
                     <>
                       <th style={tdStyle}>{t('rfq.rollDimensions') || 'أبعاد الرول'}</th>
                       <th style={tdStyle}>{t('rfq.calculatedPriceLabel') || 'السعر المحسوب'}</th>
+                    </>
+                  )}
+                  {anyItemPriced(detail.items) && (
+                    <>
+                      <th style={tdStyle}>{t('rfq.unitPrice')}</th>
+                      <th style={tdStyle}>{t('rfq.lineTotal')}</th>
                     </>
                   )}
                 </tr>
@@ -1011,6 +1137,12 @@ export function RFQs() {
                             ? <strong style={{ color: '#16a34a' }}>{Number(it.calculatedPrice).toLocaleString()} SAR</strong>
                             : '—'}
                         </td>
+                      </>
+                    )}
+                    {anyItemPriced(detail.items) && (
+                      <>
+                        <td style={tdStyle}>{toNumPrice(it.unitPrice) != null ? <span style={{ color: '#16a34a' }}>{Number(it.unitPrice).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en')}</span> : '—'}</td>
+                        <td style={tdStyle}><strong>{itemLineTotal(it) > 0 ? `${itemLineTotal(it).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en')} ${detail.currency || 'SAR'}` : '—'}</strong></td>
                       </>
                     )}
                   </tr>
