@@ -118,6 +118,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void refreshMe();
   }, [refreshMe]);
 
+  // أي طلب أرجع 401 (جلسة منتهية/تالفة/حساب مقيّد) → تنظيف الجلسة والتوجيه لصفحة الدخول
+  useEffect(() => {
+    const onUnauthorized = () => {
+      if (storageGet('token')) {
+        storageClear();
+        setToken(null);
+        setUser(null);
+      }
+      setReady(true);
+    };
+    window.addEventListener('auth:unauthorized', onUnauthorized);
+    return () => window.removeEventListener('auth:unauthorized', onUnauthorized);
+  }, []);
+
   const login = useCallback(async (email: string, password: string) => {
     const res = await api.post('/auth/login', { email, password, app: 'web' });
     const data = res.data as { token: string; user: User };

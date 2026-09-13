@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { api, authHeaders } from '../api/client';
+import { api, authHeaders, apiErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useI18n, formatDate, formatDateTime, type Lang } from '../i18n';
+import { toast } from '../components/Toast';
 
 interface RfqItem {
   description: string;
@@ -474,8 +475,9 @@ export function RFQs() {
         length: parseFloat(calcLen),
       }, authHeaders(token));
       setCalcResult(res.data);
-    } catch {
+    } catch (err) {
       setCalcResult(null);
+      toast.error(apiErrorMessage(err, t));
     }
   }
 
@@ -503,9 +505,9 @@ export function RFQs() {
       const updated = res.data as Rfq;
       setRfqs((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
       setDetail(updated);
-      alert(clear ? t('rfq.priceCleared') : t('rfq.priceSaved'));
-    } catch {
-      alert(t('rfq.fail'));
+      toast.success(clear ? t('rfq.priceCleared') : t('rfq.priceSaved'));
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
     } finally {
       setSavingPrice(false);
     }
@@ -526,9 +528,9 @@ export function RFQs() {
       const updated = res.data as Rfq;
       setRfqs((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
       setDetail(updated);
-      alert(t('rfq.itemPricesSaved'));
-    } catch {
-      alert(t('rfq.fail'));
+      toast.success(t('rfq.itemPricesSaved'));
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
     } finally {
       setSavingItemPrices(false);
     }
@@ -542,10 +544,10 @@ export function RFQs() {
       const updated = res.data as Rfq;
       setRfqs((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
       setDetail(updated);
-      alert(t('rfq.approvedMsg'));
+      toast.success(t('rfq.approvedMsg'));
     } catch (err) {
       const notPriced = (err as { response?: { data?: { error?: string } } })?.response?.data?.error === 'not_priced';
-      alert(notPriced ? t('rfq.notPriced') : t('rfq.fail'));
+      toast.error(notPriced ? t('rfq.notPriced') : apiErrorMessage(err, t));
     } finally {
       setApproving(false);
     }
@@ -559,8 +561,8 @@ export function RFQs() {
       const updated = res.data as Rfq;
       setRfqs((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
       setDetail(updated);
-    } catch {
-      alert(t('rfq.fail'));
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
     } finally {
       setSavingLocation(false);
     }
@@ -575,8 +577,8 @@ export function RFQs() {
       setDetail((d) => (d ? { ...d, comments: [...(d.comments ?? []), comment] } : d));
       setRfqs((prev) => prev.map((r) => (r.id === detail.id ? { ...r, comments: [...(r.comments ?? []), comment] } : r)));
       setCommentInput('');
-    } catch {
-      alert(t('rfq.fail'));
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
     } finally {
       setCommenting(false);
     }
@@ -591,8 +593,8 @@ export function RFQs() {
       setDetail((d) => (d ? { ...d, comments: (d.comments ?? []).map(mapComment) } : d));
       setRfqs((prev) => prev.map((r) => (r.id === detail.id ? { ...r, comments: (r.comments ?? []).map(mapComment) } : r)));
       setEditingCommentId(null);
-    } catch {
-      alert(t('rfq.fail'));
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
     }
   }
 
@@ -603,8 +605,8 @@ export function RFQs() {
       const filterComment = (c: RfqComment) => c.id !== id;
       setDetail((d) => (d ? { ...d, comments: (d.comments ?? []).filter(filterComment) } : d));
       setRfqs((prev) => prev.map((r) => (r.id === detail.id ? { ...r, comments: (r.comments ?? []).filter(filterComment) } : r)));
-    } catch {
-      alert(t('rfq.fail'));
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
     }
   }
 
@@ -695,9 +697,9 @@ export function RFQs() {
       setShowCreate(false);
       setCreateForm({ clientName: '', contactName: '', contactPhone: '', userId: '', requiredTime: 'NORMAL', workOrderDate: '', paymentTerms: 'CASH', items: [{ description: '', quantity: '', finishingType: 'NORMAL_CYLINDRICAL', requiredWork: ['NORMAL'], workEnvironment: 'NORMAL' }] });
       await load();
-      alert(t('rfq.success'));
-    } catch {
-      alert(t('rfq.fail'));
+      toast.success(t('rfq.success'));
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
     } finally {
       setCreating(false);
     }

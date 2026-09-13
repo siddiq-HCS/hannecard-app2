@@ -1,8 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { api, authHeaders } from '../api/client';
+import { api, authHeaders, apiErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useI18n, formatDate, formatTime, type Lang } from '../i18n';
 import { TaskImages } from '../components/TaskImages';
+import { toast } from '../components/Toast';
 
 interface Task {
   id: string;
@@ -70,6 +71,8 @@ export function Tasks() {
       if (status) params.set('status', status);
       const res = await api.get(`/tasks?${params.toString()}`, authHeaders(token));
       setTasks(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
     } finally {
       setLoading(false);
     }
@@ -87,35 +90,42 @@ export function Tasks() {
   async function createTask(e: FormEvent) {
     e.preventDefault();
     if (!token) return;
-    await api.post(
-      '/tasks',
-      { title, description, category, type, dueDate, dueTime: dueTime || undefined, userId: assignRepId || undefined },
-      authHeaders(token),
-    );
-    setShowForm(false);
-    setTitle(''); setDescription(''); setDueTime('');
-    if (selectedRepId && assignRepId !== selectedRepId) {
-      // المهمة أُسنِدت لمندوب آخر، حدِّث القائمة الحالية بعد العودة
-    }
-    await load();
-    if (selectedRepId && assignRepId && assignRepId !== selectedRepId) {
-      await api.get('/manager/reps', authHeaders(token)).then((r) => setReps(Array.isArray(r.data) ? r.data : []));
+    try {
+      await api.post(
+        '/tasks',
+        { title, description, category, type, dueDate, dueTime: dueTime || undefined, userId: assignRepId || undefined },
+        authHeaders(token),
+      );
+      setShowForm(false);
+      setTitle(''); setDescription(''); setDueTime('');
+      await load();
+      toast.success(lang === 'ar' ? 'تم إنشاء المهمة' : 'Task created');
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
     }
   }
 
-  async function toggleDone(t: Task) {
+  async function toggleDone(task: Task) {
     if (!token) return;
-    if (t.status === 'DONE') return;
-    await api.post(`/tasks/${t.id}/complete`, {}, authHeaders(token));
-    await load();
+    if (task.status === 'DONE') return;
+    try {
+      await api.post(`/tasks/${task.id}/complete`, {}, authHeaders(token));
+      await load();
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
+    }
   }
 
   async function removeTask(task: Task) {
     if (!token) return;
     if (!window.confirm(`${t('tasks.deleteConfirm')} «${task.title}»؟`)) return;
-    await api.delete(`/tasks/${task.id}`, authHeaders(token));
-    await load();
-    if (selectedRepId) await api.get('/manager/reps', authHeaders(token)).then((r) => setReps(Array.isArray(r.data) ? r.data : []));
+    try {
+      await api.delete(`/tasks/${task.id}`, authHeaders(token));
+      await load();
+      toast.success(lang === 'ar' ? 'تم حذف المهمة' : 'Task deleted');
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
+    }
   }
 
   const selectedRep = selectedRepId ? (reps ?? []).find((r) => r.id === selectedRepId) : null;

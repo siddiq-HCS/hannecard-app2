@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Check, Loader2, Save } from 'lucide-react';
-import { api, authHeaders } from '../api/client';
+import { api, authHeaders, apiErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n';
+import { toast } from '../components/Toast';
 
 interface PageDef {
   key: string;
@@ -82,8 +83,10 @@ export function Permissions() {
       setDraft(rolePermissions);
       setExisting(rolePermissions);
       if (pages.length === 0) setErrMsg(t('permsPage.noData'));
-    } catch {
-      setErrMsg(t('permsPage.loadError'));
+    } catch (err) {
+      const msg = apiErrorMessage(err, t);
+      setErrMsg(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -112,8 +115,10 @@ export function Permissions() {
       setOkMsg(t('permsPage.saved'));
       await load();
       await refresh();
-    } catch {
-      setErrMsg(t('permsPage.saveError'));
+    } catch (err) {
+      const msg = apiErrorMessage(err, t);
+      setErrMsg(msg);
+      toast.error(msg);
     } finally {
       setBusy(false);
     }

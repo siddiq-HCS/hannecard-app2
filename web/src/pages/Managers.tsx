@@ -1,8 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { api, authHeaders } from '../api/client';
+import { api, authHeaders, apiErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { toast } from '../components/Toast';
 
 interface Manager {
   id: string;
@@ -27,7 +28,7 @@ const PERMISSIONS = [
 
 export function Managers() {
   const { token } = useAuth();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [managers, setManagers] = useState<Manager[]>([]);
   const [perms, setPerms] = useState<Record<string, string[]>>({});
   const [name, setName] = useState('');
@@ -45,14 +46,18 @@ export function Managers() {
 
   async function load() {
     if (!token) return;
-    const res = await api.get('/manager/managers', authHeaders(token));
-    setManagers(res.data);
-    const permMap: Record<string, string[]> = {};
-    for (const m of res.data as Manager[]) {
-      const p = await api.get(`/manager/reps/${m.id}/permissions`, authHeaders(token));
-      permMap[m.id] = p.data;
+    try {
+      const res = await api.get('/manager/managers', authHeaders(token));
+      setManagers(res.data);
+      const permMap: Record<string, string[]> = {};
+      for (const m of res.data as Manager[]) {
+        const p = await api.get(`/manager/reps/${m.id}/permissions`, authHeaders(token));
+        permMap[m.id] = p.data;
+      }
+      setPerms(permMap);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
     }
-    setPerms(permMap);
   }
 
   useEffect(() => {
@@ -62,47 +67,75 @@ export function Managers() {
   async function createManager(e: FormEvent) {
     e.preventDefault();
     if (!token) return;
-    await api.post('/manager/managers', { name, phone, email, password, role }, authHeaders(token));
-    setName(''); setPhone(''); setEmail(''); setPassword('');
-    await load();
+    try {
+      await api.post('/manager/managers', { name, phone, email, password, role }, authHeaders(token));
+      setName(''); setPhone(''); setEmail(''); setPassword('');
+      await load();
+      toast.success(lang === 'ar' ? 'تم إضافة المدير بنجاح' : 'Manager added');
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
+    }
   }
 
   async function togglePermission(id: string, permission: string, has: boolean) {
     if (!token) return;
-    if (has) {
-      await api.delete(`/manager/reps/${id}/permissions/${permission}`, authHeaders(token));
-    } else {
-      await api.post(`/manager/reps/${id}/permissions`, { permission }, authHeaders(token));
+    try {
+      if (has) {
+        await api.delete(`/manager/reps/${id}/permissions/${permission}`, authHeaders(token));
+      } else {
+        await api.post(`/manager/reps/${id}/permissions`, { permission }, authHeaders(token));
+      }
+      await load();
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
     }
-    await load();
   }
 
   async function toggleActive(m: Manager) {
     if (!token) return;
-    await api.patch(`/manager/managers/${m.id}`, { isActive: !m.isActive }, authHeaders(token));
-    await load();
+    try {
+      await api.patch(`/manager/managers/${m.id}`, { isActive: !m.isActive }, authHeaders(token));
+      await load();
+      toast.success(lang === 'ar' ? (m.isActive ? 'تم إيقاف الحساب' : 'تم تفعيل الحساب') : m.isActive ? 'Account suspended' : 'Account activated');
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
+    }
   }
 
   async function changeRole(m: Manager, nextRole: string) {
     if (!token) return;
-    await api.patch(`/manager/managers/${m.id}`, { role: nextRole }, authHeaders(token));
-    await load();
+    try {
+      await api.patch(`/manager/managers/${m.id}`, { role: nextRole }, authHeaders(token));
+      await load();
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
+    }
   }
 
   async function deleteManager(m: Manager) {
     if (!token) return;
-    await api.delete(`/manager/managers/${m.id}`, authHeaders(token));
-    setToDelete(null);
-    await load();
+    try {
+      await api.delete(`/manager/managers/${m.id}`, authHeaders(token));
+      setToDelete(null);
+      await load();
+      toast.success(lang === 'ar' ? 'تم حذف المدير' : 'Manager deleted');
+    } catch (err) {
+      setToDelete(null);
+      toast.error(apiErrorMessage(err, t));
+    }
   }
 
   async function submitPasswordChange() {
     if (!token || !changePwManagerId || !changePwValue) return;
-    await api.post('/auth/change-password-manager', { userId: changePwManagerId, newPassword: changePwValue }, authHeaders(token));
-    setChangePwManagerId(null);
-    setChangePwValue('');
-    alert(t('managers.passwordChanged'));
-    await load();
+    try {
+      await api.post('/auth/change-password-manager', { userId: changePwManagerId, newPassword: changePwValue }, authHeaders(token));
+      setChangePwManagerId(null);
+      setChangePwValue('');
+      toast.success(t('managers.passwordChanged'));
+      await load();
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
+    }
   }
 
   return (

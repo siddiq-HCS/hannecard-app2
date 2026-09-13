@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { api, authHeaders } from '../api/client';
+import { api, authHeaders, apiErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n';
+import { toast } from '../components/Toast';
 
 interface Rep {
   id: string;
@@ -40,8 +41,9 @@ export function Analytics() {
         if (period) q.set('period', period);
         const res = await api.get(`/analytics?${q.toString()}`, authHeaders(token));
         setData(res.data);
-      } catch {
+      } catch (err) {
         setError(true);
+        toast.error(apiErrorMessage(err, t));
       } finally {
         setLoading(false);
       }

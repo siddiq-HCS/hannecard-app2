@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { api, authHeaders } from '../api/client';
+import { api, authHeaders, apiErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n';
+import { toast } from '../components/Toast';
 
 interface ManagerRow {
   id: string;
@@ -28,14 +29,18 @@ const PAGE_PERMISSIONS = [
 
 export function PagePermissions() {
   const { token, user } = useAuth();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [managers, setManagers] = useState<ManagerRow[]>([]);
   const [saving, setSaving] = useState<Record<string, boolean>>({});
 
   async function load() {
     if (!token) return;
-    const res = await api.get('/manager/managers-with-perms', authHeaders(token));
-    setManagers(res.data);
+    try {
+      const res = await api.get('/manager/managers-with-perms', authHeaders(token));
+      setManagers(res.data);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
+    }
   }
 
   useEffect(() => {
@@ -52,8 +57,9 @@ export function PagePermissions() {
         await api.post(`/manager/managers/${managerId}/permissions`, { permission }, authHeaders(token));
       }
       await load();
-    } catch {
-      alert(t('pagePerms.saveError'));
+      toast.success(lang === 'ar' ? 'تم تحديث الصلاحيات' : 'Permissions updated');
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
     } finally {
       setSaving((p) => ({ ...p, [managerId]: false }));
     }
@@ -69,8 +75,8 @@ export function PagePermissions() {
         }
       }
       await load();
-    } catch {
-      alert(t('pagePerms.saveError'));
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
     } finally {
       setSaving((p) => ({ ...p, [m.id]: false }));
     }
@@ -86,8 +92,8 @@ export function PagePermissions() {
         }
       }
       await load();
-    } catch {
-      alert(t('pagePerms.saveError'));
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
     } finally {
       setSaving((p) => ({ ...p, [m.id]: false }));
     }

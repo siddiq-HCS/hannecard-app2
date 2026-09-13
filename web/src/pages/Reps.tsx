@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api, authHeaders } from '../api/client';
+import { api, authHeaders, apiErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { toast } from '../components/Toast';
 
 interface Rep {
   id: string;
@@ -35,7 +36,7 @@ const PERMISSIONS = [
 export function Reps() {
   const { token } = useAuth();
   const navigate = useNavigate();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [reps, setReps] = useState<Rep[]>([]);
   const [perms, setPerms] = useState<Record<string, string[]>>({});
   const [locations, setLocations] = useState<Record<string, RepLocation>>({});
@@ -51,18 +52,22 @@ export function Reps() {
 
   async function load() {
     if (!token) return;
-    const res = await api.get('/manager/reps', authHeaders(token));
-    setReps(res.data);
-    const permMap: Record<string, string[]> = {};
-    for (const rep of res.data as Rep[]) {
-      const p = await api.get(`/manager/reps/${rep.id}/permissions`, authHeaders(token));
-      permMap[rep.id] = p.data;
+    try {
+      const res = await api.get('/manager/reps', authHeaders(token));
+      setReps(res.data);
+      const permMap: Record<string, string[]> = {};
+      for (const rep of res.data as Rep[]) {
+        const p = await api.get(`/manager/reps/${rep.id}/permissions`, authHeaders(token));
+        permMap[rep.id] = p.data;
+      }
+      setPerms(permMap);
+      const loc = await api.get('/manager/locations', authHeaders(token));
+      const locMap: Record<string, RepLocation> = {};
+      for (const l of loc.data as RepLocation[]) locMap[l.userId] = l;
+      setLocations(locMap);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
     }
-    setPerms(permMap);
-    const loc = await api.get('/manager/locations', authHeaders(token));
-    const locMap: Record<string, RepLocation> = {};
-    for (const l of loc.data as RepLocation[]) locMap[l.userId] = l;
-    setLocations(locMap);
   }
 
   useEffect(() => {
@@ -72,32 +77,52 @@ export function Reps() {
   async function createRep(e: FormEvent) {
     e.preventDefault();
     if (!token) return;
-    await api.post('/manager/reps', { name, phone, email, password }, authHeaders(token));
-    setName(''); setPhone(''); setEmail(''); setPassword('');
-    await load();
+    try {
+      await api.post('/manager/reps', { name, phone, email, password }, authHeaders(token));
+      setName(''); setPhone(''); setEmail(''); setPassword('');
+      await load();
+      toast.success(lang === 'ar' ? 'تم إضافة المندوب بنجاح' : 'Sales rep added');
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
+    }
   }
 
   async function togglePermission(repId: string, permission: string, has: boolean) {
     if (!token) return;
-    if (has) {
-      await api.delete(`/manager/reps/${repId}/permissions/${permission}`, authHeaders(token));
-    } else {
-      await api.post(`/manager/reps/${repId}/permissions`, { permission }, authHeaders(token));
+    try {
+      if (has) {
+        await api.delete(`/manager/reps/${repId}/permissions/${permission}`, authHeaders(token));
+      } else {
+        await api.post(`/manager/reps/${repId}/permissions`, { permission }, authHeaders(token));
+      }
+      await load();
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
     }
-    await load();
   }
 
   async function toggleActive(rep: Rep) {
     if (!token) return;
-    await api.patch(`/manager/reps/${rep.id}`, { isActive: !rep.isActive }, authHeaders(token));
-    await load();
+    try {
+      await api.patch(`/manager/reps/${rep.id}`, { isActive: !rep.isActive }, authHeaders(token));
+      await load();
+      toast.success(lang === 'ar' ? (rep.isActive ? 'تم إيقاف الحساب' : 'تم تفعيل الحساب') : rep.isActive ? 'Account suspended' : 'Account activated');
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
+    }
   }
 
   async function deleteRep(rep: Rep) {
     if (!token) return;
-    await api.delete(`/manager/reps/${rep.id}`, authHeaders(token));
-    setToDelete(null);
-    await load();
+    try {
+      await api.delete(`/manager/reps/${rep.id}`, authHeaders(token));
+      setToDelete(null);
+      await load();
+      toast.success(lang === 'ar' ? 'تم حذف المندوب' : 'Sales rep deleted');
+    } catch (err) {
+      setToDelete(null);
+      toast.error(apiErrorMessage(err, t));
+    }
   }
 
   const filtered = reps.filter(

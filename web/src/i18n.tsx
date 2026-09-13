@@ -29,6 +29,15 @@ const ar = {
     all: 'الكل',
     search: 'بحث...',
   },
+  errors: {
+    failed: 'فشل تنفيذ الأمر',
+    forbidden: 'غير مسموح لك بتنفيذ هذا الإجراء (403)',
+    conflict: 'تعذر الحفظ: الرقم أو البريد مستخدم مسبقاً (409)',
+    notFound: 'العنصر المطلوب غير موجود (404)',
+    server: 'خطأ في الخادم، حاول مجدداً (500)',
+    network: 'تعذر الوصول إلى الخادم، تحقق من الاتصال',
+    sessionExpired: 'انتهت الجلسة أو غير صالحة، يرجى تسجيل الدخول مجدداً',
+  },
   login: {
     subtitle: 'لوحة إدارة المبيعات',
     email: 'البريد الإلكتروني',
@@ -555,6 +564,15 @@ const en: typeof ar = {
     none: '—',
     all: 'All',
     search: 'Search...',
+  },
+  errors: {
+    failed: 'Action failed',
+    forbidden: 'You are not allowed to perform this action (403)',
+    conflict: 'Could not save: phone or email already exists (409)',
+    notFound: 'The requested item was not found (404)',
+    server: 'Server error, please try again (500)',
+    network: 'Cannot reach the server, check your connection',
+    sessionExpired: 'Session expired or invalid, please log in again',
   },
   login: {
     subtitle: 'Sales Management Panel',

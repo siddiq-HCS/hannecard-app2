@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
-import { api, authHeaders, SOCKET_URL } from '../api/client';
+import { api, authHeaders, SOCKET_URL, apiErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useI18n, formatTime } from '../i18n';
+import { toast } from '../components/Toast';
 
 interface Conversation {
   id: string;
@@ -116,35 +117,48 @@ export function Chat() {
   async function openConversation(convId: string) {
     if (!token) return;
     setActiveId(convId);
-    const res = await api.get(`/conversations/${convId}/messages`, { params: { limit: 200 }, ...authHeaders(token) });
-    setMessages(Array.isArray(res.data) ? res.data : []);
-    await api.post(`/conversations/${convId}/read`, {}, authHeaders(token)).catch(() => {});
-    setConversations((prev) => prev.map((c) => (c.id === convId ? { ...c, unreadCount: 0 } : c)));
+    try {
+      const res = await api.get(`/conversations/${convId}/messages`, { params: { limit: 200 }, ...authHeaders(token) });
+      setMessages(Array.isArray(res.data) ? res.data : []);
+      await api.post(`/conversations/${convId}/read`, {}, authHeaders(token)).catch(() => {});
+      setConversations((prev) => prev.map((c) => (c.id === convId ? { ...c, unreadCount: 0 } : c)));
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
+    }
   }
 
   async function startChat(repId: string) {
     if (!token) return;
-    const res = await api.post('/conversations', { participantId: repId }, authHeaders(token));
-    const conv = res.data as Conversation;
-    setShowNew(false);
-    await loadConversations();
-    await openConversation(conv.id);
+    try {
+      const res = await api.post('/conversations', { participantId: repId }, authHeaders(token));
+      const conv = res.data as Conversation;
+      setShowNew(false);
+      await loadConversations();
+      await openConversation(conv.id);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
+    }
   }
 
   async function send() {
     const content = input.trim();
     if (!content || !token || !activeId) return;
     setInput('');
-    const res = await api.post(`/conversations/${activeId}/messages`, { content }, authHeaders(token));
-    const message = res.data as ChatMessage;
-    setMessages((prev) => [...prev, message]);
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.id === activeId
-          ? { ...c, lastMessage: { ...message, id: message.id, content: message.content, senderId: message.senderId, senderName: message.senderName, readAt: message.readAt, createdAt: message.createdAt }, updatedAt: message.createdAt }
-          : c,
-      ),
-    );
+    try {
+      const res = await api.post(`/conversations/${activeId}/messages`, { content }, authHeaders(token));
+      const message = res.data as ChatMessage;
+      setMessages((prev) => [...prev, message]);
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === activeId
+            ? { ...c, lastMessage: { ...message, id: message.id, content: message.content, senderId: message.senderId, senderName: message.senderName, readAt: message.readAt, createdAt: message.createdAt }, updatedAt: message.createdAt }
+            : c,
+        ),
+      );
+    } catch (err) {
+      setInput(content);
+      toast.error(apiErrorMessage(err, t));
+    }
   }
 
   const activeConv = (conversations ?? []).find((c) => c.id === activeId);

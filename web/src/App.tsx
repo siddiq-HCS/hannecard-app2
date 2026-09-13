@@ -16,6 +16,7 @@ import { RollMaterials } from './pages/RollMaterials';
 import { PagePermissions } from './pages/PagePermissions';
 import { Permissions } from './pages/Permissions';
 import { Logo } from './components/Logo';
+import { Toaster } from './components/Toast';
 import { Home, Map, Users, FileText, BarChart2, MessageSquare, Calendar, ClipboardCheck, Layers, Settings, ShieldCheck } from 'lucide-react';
 
 // شاشة تحميل مؤقتة أثناء التحقق من الجلسة (/me) — بديل عن فراغ/شاشة سوداء
@@ -272,9 +273,11 @@ export function App() {
   const isDev = typeof user?.role === 'string' && user.role.toUpperCase() === 'DEVELOPER';
 
   return (
-    <Routes>
-      {/* صفحة الدخول: تظهر عند غياب جلسة صالحة (token غائب/تالف/منتهي) — بدون أي انهيار */}
-      <Route path="/login" element={<Login />} />
+    <>
+      <Toaster />
+      <Routes>
+        {/* صفحة الدخول: تظهر عند غياب جلسة صالحة (token غائب/تالف/منتهي) — بدون أي انهيار */}
+        <Route path="/login" element={<Login />} />
 
       {/* اللوحة الإدارية محمية: أي مسار بدون جلسة سارية يُوجَّه مباشرة لـ /login */}
       <Route path="/dashboard" element={isStaff && hasPermission(user, 'PAGE_DASHBOARD_ACCESS') ? <Shell><Dashboard /></Shell> : <Navigate to={isStaff ? firstAllowedHref(user) : '/login'} replace />} />
@@ -292,6 +295,7 @@ export function App() {
       <Route path="/reports" element={<Navigate to="/weekly-plans" />} />
       {/* أي مسار مجهول → أول صفحة مسموحة للحساب إن كانت جلسة سارية، وإلا صفحة الدخول */}
       <Route path="*" element={<Navigate to={isStaff ? firstAllowedHref(user) : '/login'} replace />} />
-    </Routes>
+      </Routes>
+    </>
   );
 }

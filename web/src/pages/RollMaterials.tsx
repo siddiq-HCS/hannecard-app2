@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { api, authHeaders } from '../api/client';
+import { api, authHeaders, apiErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n';
+import { toast } from '../components/Toast';
 
 interface RollMaterial {
   id: string;
@@ -84,7 +85,7 @@ const round4 = (n: number) => Math.round(n * 10000) / 10000;
 
 export function RollMaterials() {
   const { token } = useAuth();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
 
   const [materials, setMaterials] = useState<RollMaterial[]>([]);
   const [name, setName] = useState('');
@@ -135,9 +136,21 @@ export function RollMaterials() {
     if (isNaN(payload.density) || isNaN(payload.materialCostPerKg) || isNaN(payload.baseWorkmanshipCost)) return;
 
     if (editId) {
-      await api.patch(`/roll-materials/${editId}`, payload, authHeaders(token));
+      try {
+        await api.patch(`/roll-materials/${editId}`, payload, authHeaders(token));
+        toast.success(lang === 'ar' ? 'تم تحديث الخامة' : 'Material updated');
+      } catch (err) {
+        toast.error(apiErrorMessage(err, t));
+        return;
+      }
     } else {
-      await api.post('/roll-materials', payload, authHeaders(token));
+      try {
+        await api.post('/roll-materials', payload, authHeaders(token));
+        toast.success(lang === 'ar' ? 'تمت إضافة الخامة' : 'Material added');
+      } catch (err) {
+        toast.error(apiErrorMessage(err, t));
+        return;
+      }
     }
 
     resetForm();
@@ -154,8 +167,13 @@ export function RollMaterials() {
 
   const remove = async (id: string) => {
     if (!token || !confirm(t('rollMat.confirmDelete'))) return;
-    await api.delete(`/roll-materials/${id}`, authHeaders(token));
-    void load();
+    try {
+      await api.delete(`/roll-materials/${id}`, authHeaders(token));
+      void load();
+      toast.success(lang === 'ar' ? 'تم حذف الخامة' : 'Material deleted');
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
+    }
   };
 
   const resetForm = () => {
@@ -181,9 +199,21 @@ export function RollMaterials() {
     if (isNaN(payload.outerDiameter) || isNaN(payload.innerDiameter) || isNaN(payload.length)) return;
 
     if (rollEditId) {
-      await api.patch(`/roll-materials/rolls/${rollEditId}`, payload, authHeaders(token));
+      try {
+        await api.patch(`/roll-materials/rolls/${rollEditId}`, payload, authHeaders(token));
+        toast.success(lang === 'ar' ? 'تم تحديث الرول' : 'Roll updated');
+      } catch (err) {
+        toast.error(apiErrorMessage(err, t));
+        return;
+      }
     } else {
-      await api.post('/roll-materials/rolls', payload, authHeaders(token));
+      try {
+        await api.post('/roll-materials/rolls', payload, authHeaders(token));
+        toast.success(lang === 'ar' ? 'تمت إضافة الرول' : 'Roll added');
+      } catch (err) {
+        toast.error(apiErrorMessage(err, t));
+        return;
+      }
     }
 
     resetRollForm();
@@ -203,8 +233,13 @@ export function RollMaterials() {
 
   const removeRoll = async (id: string) => {
     if (!token || !confirm(t('rollMat.confirmDeleteRoll'))) return;
-    await api.delete(`/roll-materials/rolls/${id}`, authHeaders(token));
-    void loadRolls();
+    try {
+      await api.delete(`/roll-materials/rolls/${id}`, authHeaders(token));
+      void loadRolls();
+      toast.success(lang === 'ar' ? 'تم حذف الرول' : 'Roll deleted');
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
+    }
   };
 
   const resetRollForm = () => {

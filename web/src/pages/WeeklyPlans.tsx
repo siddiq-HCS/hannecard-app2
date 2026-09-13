@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, authHeaders } from '../api/client';
+import { api, authHeaders, apiErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useI18n, formatDate, formatDateTime, type Lang } from '../i18n';
+import { toast } from '../components/Toast';
 
 interface Visit {
   id: string;
@@ -282,8 +283,9 @@ export function WeeklyPlans() {
         const res = await api.get(`/weekly-plans/${p.id}`, authHeaders(token));
         setDetail(res.data);
       }
-    } catch {
-      alert(t('weeklyPlans.approveError'));
+      toast.success(lang === 'ar' ? 'تم الاعتماد' : 'Approved');
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
     }
   }
 

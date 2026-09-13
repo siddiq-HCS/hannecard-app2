@@ -19,7 +19,7 @@ export function Dashboard() {
 
   useEffect(() => {
     if (!token) return;
-    api.get('/manager/live', authHeaders(token)).then((res) => setFeed(res.data));
+    api.get('/manager/live', authHeaders(token)).then((res) => setFeed(res.data)).catch(() => {});
   }, [token]);
 
   // اتصال لحظي لاستقبال الأنشطة الجديدة
