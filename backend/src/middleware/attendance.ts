@@ -5,18 +5,12 @@ function toDate(s: string) {
   return new Date(`${s}T00:00:00Z`);
 }
 
-/** تاريخ اليوم الفعلي (YYYY-MM-DD) بتوقيت القاهرة — يُستخدم عند غياب التاريخ من العميل */
+// المملكة العربية السعودية توقيت ثابت UTC+3 (بدون توقيت صيفي) — نفس منطقة الحضور في routes/attendance.routes.ts
+const TZ_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+/** تاريخ اليوم الفعلي (YYYY-MM-DD) بتوقيت الرياض — يُستخدم عند غياب التاريخ من العميل */
 export function todayInTz(): string {
-  try {
-    return new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'Africa/Cairo',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    }).format(new Date());
-  } catch {
-    return new Date().toISOString().slice(0, 10);
-  }
+  return new Date(Date.now() + TZ_OFFSET_MS).toISOString().slice(0, 10);
 }
 
 /** قراءة تاريخ اليوم من الطلب (body.date أو x-date أو query.date) مع الاحتياط إلى توقيت السيرفر */

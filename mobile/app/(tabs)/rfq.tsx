@@ -392,6 +392,31 @@ export default function RfqScreen() {
     }
   }
 
+  // ترجمة خطأ الخادم إلى رسالة محددة حسب الكود — بدل رسالة عامة مثل ("تعذر إرسال الطلب")
+  function rfqErrorMessage(err: unknown): string {
+    try {
+      const known = err as {
+        response?: { data?: { error?: string; message?: string }; status?: number };
+        code?: string;
+      };
+      const code = known?.response?.data?.error ?? known?.code;
+      const status = known?.response?.status ?? 0;
+      const map: Record<string, string> = {
+        duplicate_rfq: t('rfq.duplicate'),
+        attendance_required: t('rfq.errAttendance'),
+        not_editable: t('rfq.errNotEditable'),
+        invalid_input: t('rfq.errInvalid'),
+      };
+      if (code && map[code]) return map[code];
+      if (known?.response?.data?.message) return known.response.data.message;
+      if (status >= 500) return t('rfq.errServer');
+      if (!known?.response && known?.code) return t('rfq.errNetwork');
+    } catch {
+      /* ignore */
+    }
+    return t('rfq.fail');
+  }
+
   async function submit() {
     if (!token) return;
     if (submittingRef.current) return;
@@ -422,23 +447,32 @@ export default function RfqScreen() {
     submittingRef.current = true;
     setSending(true);
     try {
-      const itemPayload = validItems.map((it) => ({
-        description: it.description,
-        quantity: it.quantity,
-        finishingType: it.finishingType,
-        finishingTypeOther: it.finishingTypeOther.trim() || '',
-        requiredWork: it.requiredWork,
-        requiredWorkOther: it.requiredWork.includes('OTHERS') ? it.requiredWorkOther.trim() : '',
-        workEnvironment: it.workEnvironment,
-        workEnvironmentOther: it.workEnvironment !== 'NORMAL' ? it.workEnvironmentOther.trim() : '',
-        ...(it.rollMaterialId ? {
-          rollMaterialId: it.rollMaterialId,
-          outerDiameter: parseFloat(it.outerDiameter || '0'),
-          innerDiameter: parseFloat(it.innerDiameter || '0'),
-          rollLength: parseFloat(it.rollLength || '0'),
-          calculatedPrice: it.calculatedPrice,
-        } : {}),
-      }));
+      const itemPayload = validItems.map((it) => {
+        // أبعاد الرول تُرسل فقط عندما تكون أرقاماً موجبة صحيحة — إرسال 0/NaN يسبب رفضاً من الخادم
+        const num = (raw?: string) => {
+          const n = parseFloat(String(raw ?? '').replace(',', '.'));
+          return Number.isFinite(n) && n > 0 ? n : undefined;
+        };
+        const outer = num(it.outerDiameter);
+        const inner = num(it.innerDiameter);
+        const len = num(it.rollLength);
+        const hasValidDims = !!it.rollMaterialId && !!outer && !!inner && !!len;
+        return {
+          description: it.description,
+          quantity: it.quantity,
+          finishingType: it.finishingType,
+          finishingTypeOther: it.finishingTypeOther.trim() || '',
+          requiredWork: it.requiredWork,
+          requiredWorkOther: it.requiredWork.includes('OTHERS') ? it.requiredWorkOther.trim() : '',
+          workEnvironment: it.workEnvironment,
+          workEnvironmentOther: it.workEnvironment !== 'NORMAL' ? it.workEnvironmentOther.trim() : '',
+          ...(it.rollMaterialId ? { rollMaterialId: it.rollMaterialId } : {}),
+          ...(hasValidDims ? { outerDiameter: outer, innerDiameter: inner, rollLength: len } : {}),
+          ...(hasValidDims && typeof it.calculatedPrice === 'number' && it.calculatedPrice > 0
+            ? { calculatedPrice: it.calculatedPrice }
+            : {}),
+        };
+      });
 
       let rfqId: string;
       if (editingRfq) {
@@ -524,8 +558,7 @@ export default function RfqScreen() {
       Alert.alert(t('rfq.ok'), t('rfq.success'));
       await load();
     } catch (err) {
-      const isDuplicate = (err as { response?: { data?: { error?: string } } })?.response?.data?.error === 'duplicate_rfq';
-      Alert.alert(t('login.alertTitle'), isDuplicate ? t('rfq.duplicate') : t('rfq.fail'));
+      Alert.alert(t('login.alertTitle'), rfqErrorMessage(err));
     } finally {
       // ضمان عودة الزر للحالة النشطة دائماً فور اكتمال الرفع أو فشله أو تعليقه
       submittingRef.current = false;

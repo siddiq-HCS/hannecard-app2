@@ -50,13 +50,24 @@ export default function LoginScreen() {
       await login(email, password, coords ?? undefined);
       router.replace('/profile');
     } catch (err) {
-      const code = (err as { response?: { data?: { error?: string; message?: string } } })?.response?.data?.error;
-      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      const known = err as { response?: { data?: { error?: string; message?: string }; status?: number }; code?: string };
+      const code = known?.response?.data?.error ?? known?.code;
+      const msg = known?.response?.data?.message;
       if (code === 'mobile_not_allowed' || (err as Error).message === 'MOBILE_NOT_ALLOWED') {
         Alert.alert(t('login.alertTitle'), msg ?? t('login.mobileNotAllowed'), [
           { text: t('common.cancel') },
           { text: t('login.openAdmin'), onPress: () => void Linking.openURL(t('login.adminUrl')) },
         ]);
+      } else if (code === 'invalid_credentials') {
+        Alert.alert(t('login.alertTitle'), t('login.invalidCredentials'));
+      } else if (code === 'account_inactive') {
+        Alert.alert(t('login.alertTitle'), msg ?? t('login.accountInactive'));
+      } else if (code === 'invalid_input') {
+        Alert.alert(t('login.alertTitle'), t('login.alertHint'));
+      } else if (known.response && (known.response.status ?? 0) >= 500) {
+        Alert.alert(t('login.alertTitle'), t('login.serverUnavailable'));
+      } else if (!known?.response && known?.code) {
+        Alert.alert(t('login.alertTitle'), t('login.networkFailed'));
       } else {
         Alert.alert(t('login.failed'), t('login.failedHint'));
       }

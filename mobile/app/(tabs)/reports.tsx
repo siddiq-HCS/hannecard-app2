@@ -6,6 +6,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/i18n';
@@ -130,6 +131,46 @@ function formatDayDate(date: Date, lang: string) {
   return `${DAY_MONTHS_EN[month]} ${day}`;
 }
 
+// مسودة الخطة تُحفظ محلياً (AsyncStorage) مع كل تعديل حتى لا تُفقد عند قطع الشبكة أو إغلاق التطبيق
+interface LocalPlanDraft {
+  planId: string | null;
+  year: string;
+  weekNumber: string;
+  days: Day[];
+  pendingDocs: Record<string, { uri: string; name: string; mimeType: string; base64?: string }[]>;
+  savedAt: number;
+}
+
+const PLAN_DRAFT_PREFIX = 'weekly_plan_draft_';
+
+async function saveLocalPlanDraft(userId: string, draft: LocalPlanDraft): Promise<void> {
+  try {
+    await AsyncStorage.setItem(`${PLAN_DRAFT_PREFIX}${userId}`, JSON.stringify(draft));
+  } catch {
+    // تجاهل أخطاء التخزين المحلي — المسودة مجرد وسيلة راحة وليست حرجة
+  }
+}
+
+async function loadLocalPlanDraft(userId: string): Promise<LocalPlanDraft | null> {
+  try {
+    const raw = await AsyncStorage.getItem(`${PLAN_DRAFT_PREFIX}${userId}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as LocalPlanDraft;
+    if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.days)) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+async function clearLocalPlanDraft(userId: string): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(`${PLAN_DRAFT_PREFIX}${userId}`);
+  } catch {
+    /* ignore */
+  }
+}
+
 export default function WeeklyPlansScreen() {
   const { token, user } = useAuth();
   const { t, lang } = useI18n();
@@ -152,6 +193,24 @@ export default function WeeklyPlansScreen() {
   function auth() {
     return { Authorization: `Bearer ${token}` };
   }
+
+  const draftOwnerId = () => user?.id ?? 'rep';
+
+  // حفظ المسودة محلياً تلقائياً بعد كل تعديل (بتأخير خفيف) — لا تُفقد البيانات عند قطع الشبكة أو إغلاق التطبيق
+  useEffect(() => {
+    if (!token || !formOpen || planStatus !== 'DRAFT') return;
+    const handle = setTimeout(() => {
+      void saveLocalPlanDraft(draftOwnerId(), {
+        planId,
+        year,
+        weekNumber,
+        days,
+        pendingDocs,
+        savedAt: Date.now(),
+      });
+    }, 500);
+    return () => clearTimeout(handle);
+  }, [token, formOpen, planStatus, planId, year, weekNumber, days, pendingDocs]);
 
   async function ensureCheckedIn(): Promise<boolean> {
     const gate = await requireTodayCheckIn(token ?? '', user?.role === 'REPRESENTATIVE');
@@ -188,14 +247,41 @@ export default function WeeklyPlansScreen() {
   }
 
   function openNew() {
-    setPlanId(null);
-    setPlanStatus('DRAFT');
-    const cw = currentWeek();
-    setYear(cw.year);
-    setWeekNumber(cw.week);
-    setDays(initDays());
-    setCollapsed({});
-    setFormOpen(true);
+    const startNew = () => {
+      setPlanId(null);
+      setPlanStatus('DRAFT');
+      const cw = currentWeek();
+      setYear(cw.year);
+      setWeekNumber(cw.week);
+      setDays(initDays());
+      setCollapsed({});
+      setFormOpen(true);
+    };
+    void (async () => {
+      const draft = token ? await loadLocalPlanDraft(draftOwnerId()) : null;
+      const hasContent = !!draft && !!draft.year && draft.days.some((d) => d.visits.some((v) => v.companyName.trim()));
+      if (!hasContent || !draft) {
+        startNew();
+        return;
+      }
+      Alert.alert(t('weeklyPlans.draftFoundTitle'), t('weeklyPlans.draftFoundMsg'), [
+        { text: t('weeklyPlans.discardDraft'), style: 'destructive', onPress: () => { void clearLocalPlanDraft(draftOwnerId()); startNew(); } },
+        {
+          text: t('weeklyPlans.resumeDraft'),
+          onPress: () => {
+            setPlanId(draft.planId ?? null);
+            setPlanStatus('DRAFT');
+            setYear(draft.year);
+            setWeekNumber(draft.weekNumber);
+            setDays((draft.days ?? []).map((d) => ({ ...d, visits: d.visits.map((v) => ({ ...v, pendingImage: null })) })));
+            setPendingDocs(draft.pendingDocs ?? {});
+            setCollapsed({});
+            setFormOpen(true);
+          },
+        },
+        { text: t('common.cancel'), style: 'cancel', onPress: () => startNew() },
+      ]);
+    })();
   }
 
   function openPlan(p: Plan) {
@@ -372,6 +458,11 @@ export default function WeeklyPlansScreen() {
     return fallback;
   }
 
+  function isNetworkError(err: unknown): boolean {
+    const e = err as { response?: unknown; code?: string };
+    return !e?.response && !!e?.code;
+  }
+
   async function save(isSubmit: boolean) {
     if (!token) return;
     if (savingRef.current) return;
@@ -397,6 +488,8 @@ export default function WeeklyPlansScreen() {
       if (!id) {
         const created = await api.post('/weekly-plans', meta, { headers: auth() });
         id = (created.data as Plan).id;
+        // تثبيت معرّف الخطة فوراً حتى لا تُنشأ خطة مكررة عند إعادة محاولة الحفظ بعد فشل لاحق
+        setPlanId(id);
       }
       const payloadDays = days.map((d) => ({
         dayName: d.dayName,
@@ -454,13 +547,17 @@ export default function WeeklyPlansScreen() {
       }
       Alert.alert(t('weeklyPlans.ok'), isSubmit ? t('weeklyPlans.submittedMsg') : t('weeklyPlans.draftSaved'));
       closeForm();
+      // نجاح الرفع: نمسح المسودة المحلية نهائياً كي لا تقترح استئناف خطة وُضعت بالفعل
+      await clearLocalPlanDraft(draftOwnerId());
       try {
         await load();
       } catch {
         // فشل تحديث القائمة لا يُعتبر فشلاً لعملية الحفظ — تم الحفظ بنجاح
       }
     } catch (err) {
-      Alert.alert(t('login.alertTitle'), planErrorMessage(err, isSubmit));
+      const msg = planErrorMessage(err, isSubmit);
+      const note = isNetworkError(err) ? `\n\n${t('weeklyPlans.draftKeptLocally')}` : '';
+      Alert.alert(t('login.alertTitle'), `${msg}${note}`);
     } finally {
       savingRef.current = false;
       setSaving(false);

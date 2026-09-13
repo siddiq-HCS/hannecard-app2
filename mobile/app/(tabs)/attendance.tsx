@@ -29,7 +29,7 @@ function workHours(rec: AttendanceRecord | null) {
 }
 
 export default function AttendanceScreen() {
-  const { token, user } = useAuth();
+  const { token, user, logout } = useAuth();
   const { t, lang } = useI18n();
   const router = useRouter();
   const [record, setRecord] = useState<AttendanceRecord | null>(null);
@@ -69,6 +69,44 @@ export default function AttendanceScreen() {
     day: 'numeric',
   });
 
+  // ترجمة أخطاء الحضور من الخادم إلى رسائل محددة تُظهر السبب الحقيقي للمندوب
+  async function onAttendanceError(err: unknown) {
+    const known = err as { response?: { data?: { error?: string; message?: string }; status?: number }; code?: string };
+    const code = known?.response?.data?.error ?? known?.code;
+    const status = known?.response?.status ?? 0;
+    try {
+      if (code === 'invalid_token' || status === 401) {
+        // انتهت الجلسة: نمسحها ونعيد التوجيه لشاشة الدخول
+        await logout();
+        return;
+      }
+      if (code === 'already_checked_in') {
+        void load();
+        Alert.alert(t('login.alertTitle'), t('attendance.alreadyCheckedIn'));
+        return;
+      }
+      if (code === 'not_checked_in') {
+        Alert.alert(t('login.alertTitle'), known?.response?.data?.message ?? t('attendance.notCheckedInServer'));
+        return;
+      }
+      if (code === 'invalid_input') {
+        Alert.alert(t('login.alertTitle'), `${t('attendance.gpsRequired')}\n\n${t('attendance.gpsHelp')}`);
+        return;
+      }
+      if (status >= 500) {
+        Alert.alert(t('login.alertTitle'), t('attendance.serverUnavailable'));
+        return;
+      }
+      if (!known?.response && known?.code) {
+        Alert.alert(t('login.alertTitle'), t('attendance.networkFailed'));
+        return;
+      }
+    } catch {
+      /* ignore */
+    }
+    Alert.alert(t('login.alertTitle'), `${t('attendance.gpsFailed')}\n\n${t('attendance.gpsHelp')}`);
+  }
+
   async function onCheckIn() {
     if (!token || busy) return;
     setBusy(true);
@@ -94,8 +132,8 @@ export default function AttendanceScreen() {
       Alert.alert(t('attendance.checkedInDone'), `${t('attendance.checkedInAt')} ${fmtTime(rec.checkInTime ?? new Date().toISOString())}`);
       // إعادة تحميل متزامنة في الخلفية دون حجب واجهة المستخدم
       void load();
-    } catch {
-      Alert.alert(t('login.alertTitle'), `${t('attendance.gpsFailed')}\n\n${t('attendance.gpsHelp')}`);
+    } catch (err) {
+      await onAttendanceError(err);
     } finally {
       setBusy(false);
     }
@@ -124,8 +162,8 @@ export default function AttendanceScreen() {
       });
       Alert.alert(t('attendance.checkedOutDone'), `${t('attendance.checkedOutAt')} ${fmtTime(rec.checkOutTime ?? new Date().toISOString())}`);
       void load();
-    } catch {
-      Alert.alert(t('login.alertTitle'), `${t('attendance.gpsFailed')}\n\n${t('attendance.gpsHelp')}`);
+    } catch (err) {
+      await onAttendanceError(err);
     } finally {
       setBusy(false);
     }
