@@ -12,7 +12,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/i18n';
 import { api, API_URL, DEFAULT_REQUEST_TIMEOUT } from '@/api/client';
 import { getCurrentPosition } from '@/services/location';
-import { requireTodayCheckIn, todayLocal } from '@/services/attendance';
+import { requireTodayCheckIn, todayServerDate } from '@/services/attendance';
 import { pickWebImages, pickWebDocs, dataUrlToBlob, appendFileToForm, isWeb } from '@/services/webImagePicker';
 import { Logo } from '@/components/Logo';
 
@@ -483,7 +483,7 @@ export default function WeeklyPlansScreen() {
     setSaving(true);
     try {
       const coords = await getCurrentPosition();
-      const meta = { year: y, weekNumber: w, date: todayLocal(), ...(coords ?? {}) };
+      const meta = { year: y, weekNumber: w, date: await todayServerDate(), ...(coords ?? {}) };
       let id = planId;
       if (!id) {
         const created = await api.post('/weekly-plans', meta, { headers: auth() });
@@ -543,7 +543,7 @@ export default function WeeklyPlansScreen() {
       }
 
       if (isSubmit) {
-        await api.post(`/weekly-plans/${id}/submit`, { date: todayLocal() }, { headers: auth() });
+        await api.post(`/weekly-plans/${id}/submit`, { date: await todayServerDate() }, { headers: auth() });
       }
       Alert.alert(t('weeklyPlans.ok'), isSubmit ? t('weeklyPlans.submittedMsg') : t('weeklyPlans.draftSaved'));
       closeForm();
@@ -555,6 +555,14 @@ export default function WeeklyPlansScreen() {
         // فشل تحديث القائمة لا يُعتبر فشلاً لعملية الحفظ — تم الحفظ بنجاح
       }
     } catch (err) {
+      const e = err as { response?: { status?: number; data?: { error?: string; message?: string; details?: unknown } }; message?: string };
+      console.error('[weeklyPlans] save failed', {
+        submit: isSubmit,
+        status: e.response?.status,
+        code: e.response?.data?.error,
+        message: e.response?.data?.message ?? e.message,
+        details: e.response?.data?.details,
+      });
       const msg = planErrorMessage(err, isSubmit);
       const note = isNetworkError(err) ? `\n\n${t('weeklyPlans.draftKeptLocally')}` : '';
       Alert.alert(t('login.alertTitle'), `${msg}${note}`);

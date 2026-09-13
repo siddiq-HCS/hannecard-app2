@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/i18n';
 import { api } from '@/api/client';
 import { getCurrentPosition } from '@/services/location';
-import { todayLocal, type AttendanceRecord } from '@/services/attendance';
+import { todayServerDate, type AttendanceRecord } from '@/services/attendance';
 
 function fmtTime(iso: string | null) {
   if (!iso) return '—';
@@ -41,8 +41,9 @@ export default function AttendanceScreen() {
   const load = useCallback(async () => {
     if (!token) return;
     try {
+      const date = await todayServerDate();
       const [st, hs] = await Promise.all([
-        api.get(`/attendance/status?date=${todayLocal()}`, { headers: { Authorization: `Bearer ${token}` } }),
+        api.get(`/attendance/status?date=${date}`, { headers: { Authorization: `Bearer ${token}` } }),
         api.get('/attendance/history?limit=10', { headers: { Authorization: `Bearer ${token}` } }),
       ]);
       setRecord((st.data as { attendance: AttendanceRecord | null }).attendance);
@@ -70,10 +71,16 @@ export default function AttendanceScreen() {
   });
 
   // ترجمة أخطاء الحضور من الخادم إلى رسائل محددة تُظهر السبب الحقيقي للمندوب
-  async function onAttendanceError(err: unknown) {
-    const known = err as { response?: { data?: { error?: string; message?: string }; status?: number }; code?: string };
+  async function onAttendanceError(err: unknown, action: 'check-in' | 'check-out') {
+    const known = err as { response?: { data?: { error?: string; message?: string }; status?: number }; code?: string; message?: string };
     const code = known?.response?.data?.error ?? known?.code;
     const status = known?.response?.status ?? 0;
+    // طباعة تفصيلية لرمز/حالة الخطأ الفعلية لتتبع فشل الحضور من جهاز المندوب
+    console.error(`[attendance] ${action} failed`, {
+      status,
+      code,
+      message: known?.response?.data?.message ?? known?.message,
+    });
     try {
       if (code === 'invalid_token' || status === 401) {
         // انتهت الجلسة: نمسحها ونعيد التوجيه لشاشة الدخول
@@ -111,15 +118,12 @@ export default function AttendanceScreen() {
     if (!token || busy) return;
     setBusy(true);
     try {
+      const date = await todayServerDate();
       const coords = await getCurrentPosition();
-      if (!coords) {
-        // تنبيه واضح: راهن الموقع والصلاحيات، دون حجز العملية من جديد لاحقاً
-        Alert.alert(t('login.alertTitle'), `${t('attendance.gpsRequired')}\n\n${t('attendance.gpsHelp')}`);
-        return;
-      }
+      // الموقع غير متاح (لا GPS/رفض إذن): لا نمنع تسجيل الحضور، نواصل بدونه ويُشار في رسالة النجاح
       const res = await api.post(
         '/attendance/check-in',
-        { date: todayLocal(), ...coords },
+        { date, ...(coords ?? {}) },
         { headers: { Authorization: `Bearer ${token}` } },
       );
       // تحديث الحالة فوراً من استجابة السيرفر حتى يتحوّل الزر إلى "تم تسجيل الحضور"
@@ -129,11 +133,12 @@ export default function AttendanceScreen() {
         const rest = (prev ?? []).filter((h) => h.date !== rec.date);
         return [rec, ...rest];
       });
-      Alert.alert(t('attendance.checkedInDone'), `${t('attendance.checkedInAt')} ${fmtTime(rec.checkInTime ?? new Date().toISOString())}`);
+      const note = coords ? '' : `\n${t('attendance.noLocationNote')}`;
+      Alert.alert(t('attendance.checkedInDone'), `${t('attendance.checkedInAt')} ${fmtTime(rec.checkInTime ?? new Date().toISOString())}${note}`);
       // إعادة تحميل متزامنة في الخلفية دون حجب واجهة المستخدم
       void load();
     } catch (err) {
-      await onAttendanceError(err);
+      await onAttendanceError(err, 'check-in');
     } finally {
       setBusy(false);
     }
@@ -143,14 +148,11 @@ export default function AttendanceScreen() {
     if (!token || busy) return;
     setBusy(true);
     try {
+      const date = await todayServerDate();
       const coords = await getCurrentPosition();
-      if (!coords) {
-        Alert.alert(t('login.alertTitle'), `${t('attendance.gpsRequired')}\n\n${t('attendance.gpsHelp')}`);
-        return;
-      }
       const res = await api.post(
         '/attendance/check-out',
-        { date: todayLocal(), ...coords },
+        { date, ...(coords ?? {}) },
         { headers: { Authorization: `Bearer ${token}` } },
       );
       // تحديث الحالة فوراً من استجابة السيرفر
@@ -160,10 +162,11 @@ export default function AttendanceScreen() {
         const rest = (prev ?? []).filter((h) => h.date !== rec.date);
         return [rec, ...rest];
       });
-      Alert.alert(t('attendance.checkedOutDone'), `${t('attendance.checkedOutAt')} ${fmtTime(rec.checkOutTime ?? new Date().toISOString())}`);
+      const note = coords ? '' : `\n${t('attendance.noLocationNote')}`;
+      Alert.alert(t('attendance.checkedOutDone'), `${t('attendance.checkedOutAt')} ${fmtTime(rec.checkOutTime ?? new Date().toISOString())}${note}`);
       void load();
     } catch (err) {
-      await onAttendanceError(err);
+      await onAttendanceError(err, 'check-out');
     } finally {
       setBusy(false);
     }

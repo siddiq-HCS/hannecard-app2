@@ -17,6 +17,11 @@ const router = Router();
 const DAYS: PlanDayName[] = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY'];
 const DAY_INDEX: Record<string, number> = { SUNDAY: 0, MONDAY: 1, TUESDAY: 2, WEDNESDAY: 3, THURSDAY: 4 };
 
+// تسجيل أخطاء حفظ/إرسال الخطة في سجل الخادم لتتبع شكاوى المندوبين (Render Logs)
+function logPlanError(req: { method: string; path: string }, code: string, status: number, extra?: Record<string, unknown>) {
+  console.error(`[weekly-plans] ${req.method} ${req.path} -> ${status} ${code}`, { ...extra });
+}
+
 const CATEGORIES = ['PLASTICS', 'PRINTING', 'PACKAGING', 'WOOD', 'METAL', 'PAPER', 'TISSUES', 'TEXTILES', 'FOOD_INDUSTRY', 'OTHERS'] as const;
 
 const MIN_VISITS_TO_SUBMIT = 30;
@@ -213,6 +218,7 @@ router.post(
   async (req, res) => {
     const parsed = createSchema.safeParse(req.body);
     if (!parsed.success) {
+      logPlanError(req, 'invalid_input', 400, { userId: req.user.id, bodyKeys: Object.keys(req.body ?? {}) });
       return res.status(400).json({ error: 'invalid_input', message: 'بعض البيانات غير صحيحة، تحقق من الحقول (السنة، رقم الأسبوع، الفئة) ثم أعد المحاولة', details: parsed.error.flatten() });
     }
 
@@ -271,11 +277,13 @@ router.put(
 
     // الخطة قابلة للتعديل فقط وهي مسودة؛ بعد الإرسال/الاعتماد تصبح للقراءة فقط
     if (plan.status !== 'DRAFT') {
+      logPlanError(req, 'not_editable', 400, { userId: req.user.id, planId: plan.id, status: plan.status });
       return res.status(400).json({ error: 'not_editable', message: 'لا يمكن تعديل هذه الخطة لأنها أُرسلت أو اعتُمدت بالفعل', status: plan.status });
     }
 
     const parsed = updateSchema.safeParse(req.body);
     if (!parsed.success) {
+      logPlanError(req, 'invalid_input', 400, { userId: req.user.id, planId: plan.id, bodyKeys: Object.keys(req.body ?? {}) });
       return res.status(400).json({ error: 'invalid_input', message: 'بعض البيانات غير صحيحة، تحقق من الحقول (السنة، رقم الأسبوع، الفئة) ثم أعد المحاولة', details: parsed.error.flatten() });
     }
 
@@ -423,11 +431,13 @@ router.post(
     });
     const missing = visits.filter((v) => !v.companyName.trim());
     if (missing.length) {
+      logPlanError(req, 'missing_company_name', 400, { userId: plan.userId, planId: plan.id, count: missing.length });
       return res.status(400).json({ error: 'missing_company_name', message: 'أدخل اسم الشركة/العميل لكل زيارة قبل الإرسال', count: missing.length });
     }
 
     // حد أدنى 30 زيارة لإرسال الخطة
     if (visits.length < MIN_VISITS_TO_SUBMIT) {
+      logPlanError(req, 'min_visits', 400, { userId: plan.userId, planId: plan.id, count: visits.length });
       return res.status(400).json({ error: 'min_visits', message: `يجب ألا يقل عدد الزيارات عن ${MIN_VISITS_TO_SUBMIT} زيارة قبل الإرسال (العدد الحالي: ${visits.length})`, count: visits.length, min: MIN_VISITS_TO_SUBMIT });
     }
 

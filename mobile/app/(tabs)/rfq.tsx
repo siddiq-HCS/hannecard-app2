@@ -10,7 +10,7 @@ import { useI18n } from '@/i18n';
 import { api, API_URL, DEFAULT_REQUEST_TIMEOUT } from '@/api/client';
 import { getSocket } from '@/services/socket';
 import { getCurrentPosition } from '@/services/location';
-import { requireTodayCheckIn, todayLocal } from '@/services/attendance';
+import { requireTodayCheckIn, todayServerDate } from '@/services/attendance';
 import { pickWebImages, pickWebDocs, dataUrlToBlob, appendFileToForm, isWeb } from '@/services/webImagePicker';
 import { Logo } from '@/components/Logo';
 import { DatePickerModal } from '@/components/DatePickerModal';
@@ -504,7 +504,7 @@ export default function RfqScreen() {
             requiredTimeOther: requiredTime === 'OTHERS' ? requiredTimeOther.trim() : undefined,
             workOrderDate,
             paymentTerms,
-            date: todayLocal(),
+            date: await todayServerDate(),
             ...(coords ?? {}),
           },
           { headers: { Authorization: `Bearer ${token}` } },
@@ -558,6 +558,12 @@ export default function RfqScreen() {
       Alert.alert(t('rfq.ok'), t('rfq.success'));
       await load();
     } catch (err) {
+      const e = err as { response?: { status?: number; data?: { error?: string; message?: string } }; message?: string };
+      console.error('[rfq] submit failed', {
+        status: e.response?.status,
+        code: e.response?.data?.error,
+        message: e.response?.data?.message ?? e.message,
+      });
       Alert.alert(t('login.alertTitle'), rfqErrorMessage(err));
     } finally {
       // ضمان عودة الزر للحالة النشطة دائماً فور اكتمال الرفع أو فشله أو تعليقه

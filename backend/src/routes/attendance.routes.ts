@@ -58,19 +58,41 @@ function serializeLegacy(rec: {
   };
 }
 
+// تسجيل رفض/خطأ الطلب في سجل الخادم (صفحة Logs في Render) ليتسنى تتبّع فشل مندوب معين
+function logRejection(req: { method: string; path: string; body?: unknown; query?: unknown }, code: string, status: number, extra?: Record<string, unknown>) {
+  const body = (req.body ?? {}) as Record<string, unknown>;
+  const query = (req.query ?? {}) as Record<string, unknown>;
+  console.error(`[attendance] ${req.method} ${req.path} -> ${status} ${code}`, {
+    date: body?.date ?? query?.date,
+    hasLat: body?.lat !== undefined,
+    hasLng: body?.lng !== undefined,
+    ...extra,
+  });
+}
+
 const checkInSchema = z.object({
-  lat: z.number(),
-  lng: z.number(),
+  lat: z.number().optional(),
+  lng: z.number().optional(),
   accuracy: z.number().optional(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}/).optional(),
 });
 
 const checkOutSchema = z.object({
-  lat: z.number(),
-  lng: z.number(),
+  lat: z.number().optional(),
+  lng: z.number().optional(),
   accuracy: z.number().optional(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}/).optional(),
 });
+
+// تاريخ اليوم الرسمي بتوقيت الرياض — تطلبه تطبيقات المندوب لتوحيد "اليوم" بين الجهاز والسيرفر
+router.get(
+  '/date',
+  authenticate,
+  requireRole('SALES_MANAGER', 'REPRESENTATIVE'),
+  async (_req, res) => {
+    res.json({ date: todayInRiyadh(), timezone: 'Asia/Riyadh' });
+  },
+);
 
 /**
  * تسجيل الحضور — مرة واحدة فقط في اليوم.
@@ -85,7 +107,10 @@ router.post(
   requireRole('SALES_MANAGER', 'REPRESENTATIVE'),
   async (req, res) => {
     const parsed = checkInSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: 'invalid_input', details: parsed.error.flatten() });
+    if (!parsed.success) {
+      logRejection(req, 'invalid_input', 400, { details: parsed.error.flatten() });
+      return res.status(400).json({ error: 'invalid_input', details: parsed.error.flatten() });
+    }
 
     const day = toDayStart(parsed.data.date ?? todayInRiyadh());
     const existing = await prisma.attendance.findUnique({
@@ -98,9 +123,9 @@ router.post(
           userId: req.user.id,
           date: day,
           checkInTime: new Date(),
-          lat: parsed.data.lat,
-          lng: parsed.data.lng,
-          accuracy: parsed.data.accuracy,
+          lat: parsed.data.lat ?? null,
+          lng: parsed.data.lng ?? null,
+          accuracy: parsed.data.accuracy ?? null,
         },
       });
     }
@@ -115,9 +140,9 @@ router.post(
           userId: req.user.id,
           date: day,
           checkInTime: new Date(),
-          checkInLat: parsed.data.lat,
-          checkInLng: parsed.data.lng,
-          checkInAccuracy: parsed.data.accuracy,
+          checkInLat: parsed.data.lat ?? null,
+          checkInLng: parsed.data.lng ?? null,
+          checkInAccuracy: parsed.data.accuracy ?? null,
           status: 'CHECKED_IN',
         },
       });
@@ -166,13 +191,17 @@ router.post(
   requireRole('SALES_MANAGER', 'REPRESENTATIVE'),
   async (req, res) => {
     const parsed = checkOutSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: 'invalid_input', details: parsed.error.flatten() });
+    if (!parsed.success) {
+      logRejection(req, 'invalid_input', 400, { details: parsed.error.flatten() });
+      return res.status(400).json({ error: 'invalid_input', details: parsed.error.flatten() });
+    }
 
     const day = toDayStart(parsed.data.date ?? todayInRiyadh());
     const legacy = await prisma.legacyAttendance.findUnique({
       where: { userId_date: { userId: req.user.id, date: day } },
     });
     if (!legacy || legacy.status !== 'CHECKED_IN') {
+      logRejection(req, 'not_checked_in', 400, { date: day.toISOString().slice(0, 10) });
       return res.status(400).json({ error: 'not_checked_in', message: 'لم يتم تسجيل الحضور اليوم' });
     }
 

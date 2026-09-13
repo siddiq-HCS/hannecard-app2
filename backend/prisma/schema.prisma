@@ -285,8 +285,8 @@ model Attendance {
   // تاريخ اليوم (بالتوقيت السعودي) مخزّن على أنه منتصف اليوم UTC
   date        DateTime
   checkInTime DateTime @default(now())
-  lat         Float
-  lng         Float
+  lat         Float? // اختياري: قد لا يتوفر GPS على جهاز المندوب (لا نمنع الحضور بدونه)
+  lng         Float?
   accuracy    Float?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

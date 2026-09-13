@@ -37,6 +37,13 @@ export function requireAttendance() {
         where: { userId_date: { userId: req.user.id, date } },
       });
       if (!record || record.status !== 'CHECKED_IN') {
+        console.error('[attendance-guard] blocked', {
+          userId: req.user.id,
+          role: req.user.role,
+          date: date.toISOString().slice(0, 10),
+          method: req.method,
+          path: req.path,
+        });
         return res.status(403).json({ error: 'attendance_required', message: 'يجب تسجيل الحضور أولاً (Check-in) قبل حفظ أو إرسال الخطة الأسبوعية', date: date.toISOString().slice(0, 10) });
       }
       next();
