@@ -25,6 +25,7 @@ import { rollMaterialsRouter } from './routes/rollMaterials.routes.js';
 import { reportsRouter } from './routes/reports.routes.js';
 import { permissionsRouter } from './routes/permissions.routes.js';
 import { locationsRouter } from './routes/locations.routes.js';
+import { tasksRouter } from './routes/tasks.routes.js';
 import { attachmentsRouter } from './routes/attachments.routes.js';
 import { documentsRouter } from './routes/documents.routes.js';
 
@@ -79,6 +80,7 @@ app.use('/api/v1/weekly-plans', weeklyPlansRouter);
 app.use('/api/v1/analytics', analyticsRouter);
 app.use('/api/v1/roll-materials', rollMaterialsRouter);
 app.use('/api/v1/permissions', permissionsRouter);
+app.use('/api/v1/tasks', tasksRouter);
 app.use('/api/v1/reports', reportsRouter);
 app.use('/api/v1/locations', locationsRouter);
 app.use('/api/v1', attachmentsRouter);
