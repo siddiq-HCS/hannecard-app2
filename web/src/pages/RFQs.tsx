@@ -128,7 +128,7 @@ function fmtAmount(v: string | number | null | undefined, lang: Lang): string {
   return n != null ? n.toLocaleString(lang === 'ar' ? 'ar-EG' : 'en') : '—';
 }
 
-function itemsTable(t: T, items: RfqItem[], currency = 'SAR') {
+function itemsTable(t: T, items: RfqItem[], currency = 'SAR', lang?: Lang) {
   const showPrices = anyItemPriced(items);
   const rows = (items ?? [])
     .map((it, i) => {
@@ -146,8 +146,16 @@ function itemsTable(t: T, items: RfqItem[], currency = 'SAR') {
         </tr>`;
     })
     .join('');
+  const colCount = showPrices ? 8 : 6;
+  const labelSpan = colCount - 2;
+  const rollsRow = `<tr>
+      <td colspan="${labelSpan}" style="padding:6px 8px;border:1px solid #1e293b;background:#f1f5f9;text-align:end;font-weight:700;">${
+        lang === 'ar' ? 'إجمالي عدد الرولات (Total Rolls)' : 'Total Rolls (إجمالي عدد الرولات)'
+      }</td>
+      <td colspan="2" style="padding:6px 8px;border:1px solid #1e293b;background:#f1f5f9;text-align:center;font-weight:800;">${totalRolls(items)}</td>
+    </tr>`;
   const totalsRow = showPrices
-    ? `<tr><td colspan="6" style="padding:6px 8px;border:1px solid #1e293b;background:#f1f5f9;text-align:end;font-weight:700;">${t('rfq.totalAmount')}</td><td colspan="2" style="padding:6px 8px;border:1px solid #1e293b;background:#f1f5f9;text-align:center;font-weight:800;">${Number(rfqTotalAmount(items)).toLocaleString('en')} ${currency}</td></tr>`
+    ? `<tr><td colspan="${labelSpan}" style="padding:6px 8px;border:1px solid #1e293b;background:#f1f5f9;text-align:end;font-weight:700;">${t('rfq.totalAmount')}</td><td colspan="2" style="padding:6px 8px;border:1px solid #1e293b;background:#f1f5f9;text-align:center;font-weight:800;">${Number(rfqTotalAmount(items)).toLocaleString('en')} ${currency}</td></tr>`
     : '';
   return `<table style="border-collapse:collapse;width:100%;font-size:12.5px;margin-top:6px;">
     <thead><tr style="background:#1e293b;color:#fff;">
@@ -159,7 +167,7 @@ function itemsTable(t: T, items: RfqItem[], currency = 'SAR') {
       <th style="padding:6px 8px;border:1px solid #1e293b;">${t('rfq.workEnv')}</th>
       ${showPrices ? `<th style="padding:6px 8px;border:1px solid #1e293b;">${t('rfq.unitPrice')}</th>
       <th style="padding:6px 8px;border:1px solid #1e293b;">${t('rfq.lineTotal')}</th>` : ''}
-    </tr></thead><tbody>${rows || `<tr><td colspan="6" style="padding:6px 8px;border:1px solid #ddd;">${t('rfq.noItems')}</td></tr>`}${totalsRow}</tbody></table>`;
+    </tr></thead><tbody>${rows || `<tr><td colspan="${colCount}" style="padding:6px 8px;border:1px solid #ddd;">${t('rfq.noItems')}</td></tr>`}${rollsRow}${totalsRow}</tbody></table>`;
 }
 
 function printRfq(r: Rfq, t: T, lang: Lang) {
@@ -225,7 +233,7 @@ function printRfq(r: Rfq, t: T, lang: Lang) {
   </div>
 
   <h2 class="section">${t('rfq.itemsTitle')}</h2>
-  ${itemsTable(t, r.items, r.currency || 'SAR')}
+  ${itemsTable(t, r.items, r.currency || 'SAR', lang)}
   <h2 class="section">${t('rfq.details')}</h2>
   <table style="margin-top:2px;">${body}</table>
   <div class="timestamp">${t('rfq.printDetails')} · ${printTimestamp}</div>
