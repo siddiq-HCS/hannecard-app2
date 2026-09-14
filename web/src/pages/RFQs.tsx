@@ -13,6 +13,7 @@ interface RfqItem {
   requiredWorkOther?: string;
   workEnvironment: string;
   workEnvironmentOther?: string;
+  rollLocation?: string;
   rollMaterialId?: string;
   outerDiameter?: number;
   innerDiameter?: number;
@@ -141,12 +142,13 @@ function itemsTable(t: T, items: RfqItem[], currency = 'SAR', lang?: Lang) {
           <td style="padding:5px 8px;border:1px solid #d3dae3;">${finish}${finishOther}</td>
           <td style="padding:5px 8px;border:1px solid #d3dae3;">${workWithOther(t, it.requiredWork, it.requiredWorkOther)}</td>
           <td style="padding:5px 8px;border:1px solid #d3dae3;">${envWithOther(t, it.workEnvironment, it.workEnvironmentOther)}</td>
+          <td style="padding:5px 8px;border:1px solid #d3dae3;text-align:center;">${optLabel(t, 'rfqLocation', it.rollLocation ?? 'NOT_SPECIFIED')}</td>
           ${showPrices ? `<td style="padding:5px 8px;border:1px solid #d3dae3;text-align:center;">${toNumPrice(it.unitPrice) == null ? '—' : Number(it.unitPrice).toLocaleString('en')}</td>
           <td style="padding:5px 8px;border:1px solid #d3dae3;text-align:center;font-weight:600;">${itemLineTotal(it) > 0 ? Number(itemLineTotal(it)).toLocaleString('en') : '—'}</td>` : ''}
         </tr>`;
     })
     .join('');
-  const colCount = showPrices ? 8 : 6;
+  const colCount = showPrices ? 9 : 7;
   const labelSpan = colCount - 2;
   const rollsRow = `<tr>
       <td colspan="${labelSpan}" style="padding:6px 8px;border:1px solid #1e293b;background:#f1f5f9;text-align:end;font-weight:700;">${
@@ -165,6 +167,7 @@ function itemsTable(t: T, items: RfqItem[], currency = 'SAR', lang?: Lang) {
       <th style="padding:6px 8px;border:1px solid #1e293b;">${t('rfq.finishType')}</th>
       <th style="padding:6px 8px;border:1px solid #1e293b;">${t('rfq.requiredWork')}</th>
       <th style="padding:6px 8px;border:1px solid #1e293b;">${t('rfq.workEnv')}</th>
+      <th style="padding:6px 8px;border:1px solid #1e293b;">${t('rfq.rollLocation')}</th>
       ${showPrices ? `<th style="padding:6px 8px;border:1px solid #1e293b;">${t('rfq.unitPrice')}</th>
       <th style="padding:6px 8px;border:1px solid #1e293b;">${t('rfq.lineTotal')}</th>` : ''}
     </tr></thead><tbody>${rows || `<tr><td colspan="${colCount}" style="padding:6px 8px;border:1px solid #ddd;">${t('rfq.noItems')}</td></tr>`}${rollsRow}${totalsRow}</tbody></table>`;
@@ -364,7 +367,7 @@ function downloadRfqs(list: Rfq[], t: T, lang: Lang) {
           workWithOther(t, it.requiredWork, it.requiredWorkOther),
           envWithOther(t, it.workEnvironment, it.workEnvironmentOther),
           optLabel(t, 'rfqTime', r.requiredTime),
-          optLabel(t, 'rfqLocation', r.rollLocation ?? 'NOT_SPECIFIED'),
+          optLabel(t, 'rfqLocation', it.rollLocation ?? r.rollLocation ?? 'NOT_SPECIFIED'),
           formatDate(r.workOrderDate, lang),
           optLabel(t, 'rfqPay', r.paymentTerms),
           r.pricingStatus === 'APPROVED' || (r.pricingStatus === 'PRICED' && (r.totalAmount ?? r.price) != null && String(r.totalAmount ?? r.price ?? '') !== '')
@@ -654,12 +657,12 @@ export function RFQs() {
   const [createForm, setCreateForm] = useState({
     clientName: '', contactName: '', contactPhone: '', userId: '',
     requiredTime: 'NORMAL', workOrderDate: '', paymentTerms: 'CASH',
-    items: [{ description: '', quantity: '', finishingType: 'NORMAL_CYLINDRICAL', requiredWork: ['NORMAL'] as string[], workEnvironment: 'NORMAL' }],
+    items: [{ description: '', quantity: '', finishingType: 'NORMAL_CYLINDRICAL', requiredWork: ['NORMAL'] as string[], workEnvironment: 'NORMAL', rollLocation: 'NOT_SPECIFIED' }],
   });
   const [creating, setCreating] = useState(false);
 
   function addCreateItem() {
-    setCreateForm((f) => ({ ...f, items: [...f.items, { description: '', quantity: '', finishingType: 'NORMAL_CYLINDRICAL', requiredWork: ['NORMAL'] as string[], workEnvironment: 'NORMAL' }] }));
+    setCreateForm((f) => ({ ...f, items: [...f.items, { description: '', quantity: '', finishingType: 'NORMAL_CYLINDRICAL', requiredWork: ['NORMAL'] as string[], workEnvironment: 'NORMAL', rollLocation: 'NOT_SPECIFIED' }] }));
   }
   function removeCreateItem(i: number) {
     setCreateForm((f) => ({ ...f, items: f.items.filter((_, idx) => idx !== i) }));
@@ -697,13 +700,14 @@ export function RFQs() {
           finishingType: it.finishingType,
           requiredWork: it.requiredWork,
           workEnvironment: it.workEnvironment,
+          rollLocation: it.rollLocation ?? 'NOT_SPECIFIED',
         })),
         requiredTime: createForm.requiredTime,
         workOrderDate: createForm.workOrderDate,
         paymentTerms: createForm.paymentTerms,
       }, authHeaders(token));
       setShowCreate(false);
-      setCreateForm({ clientName: '', contactName: '', contactPhone: '', userId: '', requiredTime: 'NORMAL', workOrderDate: '', paymentTerms: 'CASH', items: [{ description: '', quantity: '', finishingType: 'NORMAL_CYLINDRICAL', requiredWork: ['NORMAL'], workEnvironment: 'NORMAL' }] });
+      setCreateForm({ clientName: '', contactName: '', contactPhone: '', userId: '', requiredTime: 'NORMAL', workOrderDate: '', paymentTerms: 'CASH', items: [{ description: '', quantity: '', finishingType: 'NORMAL_CYLINDRICAL', requiredWork: ['NORMAL'], workEnvironment: 'NORMAL', rollLocation: 'NOT_SPECIFIED' }] });
       await load();
       toast.success(t('rfq.success'));
     } catch (err) {
@@ -1109,6 +1113,7 @@ export function RFQs() {
                   <th style={tdStyle}>{t('rfq.finishType')}</th>
                   <th style={tdStyle}>{t('rfq.requiredWork')}</th>
                   <th style={tdStyle}>{t('rfq.workEnv')}</th>
+                  <th style={tdStyle}>{t('rfq.rollLocation')}</th>
                   {detail.items?.some((it) => it.rollMaterialId) && (
                     <>
                       <th style={tdStyle}>{t('rfq.rollDimensions') || 'أبعاد الرول'}</th>
@@ -1135,6 +1140,7 @@ export function RFQs() {
                     </td>
                     <td style={tdStyle}>{workWithOther(t, it.requiredWork, it.requiredWorkOther)}</td>
                     <td style={tdStyle}>{envWithOther(t, it.workEnvironment, it.workEnvironmentOther)}</td>
+                    <td style={tdStyle}>{locationChip(it.rollLocation, t)}</td>
                     {detail.items?.some((item) => item.rollMaterialId) && (
                       <>
                         <td style={tdStyle}>
@@ -1211,6 +1217,14 @@ export function RFQs() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                   <input placeholder={t('rfq.desc')} value={item.description} onChange={(e) => updateCreateItem(i, { description: e.target.value })} style={inputStyle} />
                   <input placeholder={t('rfq.qty')} value={item.quantity} onChange={(e) => updateCreateItem(i, { quantity: e.target.value })} style={inputStyle} />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                  <label style={{ fontSize: 13, whiteSpace: 'nowrap' }}>{t('rfq.rollLocation')}:</label>
+                  <select value={item.rollLocation ?? 'NOT_SPECIFIED'} onChange={(e) => updateCreateItem(i, { rollLocation: e.target.value })} style={{ ...inputStyle, flex: 1 }}>
+                    <option value="NOT_SPECIFIED">{t('rfqLocation.NOT_SPECIFIED')}</option>
+                    <option value="AT_FACTORY">{t('rfqLocation.AT_FACTORY')}</option>
+                    <option value="AT_CUSTOMER">{t('rfqLocation.AT_CUSTOMER')}</option>
+                  </select>
                 </div>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
                   {['NORMAL', 'COMPLETE_MANUFACTURING', 'MANUFACTURING', 'RE_COVERING', 'RE_GRINDING', 'REPAIR', 'OTHERS'].map((w) => (

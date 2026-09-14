@@ -36,6 +36,8 @@ const itemSchema = z.object({
   // تسعير الرول (لكل بند على حدة)
   unitPrice: z.number().nonnegative().optional(),
   totalPrice: z.number().nonnegative().optional(),
+  // مكان وجود الرول لهذا البند: في المصنع / عند العميل / غير محدد
+  rollLocation: z.enum(['AT_FACTORY', 'AT_CUSTOMER', 'NOT_SPECIFIED']).optional(),
 });
 
 const rfqSchema = z.object({
@@ -98,7 +100,7 @@ async function nextRfqSerial() {
 // نافذة منع التكرار: تجاهل طلباً مطابقاً تماماً لنفس المستخدم خلال آخر 30 ثانية
 const DUPLICATE_WINDOW_MS = 30 * 1000;
 
-function normalizeItemList(its: { description: string; quantity?: string | number | null; finishingType: string; finishingTypeOther?: string | null; requiredWork: string | string[]; requiredWorkOther?: string | null; workEnvironment: string; workEnvironmentOther?: string | null }[]) {
+function normalizeItemList(its: { description: string; quantity?: string | number | null; finishingType: string; finishingTypeOther?: string | null; requiredWork: string | string[]; requiredWorkOther?: string | null; workEnvironment: string; workEnvironmentOther?: string | null; rollLocation?: string }[]) {
   return JSON.stringify(
     (its ?? []).map((i) => [
       i.description.trim(),
@@ -109,6 +111,7 @@ function normalizeItemList(its: { description: string; quantity?: string | numbe
       (i.requiredWorkOther ?? '').trim(),
       i.workEnvironment,
       (i.workEnvironmentOther ?? '').trim(),
+      (i.rollLocation ?? '').trim(),
     ]),
   );
 }
@@ -118,7 +121,7 @@ function rfqFingerprint(r: { clientName: string; contactName: string; contactPho
     r.clientName.trim(),
     r.contactName.trim(),
     r.contactPhone.trim(),
-    normalizeItemList(r.items as { description: string; quantity?: string | number | null; finishingType: string; finishingTypeOther?: string | null; requiredWork: string | string[]; requiredWorkOther?: string | null; workEnvironment: string; workEnvironmentOther?: string | null }[]),
+    normalizeItemList(r.items as { description: string; quantity?: string | number | null; finishingType: string; finishingTypeOther?: string | null; requiredWork: string | string[]; requiredWorkOther?: string | null; workEnvironment: string; workEnvironmentOther?: string | null; rollLocation?: string }[]),
     r.requiredTime,
     (r.requiredTimeOther ?? '').trim(),
     r.workOrderDate.toISOString(),
@@ -257,6 +260,7 @@ router.post(
           requiredWorkOther: i.requiredWorkOther ?? '',
           workEnvironment: i.workEnvironment,
           workEnvironmentOther: i.workEnvironmentOther ?? '',
+          rollLocation: i.rollLocation ?? 'NOT_SPECIFIED',
           ...(i.rollMaterialId ? { rollMaterialId: i.rollMaterialId, outerDiameter: i.outerDiameter, innerDiameter: i.innerDiameter, rollLength: i.rollLength, calculatedPrice: i.calculatedPrice } : {}),
           ...(i.unitPrice != null || i.totalPrice != null ? { unitPrice: i.unitPrice, totalPrice: i.totalPrice } : {}),
         })),
@@ -345,6 +349,7 @@ router.put(
         requiredWorkOther: i.requiredWorkOther ?? '',
         workEnvironment: i.workEnvironment,
         workEnvironmentOther: i.workEnvironmentOther ?? '',
+        rollLocation: i.rollLocation ?? 'NOT_SPECIFIED',
         ...(i.rollMaterialId ? { rollMaterialId: i.rollMaterialId, outerDiameter: i.outerDiameter, innerDiameter: i.innerDiameter, rollLength: i.rollLength, calculatedPrice: i.calculatedPrice } : {}),
         ...(i.unitPrice != null || i.totalPrice != null ? { unitPrice: i.unitPrice, totalPrice: i.totalPrice } : {}),
       }));
