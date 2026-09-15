@@ -670,6 +670,21 @@ model PlanVisitDocument {
   @@map("plan_visit_documents")
 }
 
+// ======================= الملفات المرفوعة (تُخزَّن في قاعدة البيانات) =======================
+// بسبب أن قرص Render مؤقت ويُمسح عند كل deploy، نُخزّن الصور والمرفقات مباشرة في
+// قاعدة البيانات (bytea) بدل قرص الخادم، ونحتفظ بمعرّف السجل في حقول filePath/imageUrl.
+
+model UploadedFile {
+  id        String    @id @default(cuid())
+  mimeType  String? // نوع المحتوى (image/jpeg, application/pdf, ...)
+  fileName  String? // الاسم الأصلي للملف
+  size      Int? // حجم الملف بالبايت
+  data      Bytes // المحتوى الفعلي للصورة/المستند
+  createdAt DateTime  @default(now())
+
+  @@map("uploaded_files")
+}
+
 // ======================= المحادثات والرسائل (1-1 بين مندوب ومدير) =======================
 
 model Conversation {

@@ -1,8 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import multer from 'multer';
-import fs from 'node:fs';
-import path from 'node:path';
 import { prisma } from '../lib/prisma.js';
 import { Prisma } from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
@@ -11,7 +9,7 @@ import { captureLocation } from '../middleware/location.js';
 import { requireAttendance } from '../middleware/attendance.js';
 import { logActivity } from '../lib/activity.js';
 import { emitRfqUpdated } from '../lib/socket.js';
-import { config } from '../config.js';
+import { storeUploadedFile, deleteUploadedFile, serveUploadedFile } from '../lib/storage.js';
 
 const router = Router();
 
@@ -613,19 +611,10 @@ router.delete(
 );
 
 // ======================= رفع وعرض صور المرفق (متعددة) =======================
-
-fs.mkdirSync(config.uploadDir, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, config.uploadDir),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
-    cb(null, `rfq-${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
-  },
-});
+// التخزين في قاعدة البيانات (Neon) بدل قرص Render المؤقت
 
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     if (!file.mimetype.startsWith('image/')) return cb(new Error('only_images'));
@@ -647,17 +636,17 @@ router.post(
     const rfq = await prisma.rfq.findFirst({
       where: isManager ? { id: String(req.params.id) } : { id: String(req.params.id), userId: req.user.id },
     });
-    if (!rfq) {
-      for (const f of files) fs.unlink(path.join(config.uploadDir, f.filename), () => undefined);
-      return res.status(404).json({ error: 'not_found' });
-    }
+    if (!rfq) return res.status(404).json({ error: 'not_found' });
 
     const existingUrls: string[] = Array.isArray(rfq.imageUrls)
       ? (rfq.imageUrls as string[])
       : rfq.imageUrl
         ? [rfq.imageUrl]
         : [];
-    const newUrls = files.map((f) => f.filename);
+    const newUrls: string[] = [];
+    for (const f of files) {
+      newUrls.push(await storeUploadedFile({ data: f.buffer, mimeType: f.mimetype, fileName: f.originalname }));
+    }
     const merged = [...existingUrls, ...newUrls].slice(0, 10);
 
     const updated = await prisma.rfq.update({
@@ -691,7 +680,7 @@ router.delete(
     if (idx < 0 || idx >= urls.length) return res.status(400).json({ error: 'invalid_index' });
 
     const removed = urls.splice(idx, 1);
-    if (removed[0]) fs.unlink(path.join(config.uploadDir, removed[0]), () => undefined);
+    await deleteUploadedFile(removed[0]);
 
     const updated = await prisma.rfq.update({
       where: { id: rfq.id },
@@ -721,9 +710,7 @@ router.get(
         : [];
     if (urls.length === 0) return res.status(404).json({ error: 'not_found' });
 
-    const filePath = path.resolve(config.uploadDir, urls[0]);
-    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'file_missing' });
-    res.sendFile(filePath);
+    await serveUploadedFile(res, urls[0]);
   },
 );
 
@@ -750,9 +737,7 @@ router.get(
     const filename = urls[idx];
     if (!filename) return res.status(404).json({ error: 'not_found' });
 
-    const filePath = path.resolve(config.uploadDir, filename);
-    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'file_missing' });
-    res.sendFile(filePath);
+    await serveUploadedFile(res, filename);
   },
 );
 

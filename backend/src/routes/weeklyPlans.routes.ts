@@ -1,15 +1,13 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import multer from 'multer';
-import path from 'node:path';
-import fs from 'node:fs';
 import { prisma } from '../lib/prisma.js';
-import { config } from '../config.js';
 import { authenticate } from '../middleware/auth.js';
 import { requireRole, requirePageAccess } from '../middleware/rbac.js';
 import { captureLocation } from '../middleware/location.js';
 import { requireAttendance } from '../middleware/attendance.js';
 import { logActivity } from '../lib/activity.js';
+import { storeUploadedFile, serveUploadedFile } from '../lib/storage.js';
 import type { PlanDayName, WeeklyPlanStatus } from '@prisma/client';
 
 const router = Router();
@@ -476,19 +474,10 @@ router.delete('/:id', authenticate, requireRole('SALES_MANAGER', 'DEPUTY_SALES_M
 });
 
 // ======================= رفع وعرض صور الزيارات =======================
-
-fs.mkdirSync(config.uploadDir, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, config.uploadDir),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
-    cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
-  },
-});
+// التخزين في قاعدة البيانات (Neon) بدل قرص Render المؤقت
 
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     if (!file.mimetype.startsWith('image/')) return cb(new Error('only_images'));
@@ -511,14 +500,12 @@ router.post(
         ? { id: String(req.params.visitId) }
         : { id: String(req.params.visitId), day: { plan: { userId: req.user.id } } },
     });
-    if (!visit) {
-      fs.unlink(path.join(config.uploadDir, req.file.filename), () => undefined);
-      return res.status(404).json({ error: 'not_found' });
-    }
+    if (!visit) return res.status(404).json({ error: 'not_found' });
 
+    const imageKey = await storeUploadedFile({ data: req.file.buffer, mimeType: req.file.mimetype, fileName: req.file.originalname });
     const updated = await prisma.planVisit.update({
       where: { id: visit.id },
-      data: { imageUrl: req.file.filename },
+      data: { imageUrl: imageKey },
     });
     await logActivity(req.user.id, 'weeklyPlan.visitImage', { visitId: visit.id, planId: visit.id }, req.user.name);
     res.json(updated);
@@ -539,9 +526,7 @@ router.get(
     });
     if (!visit || !visit.imageUrl) return res.status(404).json({ error: 'not_found' });
 
-    const filePath = path.resolve(config.uploadDir, visit.imageUrl);
-    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'file_missing' });
-    res.sendFile(filePath);
+    await serveUploadedFile(res, visit.imageUrl);
   },
 );
 

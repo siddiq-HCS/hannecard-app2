@@ -1,29 +1,17 @@
 import { Router } from 'express';
 import multer from 'multer';
-import path from 'node:path';
-import fs from 'node:fs';
 import { prisma } from '../lib/prisma.js';
-import { config } from '../config.js';
 import { authenticate } from '../middleware/auth.js';
 import { requirePermission } from '../middleware/rbac.js';
 import { captureLocation } from '../middleware/location.js';
 import { logActivity } from '../lib/activity.js';
+import { storeUploadedFile, serveUploadedFile } from '../lib/storage.js';
 import type { AttachmentType } from '@prisma/client';
 
 const router = Router();
 
-fs.mkdirSync(config.uploadDir, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, config.uploadDir),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
-    cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
-  },
-});
-
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
   fileFilter: (_req, file, cb) => {
     if (!file.mimetype.startsWith('image/')) return cb(new Error('only_images'));
@@ -57,7 +45,7 @@ router.post(
       data: {
         visitId: visit.id,
         type: type as AttachmentType,
-        filePath: req.file.filename,
+        filePath: await storeUploadedFile({ data: req.file.buffer, mimeType: req.file.mimetype, fileName: req.file.originalname }),
         size: req.file.size,
       },
     });
@@ -78,9 +66,7 @@ router.get('/attachments/:id/file', authenticate, requirePermission('ATTACHMENT_
     });
   if (!attachment) return res.status(404).json({ error: 'not_found' });
 
-  const filePath = path.join(config.uploadDir, attachment.filePath);
-  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'file_missing' });
-  res.sendFile(filePath);
+  await serveUploadedFile(res, attachment.filePath, { mimeType: 'image/jpeg' });
 });
 
 // رفع صورة/مرفق لمهمة (يستخدمه المندوب لتوثيق التنفيذ)
@@ -108,7 +94,7 @@ router.post(
     const attachment = await prisma.taskAttachment.create({
       data: {
         taskId: task.id,
-        filePath: req.file.filename,
+        filePath: await storeUploadedFile({ data: req.file.buffer, mimeType: req.file.mimetype, fileName: req.file.originalname }),
         size: req.file.size,
       },
     });
@@ -128,9 +114,7 @@ router.get('/task-attachments/:id/file', authenticate, requirePermission('ATTACH
   });
   if (!attachment) return res.status(404).json({ error: 'not_found' });
 
-  const filePath = path.join(config.uploadDir, attachment.filePath);
-  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'file_missing' });
-  res.sendFile(filePath);
+  await serveUploadedFile(res, attachment.filePath, { mimeType: 'image/jpeg' });
 });
 
 export const attachmentsRouter = router;
