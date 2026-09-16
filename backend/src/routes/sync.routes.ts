@@ -125,6 +125,7 @@ router.post('/bulk', authenticate, requireRole('SALES_MANAGER', 'REPRESENTATIVE'
           const quotation = await prisma.quotation.create({
             data: {
               quotationNumber: number,
+              qNumber: p.qNumber ? String(p.qNumber).slice(0, 200) : null,
               clientId: String(p.clientId ?? rollerSpec.clientId),
               rollerSpecId: rollerSpec.id,
               baseMaterialCost: calc.baseMaterialCost,

@@ -194,6 +194,7 @@ enum QuotationStatus {
 model Quotation {
   id                 String          @id @default(cuid())
   quotationNumber    String          @unique
+  qNumber            String? // رقم Q / مرجع نصي مخصص (Q Number / Custom Reference)
   clientId           String
   rollerSpecId       String
   // تفصيل الأسعار (ريال سعودي)

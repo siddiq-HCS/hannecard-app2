@@ -29,6 +29,7 @@ async function nextQuotationNumber(): Promise<string> {
 const quotationSchema = z.object({
   clientId: z.string().min(1),
   rollerSpecId: z.string().min(1),
+  qNumber: z.string().max(200).optional().or(z.literal('')),
   discountPercentage: z.number().min(0).max(100).default(0),
   terms: z.string().max(2000).optional().or(z.literal('')),
 });
@@ -67,6 +68,29 @@ router.get('/:id', authenticate, requireRole('SALES_MANAGER', 'REPRESENTATIVE'),
     return res.status(403).json({ error: 'forbidden' });
   }
   res.json(quotation);
+});
+
+// تحديث الحقول اليدوية لعرض السعر (رقم Q، الشروط)
+router.patch('/:id', authenticate, requireRole('SALES_MANAGER', 'REPRESENTATIVE'), async (req, res) => {
+  const updateSchema = z.object({
+    qNumber: z.string().max(200).optional().or(z.literal('')),
+    terms: z.string().max(2000).optional().or(z.literal('')),
+  });
+  const parsed = updateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input', details: parsed.error.flatten() });
+
+  const quotation = await prisma.quotation.findUnique({ where: { id: String(req.params.id) } });
+  if (!quotation) return res.status(404).json({ error: 'not_found' });
+  if (req.user.role === 'REPRESENTATIVE' && quotation.createdByUserId !== req.user.id) {
+    return res.status(403).json({ error: 'forbidden' });
+  }
+
+  const data: { qNumber?: string | null; terms?: string | null } = {};
+  if (parsed.data.qNumber !== undefined) data.qNumber = parsed.data.qNumber || null;
+  if (parsed.data.terms !== undefined) data.terms = parsed.data.terms || null;
+
+  const updated = await prisma.quotation.update({ where: { id: quotation.id }, data });
+  res.json(updated);
 });
 
 // تنزيل PDF العرض
@@ -115,7 +139,7 @@ router.post('/', authenticate, requireRole('SALES_MANAGER', 'REPRESENTATIVE'), a
   const parsed = quotationSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input', details: parsed.error.flatten() });
 
-  const { clientId, rollerSpecId, discountPercentage, terms } = parsed.data;
+  const { clientId, rollerSpecId, qNumber, discountPercentage, terms } = parsed.data;
 
   const rollerSpec = await prisma.rollerSpec.findFirst({ where: { id: rollerSpecId, clientId } });
   if (!rollerSpec) return res.status(404).json({ error: 'roller_spec_not_found' });
@@ -138,6 +162,7 @@ router.post('/', authenticate, requireRole('SALES_MANAGER', 'REPRESENTATIVE'), a
   const quotation = await prisma.quotation.create({
     data: {
       quotationNumber: number,
+      qNumber: qNumber || null,
       clientId,
       rollerSpecId,
       baseMaterialCost: calc.baseMaterialCost,

@@ -13,6 +13,7 @@ import { RFQs } from './pages/RFQs';
 import { Analytics } from './pages/Analytics';
 import { Attendance } from './pages/Attendance';
 import { RollMaterials } from './pages/RollMaterials';
+import { Quotations } from './pages/Quotations';
 import { PagePermissions } from './pages/PagePermissions';
 import { Permissions } from './pages/Permissions';
 import { Logo } from './components/Logo';
@@ -73,6 +74,7 @@ const pageOrder = [
   { href: '/managers', permission: 'PAGE_MANAGERS_ACCESS' },
   { href: '/chat', permission: 'PAGE_CHAT_ACCESS' },
   { href: '/roll-materials', permission: 'PAGE_ROLL_MATERIALS_ACCESS' },
+  { href: '/quotations', permission: 'PAGE_QUOTATIONS_ACCESS' },
 ];
 
 function firstAllowedHref(user: any): string {
@@ -96,6 +98,7 @@ const navItems = [
 const adminItems = [
   { href: '/managers', label: 'nav.managers', icon: Settings, permission: 'PAGE_MANAGERS_ACCESS' },
   { href: '/roll-materials', label: 'rollMat.title', icon: Layers, permission: 'PAGE_ROLL_MATERIALS_ACCESS' },
+  { href: '/quotations', label: 'nav.quotations', icon: FileText, permission: 'PAGE_QUOTATIONS_ACCESS' },
 ];
 
 const devItems = [
@@ -290,6 +293,7 @@ export function App() {
       <Route path="/weekly-plans" element={isStaff && hasPermission(user, 'PAGE_WEEKLY_PLANS_ACCESS') ? <Shell><WeeklyPlans /></Shell> : <Navigate to="/login" replace />} />
       <Route path="/attendance" element={isStaff && hasPermission(user, 'PAGE_ATTENDANCE_ACCESS') ? <Shell><Attendance /></Shell> : <Navigate to="/login" replace />} />
       <Route path="/roll-materials" element={isStaff && hasPermission(user, 'PAGE_ROLL_MATERIALS_ACCESS') ? <Shell><RollMaterials /></Shell> : <Navigate to="/login" replace />} />
+      <Route path="/quotations" element={isStaff && hasPermission(user, 'PAGE_QUOTATIONS_ACCESS') ? <Shell><Quotations /></Shell> : <Navigate to="/login" replace />} />
       <Route path="/page-permissions" element={isStaff && isDev ? <Shell><PagePermissions /></Shell> : <Navigate to="/login" replace />} />
       <Route path="/admin/permissions" element={isStaff && (roleEq(user?.role, 'SALES_MANAGER') || isDev) ? <Shell><Permissions /></Shell> : <Navigate to="/login" replace />} />
       <Route path="/reports" element={<Navigate to="/weekly-plans" />} />

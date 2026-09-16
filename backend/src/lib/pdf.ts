@@ -66,7 +66,10 @@ export async function generateQuotationPdf(data: QuotationPdfData): Promise<{ fi
   doc.font(ARABIC_BOLD).fontSize(14).fillColor(DARK).text(ar(config.hanycard.nameAr), 42, 54);
   doc.font(LATIN_REGULAR).fontSize(8).fillColor(GRAY).text('Roller Manufacturing & Recoating', 42, 74);
 
-  // رقم العرض على اليمين
+  // رقم العرض على اليمين (رقم Q عند توفره أعلى رقم العرض)
+  if (q.qNumber) {
+    doc.font(ARABIC_BOLD).fontSize(8.5).fillColor(BRAND).text(ar(`رقم Q: ${q.qNumber}`), 42, 32, { align: 'right' });
+  }
   doc.font(LATIN_REGULAR).fontSize(10).fillColor(DARK).text(q.quotationNumber, 42, 42, { align: 'right' });
   doc.font(ARABIC_REGULAR).fontSize(8).fillColor(GRAY).text(ar('عرض سعر / Quotation'), 42, 58, { align: 'right' });
   doc.font(LATIN_REGULAR).fontSize(7.5).fillColor(GRAY).text(
