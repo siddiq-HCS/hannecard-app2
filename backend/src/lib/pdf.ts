@@ -1,9 +1,9 @@
 import PDFDocument from 'pdfkit';
 import path from 'node:path';
-import fs from 'node:fs';
 import reshaper from 'arabic-reshaper';
 import bidiFactory from 'bidi-js';
 import { config } from '../config.js';
+import { readStoredFile, storeUploadedFile } from './storage.js';
 import {
   GROOVING_LABELS,
   MATERIAL_LABELS,
@@ -48,7 +48,7 @@ function money(n: number | string | unknown): string {
 
 /**
  * توليد PDF عرض سعر بالعربية/الإنجليزية وفق معايير ZATCA وهوية هانيكارد.
- * يعيد مسار الملف والرابط العام.
+ * يُخزَّن في قاعدة البيانات (bytea) بدل قرص الخادم المؤقت.
  */
 export async function generateQuotationPdf(data: QuotationPdfData): Promise<{ filePath: string; url: string }> {
   const { quotation, calc } = data;
@@ -56,13 +56,8 @@ export async function generateQuotationPdf(data: QuotationPdfData): Promise<{ fi
   const roller = quotation.rollerSpec;
 
   const fileName = `${q.quotationNumber}.pdf`;
-  const dir = path.join(config.uploadDir, 'pdf');
-  fs.mkdirSync(dir, { recursive: true });
-  const filePath = path.join(dir, fileName);
 
   const doc = new PDFDocument({ size: 'A4', margin: 42, bufferPages: true });
-  const stream = fs.createWriteStream(filePath);
-  doc.pipe(stream);
 
   doc.font(LATIN_REGULAR).font(LATIN_REGULAR);
 
@@ -193,10 +188,10 @@ export async function generateQuotationPdf(data: QuotationPdfData): Promise<{ fi
 
   // رمز QR للتتبع
   if (q.qrCodeUrl) {
-    const qrPath = q.qrCodeUrl.replace(config.publicBaseUrl, '');
-    const qrFile = path.join(process.cwd(), qrPath.replace(/^\//, ''));
-    if (fs.existsSync(qrFile)) {
-      doc.image(qrFile, right - 90, footerTop + 92, { width: 88, height: 88 });
+    const qrKey = q.qrCodeUrl.split('/').pop()?.replace(/\.png$/i, '');
+    const qrBuf = await readStoredFile(qrKey);
+    if (qrBuf) {
+      doc.image(qrBuf, right - 90, footerTop + 92, { width: 88, height: 88 });
     }
   }
 
@@ -211,7 +206,11 @@ export async function generateQuotationPdf(data: QuotationPdfData): Promise<{ fi
   );
 
   doc.end();
-  await new Promise((resolve) => stream.on('finish', () => resolve(true)));
 
-  return { filePath, url: `${config.publicBaseUrl}/uploads/pdf/${fileName}` };
+  const chunks: Buffer[] = [];
+  doc.on('data', (c: Buffer) => chunks.push(c));
+  await new Promise((resolve) => doc.on('end', () => resolve(true)));
+
+  const filePath = await storeUploadedFile({ data: Buffer.concat(chunks), mimeType: 'application/pdf', fileName });
+  return { filePath, url: `${config.publicBaseUrl}/uploads/pdf/${filePath}.pdf` };
 }

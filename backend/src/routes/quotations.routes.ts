@@ -6,9 +6,7 @@ import { requireRole } from '../middleware/rbac.js';
 import { calculateRollerPricing, discountNeedsApproval } from '../lib/pricing.js';
 import { generateQrCode } from '../lib/qr.js';
 import { generateQuotationPdf } from '../lib/pdf.js';
-import path from 'node:path';
-import fs from 'node:fs';
-import { config } from '../config.js';
+import { readStoredFile, serveStoredFile } from '../lib/storage.js';
 
 const router = Router();
 
@@ -79,7 +77,10 @@ router.get('/:id/pdf', authenticate, requireRole('SALES_MANAGER', 'REPRESENTATIV
   });
   if (!quotation) return res.status(404).json({ error: 'not_found' });
 
-  if (!quotation.pdfUrl) {
+  let key = quotation.pdfUrl?.split('/').pop()?.replace(/\.pdf$/i, '') ?? null;
+
+  // إن كان الملف غير موجود في قاعدة البيانات (عصر القرص القديم الممسوح) نعيد توليده ونحدّث العلاقة
+  if (!key || !(await readStoredFile(key))) {
     const calc = calculateRollerPricing(
       {
         serviceType: quotation.rollerSpec.serviceType,
@@ -91,15 +92,16 @@ router.get('/:id/pdf', authenticate, requireRole('SALES_MANAGER', 'REPRESENTATIV
       },
       Number(quotation.discountPercentage),
     );
-    const { url } = await generateQuotationPdf({ quotation, calc });
+    const { filePath, url } = await generateQuotationPdf({ quotation, calc });
     await prisma.quotation.update({ where: { id: quotation.id }, data: { pdfUrl: url } });
-    quotation.pdfUrl = url;
+    key = filePath;
   }
 
-  const rel = quotation.pdfUrl.replace(config.publicBaseUrl, '');
-  const file = path.join(process.cwd(), rel.replace(/^\//, ''));
-  if (!fs.existsSync(file)) return res.status(404).json({ error: 'pdf_not_found' });
-  res.download(file, `${quotation.quotationNumber}.pdf`);
+  await serveStoredFile(res, 'pdf', key, {
+    mimeType: 'application/pdf',
+    fileName: `${quotation.quotationNumber}.pdf`,
+    download: true,
+  });
 });
 
 /**

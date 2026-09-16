@@ -28,6 +28,7 @@ import { locationsRouter } from './routes/locations.routes.js';
 import { tasksRouter } from './routes/tasks.routes.js';
 import { attachmentsRouter } from './routes/attachments.routes.js';
 import { documentsRouter } from './routes/documents.routes.js';
+import { serveStoredFile } from './lib/storage.js';
 
 export const app = express();
 
@@ -60,6 +61,13 @@ app.use(cors({ origin: config.corsOrigins }));
 app.use(express.json({ limit: '10mb' }));
 
 // ملفات مرفوعة (صور التلف، QR، PDF) — عامة
+// QR/PDF الجديدة مخزَّنة في قاعدة البيانات (uploaded_files) وتُقدَّم من هنا قبل static القديم كاحتياط.
+app.get('/uploads/qr/:key', async (req, res) => {
+  await serveStoredFile(res, 'qr', req.params.key, { mimeType: 'image/png' });
+});
+app.get('/uploads/pdf/:key', async (req, res) => {
+  await serveStoredFile(res, 'pdf', req.params.key, { mimeType: 'application/pdf', download: true });
+});
 app.use('/uploads', express.static(path.join(process.cwd(), config.uploadDir)));
 
 // REST API — تطبيق الجوال الجديد

@@ -84,3 +84,56 @@ export function unlinkDiskFile(key: string | null | undefined): void {
   if (!key) return;
   fs.unlink(path.join(config.uploadDir, key), () => undefined);
 }
+
+/**
+ * عرض ملف عام (QR/PDF) مخزَّن في قاعدة البيانات، مع احتياط من القرص ضمن مجلد فرعي.
+ * يُستخدم للمسارات العامة مثل /uploads/qr/... و /uploads/pdf/...
+ */
+export async function serveStoredFile(
+  res: Response,
+  folder: string,
+  key: string | null | undefined,
+  opts?: { mimeType?: string | null; fileName?: string | null; download?: boolean },
+): Promise<void> {
+  if (!key) return sendNotFound(res);
+
+  // 1) من قاعدة البيانات (المفتاح هو معرّف السجل بدون امتداد)
+  const fullKey = key;
+  const id = key.replace(/\.(png|jpg|jpeg|webp|gif|pdf)$/i, '');
+  const rec = await prisma.uploadedFile.findUnique({ where: { id } }).catch(() => null);
+  if (rec) {
+    const mime = opts?.mimeType ?? rec.mimeType ?? 'application/octet-stream';
+    const name = opts?.fileName ?? rec.fileName;
+    res.type(mime);
+    if (name) {
+      const disposition = opts?.download ? 'attachment' : 'inline';
+      res.setHeader('Content-Disposition', `${disposition}; filename*=UTF-8''${encodeURIComponent(name)}`);
+    }
+    res.send(rec.data);
+    return;
+  }
+
+  // 2) من القرص ضمن المجلد الفرعي (ملفات قديمة من عصر التخزين المحلي)
+  const filePath = path.resolve(config.uploadDir, folder, fullKey);
+  if (fs.existsSync(filePath)) {
+    if (opts?.mimeType) res.type(opts.mimeType);
+    if (opts?.fileName) {
+      const disposition = opts?.download ? 'attachment' : 'inline';
+      res.setHeader('Content-Disposition', `${disposition}; filename*=UTF-8''${encodeURIComponent(opts.fileName)}`);
+    }
+    res.sendFile(filePath);
+    return;
+  }
+
+  sendNotFound(res);
+}
+
+/** قراءة محتوى ملف مخزَّن في قاعدة البيانات (مع احتياط من القرص) كـ Buffer. */
+export async function readStoredFile(key: string | null | undefined): Promise<Buffer | null> {
+  if (!key) return null;
+  const rec = await prisma.uploadedFile.findUnique({ where: { id: key } }).catch(() => null);
+  if (rec) return Buffer.from(rec.data);
+  const filePath = path.resolve(config.uploadDir, key);
+  if (fs.existsSync(filePath)) return fs.readFileSync(filePath);
+  return null;
+}
