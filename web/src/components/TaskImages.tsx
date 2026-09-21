@@ -9,12 +9,14 @@ interface Attachment {
 // يعرض صور المهمة كمعاينات قابلة للتكبير عند الضغط، عبر جلب الصورة بترويسة المصادقة
 export function TaskImages({ attachments, token }: { attachments: Attachment[]; token: string | null }) {
   const [urls, setUrls] = useState<Record<string, string>>({});
+  const [failed, setFailed] = useState<Record<string, boolean>>({});
   const [zoom, setZoom] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
     const objectUrls: string[] = [];
     setUrls({});
+    setFailed({});
     for (const a of attachments) {
       if (!token) continue;
       api
@@ -25,7 +27,10 @@ export function TaskImages({ attachments, token }: { attachments: Attachment[]; 
           objectUrls.push(url);
           setUrls((prev) => ({ ...prev, [a.id]: url }));
         })
-        .catch(() => undefined);
+        .catch(() => {
+          if (!active) return;
+          setFailed((prev) => ({ ...prev, [a.id]: true }));
+        });
     }
     return () => {
       active = false;
@@ -38,8 +43,16 @@ export function TaskImages({ attachments, token }: { attachments: Attachment[]; 
   return (
     <>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
-        {attachments.map((a) =>
-          urls[a.id] ? (
+        {attachments.map((a) => {
+          if (failed[a.id]) {
+            return (
+              <div key={a.id} style={{ width: 64, height: 64, borderRadius: 8, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 4, textAlign: 'center', fontSize: 9, color: '#ef4444' }}>
+                <span>⚠️</span>
+                <span>غير متوفرة</span>
+              </div>
+            );
+          }
+          return urls[a.id] ? (
             <img
               key={a.id}
               src={urls[a.id]}
@@ -49,8 +62,8 @@ export function TaskImages({ attachments, token }: { attachments: Attachment[]; 
             />
           ) : (
             <div key={a.id} style={{ width: 64, height: 64, borderRadius: 8, background: '#f3f4f6' }} />
-          ),
-        )}
+          );
+        })}
       </div>
 
       {zoom && (

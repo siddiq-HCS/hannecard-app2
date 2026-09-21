@@ -87,24 +87,37 @@ function statusChip(t: T, status: string) {
 // معاينة صورة زيارة مع إمكانية التكبير والتنزيل
 function VisitImage({ visitId, imageUrl, token, t }: { visitId: string; imageUrl: string | null; token: string; t: T }) {
   const [url, setUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
   const [zoom, setZoom] = useState(false);
 
   useEffect(() => {
     let active = true;
     if (!imageUrl) return;
+    setFailed(false);
     api
       .get(`/weekly-plans/visits/${visitId}/image`, { headers: { Authorization: `Bearer ${token}` }, responseType: 'blob' })
       .then((res) => {
         if (!active) return;
         setUrl(URL.createObjectURL(res.data as Blob));
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (!active) return;
+        setFailed(true);
+      });
     return () => {
       active = false;
     };
   }, [visitId, imageUrl, token]);
 
   if (!imageUrl) return <span style={{ color: '#64748b', fontSize: 12 }}>{t('weeklyPlans.noImage')}</span>;
+  if (failed) {
+    return (
+      <div style={{ width: 64, height: 64, borderRadius: 8, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 4, textAlign: 'center', fontSize: 9, color: '#ef4444' }}>
+        <span>⚠️</span>
+        <span>{t('weeklyPlans.imageLoadError') || 'غير متوفرة'}</span>
+      </div>
+    );
+  }
   if (!url) return <div style={{ width: 64, height: 64, borderRadius: 8, background: 'rgba(15, 23, 42, 0.5)' }} />;
 
   return (

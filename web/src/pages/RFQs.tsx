@@ -287,7 +287,8 @@ function locationChip(value: string | undefined, t: T) {
 
 // معاينة صور مرفق RFQ مع التكبير والتنزيل
 function RfqImages({ rfqId, imageUrl, imageUrls, token, t }: { rfqId: string; imageUrl?: string | null; imageUrls?: string[] | null; token: string; t: T }) {
-  const [urls, setUrls] = useState<string[]>([]);
+  const [urls, setUrls] = useState<Record<number, string>>({});
+  const [failed, setFailed] = useState<Record<number, boolean>>({});
   const [zoom, setZoom] = useState<string | null>(null);
 
   const imageList = (() => {
@@ -299,39 +300,62 @@ function RfqImages({ rfqId, imageUrl, imageUrls, token, t }: { rfqId: string; im
   useEffect(() => {
     let active = true;
     if (imageList.length === 0) return;
-    Promise.all(
-      imageList.map((_fn, i) =>
-        api
-          .get(`/rfqs/${rfqId}/image/${i}`, { headers: { Authorization: `Bearer ${token}` }, responseType: 'blob' })
-          .then((res) => URL.createObjectURL(res.data as Blob))
-          .catch(() => null),
-      ),
-    ).then((results) => {
-      if (!active) return;
-      setUrls(results.filter(Boolean) as string[]);
+    const objectUrls: string[] = [];
+    setUrls({});
+    setFailed({});
+    imageList.forEach((_, i) => {
+      api
+        .get(`/rfqs/${rfqId}/image/${i}`, { headers: { Authorization: `Bearer ${token}` }, responseType: 'blob' })
+        .then((res) => {
+          if (!active) return;
+          const blobUrl = URL.createObjectURL(res.data as Blob);
+          objectUrls.push(blobUrl);
+          setUrls((prev) => ({ ...prev, [i]: blobUrl }));
+        })
+        .catch(() => {
+          if (!active) return;
+          setFailed((prev) => ({ ...prev, [i]: true }));
+        });
     });
-    return () => { active = false; };
+    return () => {
+      active = false;
+      objectUrls.forEach((u) => URL.revokeObjectURL(u));
+    };
   }, [rfqId, imageUrl, imageUrls, token]);
 
   if (imageList.length === 0) return <span style={{ color: '#64748b', fontSize: 13 }}>{t('rfq.noImage')}</span>;
-  if (urls.length === 0) return <div style={{ width: 72, height: 72, borderRadius: 8, background: 'rgba(15, 23, 42, 0.5)' }} />;
 
   return (
     <>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {urls.map((url, i) => (
-          <div key={i}>
-            <img
-              src={url}
-              alt={`rfq-${i}`}
-              onClick={() => setZoom(url)}
-              style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, cursor: 'zoom-in', border: '1px solid rgba(148, 163, 184, 0.08)' }}
-            />
-            <a href={url} download={`rfq-${rfqId}-${i + 1}.jpg`} style={{ fontSize: 12, color: '#2563eb', display: 'block', marginTop: 4 }}>
-              {t('rfq.downloadImage')}
-            </a>
-          </div>
-        ))}
+        {imageList.map((_, i) => {
+          const url = urls[i];
+          const isFailed = failed[i];
+          if (isFailed) {
+            return (
+              <div key={i} style={{ width: 72, height: 72, borderRadius: 8, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 4, textAlign: 'center', fontSize: 10, color: '#ef4444' }}>
+                <span>⚠️</span>
+                <span>{t('rfq.imageLoadError') || 'غير متوفرة'}</span>
+              </div>
+            );
+          }
+          if (!url) {
+            return <div key={i} style={{ width: 72, height: 72, borderRadius: 8, background: 'rgba(15, 23, 42, 0.5)' }} />;
+          }
+          return (
+            <div key={i}>
+              <img
+                src={url}
+                alt={`rfq-${i}`}
+                onClick={() => setZoom(url)}
+                style={{ width: 72, height: 72, objectFit: 'cover', borderRadius: 8, cursor: 'zoom-in', border: '1px solid rgba(148, 163, 184, 0.08)' }}
+              />
+              <a href={url} download={`rfq-${rfqId}-${i + 1}.jpg`} style={{ fontSize: 12, color: '#2563eb', display: 'block', marginTop: 4 }}>
+                {t('rfq.downloadImage')}
+              </a>
+            </div>
+          );
+        })}
       </div>
       {zoom && (
         <div
