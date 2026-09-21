@@ -135,20 +135,20 @@ function itemsTable(t: T, items: RfqItem[], currency = 'SAR', lang?: Lang) {
     .map((it, i) => {
       const finish = optLabel(t, 'rfqFinish', it.finishingType);
       const finishOther = it.finishingType === 'OTHERS' && it.finishingTypeOther ? ` (${it.finishingTypeOther})` : '';
+      const locText = optLabel(t, 'rfqLocation', it.rollLocation ?? 'NOT_SPECIFIED');
       return `<tr>
           <td style="padding:5px 8px;border:1px solid #d3dae3;text-align:center;background:#f9fafb;width:34px;">${i + 1}</td>
-          <td style="padding:5px 8px;border:1px solid #d3dae3;">${it.description || '—'}</td>
+          <td style="padding:5px 8px;border:1px solid #d3dae3;">${it.description || '—'}${showPrices && it.rollLocation && it.rollLocation !== 'NOT_SPECIFIED' ? ` <span style="font-size:10px;color:#555;">[${locText}]</span>` : ''}</td>
           <td style="padding:5px 8px;border:1px solid #d3dae3;text-align:center;">${it.quantity || '—'}</td>
           <td style="padding:5px 8px;border:1px solid #d3dae3;">${finish}${finishOther}</td>
           <td style="padding:5px 8px;border:1px solid #d3dae3;">${workWithOther(t, it.requiredWork, it.requiredWorkOther)}</td>
           <td style="padding:5px 8px;border:1px solid #d3dae3;">${envWithOther(t, it.workEnvironment, it.workEnvironmentOther)}</td>
-          <td style="padding:5px 8px;border:1px solid #d3dae3;text-align:center;">${optLabel(t, 'rfqLocation', it.rollLocation ?? 'NOT_SPECIFIED')}</td>
           ${showPrices ? `<td style="padding:5px 8px;border:1px solid #d3dae3;text-align:center;">${toNumPrice(it.unitPrice) == null ? '—' : Number(it.unitPrice).toLocaleString('en')}</td>
-          <td style="padding:5px 8px;border:1px solid #d3dae3;text-align:center;font-weight:600;">${itemLineTotal(it) > 0 ? Number(itemLineTotal(it)).toLocaleString('en') : '—'}</td>` : ''}
+          <td style="padding:5px 8px;border:1px solid #d3dae3;text-align:center;font-weight:600;">${itemLineTotal(it) > 0 ? Number(itemLineTotal(it)).toLocaleString('en') : '—'}</td>` : `<td style="padding:5px 8px;border:1px solid #d3dae3;text-align:center;">${locText}</td>`}
         </tr>`;
     })
     .join('');
-  const colCount = showPrices ? 9 : 7;
+  const colCount = 8;
   const labelSpan = colCount - 2;
   const rollsRow = `<tr>
       <td colspan="${labelSpan}" style="padding:6px 8px;border:1px solid #1e293b;background:#f1f5f9;text-align:end;font-weight:700;">${
@@ -167,10 +167,9 @@ function itemsTable(t: T, items: RfqItem[], currency = 'SAR', lang?: Lang) {
       <th style="padding:6px 8px;border:1px solid #1e293b;">${t('rfq.finishType')}</th>
       <th style="padding:6px 8px;border:1px solid #1e293b;">${t('rfq.requiredWork')}</th>
       <th style="padding:6px 8px;border:1px solid #1e293b;">${t('rfq.workEnv')}</th>
-      <th style="padding:6px 8px;border:1px solid #1e293b;">${t('rfq.rollLocation')}</th>
       ${showPrices ? `<th style="padding:6px 8px;border:1px solid #1e293b;">${t('rfq.unitPrice')}</th>
-      <th style="padding:6px 8px;border:1px solid #1e293b;">${t('rfq.lineTotal')}</th>` : ''}
-    </tr></thead><tbody>${rows || `<tr><td colspan="${colCount}" style="padding:6px 8px;border:1px solid #ddd;">${t('rfq.noItems')}</td></tr>`}${rollsRow}${totalsRow}</tbody></table>`;
+      <th style="padding:6px 8px;border:1px solid #1e293b;">${t('rfq.lineTotal')}</th>` : `<th style="padding:6px 8px;border:1px solid #1e293b;">${t('rfq.rollLocation')}</th>`}
+    </tr></thead><tbody>${rows || `<tr><td colspan="8" style="padding:6px 8px;border:1px solid #ddd;">${t('rfq.noItems')}</td></tr>`}${rollsRow}${totalsRow}</tbody></table>`;
 }
 
 function printRfq(r: Rfq, t: T, lang: Lang) {
