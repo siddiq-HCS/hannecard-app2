@@ -53,6 +53,13 @@ function roleEq(role: any, expected: string): boolean {
   return typeof role === 'string' && role.toUpperCase() === expected.toUpperCase();
 }
 
+function isSiddiq(user: any): boolean {
+  if (!user) return false;
+  const email = (user.email ?? '').toLowerCase().trim();
+  const name = (user.name ?? '').toLowerCase().trim();
+  return email === 'siddiq@hannecardsaudi.com' || name === 'siddiq';
+}
+
 function hasPermission(user: any, permission: string): boolean {
   if (!user) return false;
   if (roleEq(user.role, 'DEVELOPER') || roleEq(user.role, 'REPRESENTATIVE')) return true;
@@ -193,8 +200,8 @@ function Shell({ children }: { children: React.ReactNode }) {
                 );
               })}
 
-            {/* إدارة صلاحيات الأدوار: لمدير المبيعات (سيديك) والمطوّر */}
-            {(roleEq(user?.role, 'SALES_MANAGER') || roleEq(user?.role, 'DEVELOPER')) &&
+            {/* إدارة صلاحيات الأدوار: لمستخدم SIDDIQ حصرياً */}
+            {isSiddiq(user) &&
               ownerItems.map(({ href, label, icon: Icon }) => {
                 const active = location.pathname === href;
                 return (
@@ -295,7 +302,7 @@ export function App() {
       <Route path="/roll-materials" element={isStaff && hasPermission(user, 'PAGE_ROLL_MATERIALS_ACCESS') ? <Shell><RollMaterials /></Shell> : <Navigate to="/login" replace />} />
       <Route path="/quotations" element={isStaff && hasPermission(user, 'PAGE_QUOTATIONS_ACCESS') ? <Shell><Quotations /></Shell> : <Navigate to="/login" replace />} />
       <Route path="/page-permissions" element={isStaff && isDev ? <Shell><PagePermissions /></Shell> : <Navigate to="/login" replace />} />
-      <Route path="/admin/permissions" element={isStaff && (roleEq(user?.role, 'SALES_MANAGER') || isDev) ? <Shell><Permissions /></Shell> : <Navigate to="/login" replace />} />
+      <Route path="/admin/permissions" element={isStaff && isSiddiq(user) ? <Shell><Permissions /></Shell> : <Navigate to="/login" replace />} />
       <Route path="/reports" element={<Navigate to="/weekly-plans" />} />
       {/* أي مسار مجهول → أول صفحة مسموحة للحساب إن كانت جلسة سارية، وإلا صفحة الدخول */}
       <Route path="*" element={<Navigate to={isStaff ? firstAllowedHref(user) : '/login'} replace />} />

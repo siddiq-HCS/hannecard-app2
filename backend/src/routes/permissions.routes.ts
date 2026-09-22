@@ -24,8 +24,16 @@ export const PAGES: { key: string; labelKey: string; permission: Permission }[] 
 const ROLES: Role[] = ['SALES_MANAGER', 'DEPUTY_SALES_MANAGER', 'REPRESENTATIVE', 'DEVELOPER'];
 const PAGE_PERMISSIONS = PAGES.map((p) => p.permission);
 
-// إدارة صلاحيات الأدوار — متاحة لمدير المبيعات (سيديك) والمطوّر فقط
-router.use(authenticate, requireRole('SALES_MANAGER', 'DEVELOPER'));
+// إدارة صلاحيات الأدوار — متاحة للمستخدم SIDDIQ حصرياً
+router.use(authenticate, (req: any, res, next) => {
+  const user = req.user;
+  const email = (user?.email ?? '').toLowerCase().trim();
+  const name = (user?.name ?? '').toLowerCase().trim();
+  if (email === 'siddiq@hannecardsaudi.com' || name === 'siddiq') {
+    return next();
+  }
+  return res.status(403).json({ error: 'forbidden_siddiq_only' });
+});
 
 // GET /api/v1/permissions — قائمة الصفحات والصلاحيات الحالية لكل دور
 router.get('/', async (_req, res) => {
