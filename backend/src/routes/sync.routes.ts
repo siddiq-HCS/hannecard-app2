@@ -126,6 +126,7 @@ router.post('/bulk', authenticate, requireRole('SALES_MANAGER', 'REPRESENTATIVE'
             data: {
               quotationNumber: number,
               qNumber: p.qNumber ? String(p.qNumber).slice(0, 200) : null,
+              rollLocation: (p.rollLocation as any) ?? 'NOT_SPECIFIED',
               clientId: String(p.clientId ?? rollerSpec.clientId),
               rollerSpecId: rollerSpec.id,
               baseMaterialCost: calc.baseMaterialCost,

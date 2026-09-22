@@ -195,6 +195,7 @@ model Quotation {
   id                 String          @id @default(cuid())
   quotationNumber    String          @unique
   qNumber            String? // رقم Q / مرجع نصي مخصص (Q Number / Custom Reference)
+  rollLocation       RollLocation @default(NOT_SPECIFIED) // مكان الرول: في المصنع أو عند العميل
   clientId           String
   rollerSpecId       String
   // تفصيل الأسعار (ريال سعودي)

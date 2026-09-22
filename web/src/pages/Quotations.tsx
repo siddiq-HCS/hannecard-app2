@@ -30,6 +30,7 @@ interface Quotation {
   id: string;
   quotationNumber: string;
   qNumber: string | null;
+  rollLocation: string;
   client: QuotationClient;
   rollerSpec: RollerSpec;
   createdBy: CreatedBy;
@@ -117,12 +118,13 @@ export function Quotations() {
   const [clientId, setClientId] = useState('');
   const [rollerSpecId, setRollerSpecId] = useState('');
   const [qNum, setQNum] = useState('');
+  const [rollLocation, setRollLocation] = useState('NOT_SPECIFIED');
   const [discount, setDiscount] = useState('0');
   const [terms, setTerms] = useState('');
   const [saving, setSaving] = useState(false);
 
   const [detail, setDetail] = useState<Quotation | null>(null);
-  const [edit, setEdit] = useState<{ qNumber: string; terms: string } | null>(null);
+  const [edit, setEdit] = useState<{ qNumber: string; rollLocation: string; terms: string } | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [approving, setApproving] = useState(false);
 
@@ -199,6 +201,7 @@ export function Quotations() {
         clientId,
         rollerSpecId,
         qNumber: qNum,
+        rollLocation,
         discountPercentage: Number(discount) || 0,
       };
       if (terms.trim()) body.terms = terms.trim();
@@ -206,6 +209,7 @@ export function Quotations() {
       updateQuote(res.data as Quotation);
       setShowForm(false);
       setQNum('');
+      setRollLocation('NOT_SPECIFIED');
       setRollerSpecId('');
       setClientId('');
       setDiscount('0');
@@ -222,7 +226,7 @@ export function Quotations() {
     if (!detail || !edit) return;
     setSavingEdit(true);
     try {
-      const res = await api.patch(`/quotations/${detail.id}`, { qNumber: edit.qNumber, terms: edit.terms }, authHeaders(token));
+      const res = await api.patch(`/quotations/${detail.id}`, { qNumber: edit.qNumber, rollLocation: edit.rollLocation, terms: edit.terms }, authHeaders(token));
       updateQuote(res.data as Quotation);
       setEdit(null);
       toast.success(t('quotations.saveSuccess'));
@@ -313,6 +317,14 @@ export function Quotations() {
               <input value={qNum} onChange={(e) => setQNum(e.target.value)} placeholder={t('quotations.qNumberPlaceholder')} style={inputStyle} maxLength={200} />
             </div>
             <div>
+              <label style={labelStyle}>{t('quotations.rollLocation')}</label>
+              <select value={rollLocation} onChange={(e) => setRollLocation(e.target.value)} style={inputStyle}>
+                <option value="NOT_SPECIFIED">{lang === 'ar' ? 'غير محدد' : 'Not Specified'}</option>
+                <option value="AT_FACTORY">{lang === 'ar' ? 'في المصنع' : 'At Factory'}</option>
+                <option value="AT_CUSTOMER">{lang === 'ar' ? 'عند العميل' : 'At Customer'}</option>
+              </select>
+            </div>
+            <div>
               <label style={labelStyle}>{t('quotations.discount')}</label>
               <input value={discount} onChange={(e) => setDiscount(e.target.value)} type="number" min={0} max={100} style={inputStyle} />
             </div>
@@ -388,7 +400,15 @@ export function Quotations() {
               {detail.qrCodeUrl && <img src={detail.qrCodeUrl} alt="QR" style={{ width: 72, height: 72, borderRadius: 6, background: '#fff', padding: 4 }} />}
             </div>
 
-            {([['quotations.quotationNumber', detail.quotationNumber], ['quotations.qNumber', detail.qNumber || '—'], ['quotations.client', detail.client.companyName], ['quotations.createdBy', detail.createdBy?.name ?? '—'], ['quotations.status', t(`quotations.status${detail.status}`)], ['quotations.total', fmtMoney(detail.grandTotal, lang)]] as [string, string][]).map(([k, v]) => (
+            {([
+              ['quotations.quotationNumber', detail.quotationNumber],
+              ['quotations.qNumber', detail.qNumber || '—'],
+              ['quotations.rollLocation', lang === 'ar' ? (detail.rollLocation === 'AT_FACTORY' ? 'في المصنع' : detail.rollLocation === 'AT_CUSTOMER' ? 'عند العميل' : 'غير محدد') : (detail.rollLocation === 'AT_FACTORY' ? 'At Factory' : detail.rollLocation === 'AT_CUSTOMER' ? 'At Customer' : 'Not Specified')],
+              ['quotations.client', detail.client.companyName],
+              ['quotations.createdBy', detail.createdBy?.name ?? '—'],
+              ['quotations.status', t(`quotations.status${detail.status}`)],
+              ['quotations.total', fmtMoney(detail.grandTotal, lang)],
+            ] as [string, string][]).map(([k, v]) => (
               <div key={k} style={{ padding: '8px 0', borderBottom: '1px solid #334155' }}>
                 <span style={{ color: '#94a3b8', fontSize: 13, display: 'block' }}>{t(k)}</span>
                 <span style={{ fontSize: 15 }}>{v}</span>
@@ -421,7 +441,20 @@ export function Quotations() {
             {edit ? (
               <div style={{ padding: '12px 0', borderBottom: '1px solid #334155' }}>
                 <span style={{ color: '#94a3b8', fontSize: 13, display: 'block', marginBottom: 6 }}>{t('quotations.edit')}</span>
-                <input value={edit.qNumber} onChange={(e) => setEdit({ ...edit, qNumber: e.target.value })} placeholder={t('quotations.qNumberPlaceholder')} style={{ ...inputStyle, background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(148, 163, 184, 0.2)', color: '#e2e8f0', marginBottom: 8 }} maxLength={200} />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8, marginBottom: 8 }}>
+                  <div>
+                    <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 4 }}>{t('quotations.qNumber')}</label>
+                    <input value={edit.qNumber} onChange={(e) => setEdit({ ...edit, qNumber: e.target.value })} placeholder={t('quotations.qNumberPlaceholder')} style={{ ...inputStyle, background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(148, 163, 184, 0.2)', color: '#e2e8f0' }} maxLength={200} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 4 }}>{t('quotations.rollLocation')}</label>
+                    <select value={edit.rollLocation} onChange={(e) => setEdit({ ...edit, rollLocation: e.target.value })} style={{ ...inputStyle, background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(148, 163, 184, 0.2)', color: '#e2e8f0' }}>
+                      <option value="NOT_SPECIFIED">{lang === 'ar' ? 'غير محدد' : 'Not Specified'}</option>
+                      <option value="AT_FACTORY">{lang === 'ar' ? 'في المصنع' : 'At Factory'}</option>
+                      <option value="AT_CUSTOMER">{lang === 'ar' ? 'عند العميل' : 'At Customer'}</option>
+                    </select>
+                  </div>
+                </div>
                 <textarea value={edit.terms} onChange={(e) => setEdit({ ...edit, terms: e.target.value })} rows={2} style={{ ...inputStyle, background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(148, 163, 184, 0.2)', color: '#e2e8f0', marginBottom: 8 }} />
                 <div style={{ display: 'flex', gap: 6 }}>
                   <button onClick={() => void handleSaveEdit()} disabled={savingEdit} style={{ ...buttonStyle, background: '#16a34a', fontSize: 12, padding: '5px 12px' }}>
@@ -437,7 +470,7 @@ export function Quotations() {
                 <button onClick={downloadPdf} style={{ ...buttonStyle, background: '#1d4ed8', color: '#fff', fontSize: 13 }}>
                   {t('quotations.downloadPdf')}
                 </button>
-                <button onClick={() => setEdit({ qNumber: detail.qNumber || '', terms: detail.terms || '' })} style={{ ...buttonStyle, background: '#6b7280', color: '#fff', fontSize: 13 }}>
+                <button onClick={() => setEdit({ qNumber: detail.qNumber || '', rollLocation: detail.rollLocation || 'NOT_SPECIFIED', terms: detail.terms || '' })} style={{ ...buttonStyle, background: '#6b7280', color: '#fff', fontSize: 13 }}>
                   {t('quotations.edit')}
                 </button>
                 {isManager && detail.status === 'PENDING_APPROVAL' && (

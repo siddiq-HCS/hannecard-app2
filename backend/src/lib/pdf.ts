@@ -66,12 +66,24 @@ export async function generateQuotationPdf(data: QuotationPdfData): Promise<{ fi
   doc.font(ARABIC_BOLD).fontSize(14).fillColor(DARK).text(ar(config.hanycard.nameAr), 42, 54);
   doc.font(LATIN_REGULAR).fontSize(8).fillColor(GRAY).text('Roller Manufacturing & Recoating', 42, 74);
 
-  // رقم العرض على اليمين (رقم Q عند توفره أعلى رقم العرض)
+  // رقم العرض على اليمين (رقم Q ومكان الرول عند توفرهما أعلى رقم العرض)
+  const locPdfMap: Record<string, string> = {
+    AT_FACTORY: 'في المصنع (At Factory)',
+    AT_CUSTOMER: 'عند العميل (At Customer)',
+    NOT_SPECIFIED: 'غير محدد (Not Specified)',
+  };
+  let rightY = 24;
   if (q.qNumber) {
-    doc.font(ARABIC_BOLD).fontSize(8.5).fillColor(BRAND).text(ar(`رقم Q: ${q.qNumber}`), 42, 32, { align: 'right' });
+    doc.font(ARABIC_BOLD).fontSize(8.5).fillColor(BRAND).text(ar(`رقم Q: ${q.qNumber}`), 42, rightY, { align: 'right' });
+    rightY += 11;
   }
-  doc.font(LATIN_REGULAR).fontSize(10).fillColor(DARK).text(q.quotationNumber, 42, 42, { align: 'right' });
-  doc.font(ARABIC_REGULAR).fontSize(8).fillColor(GRAY).text(ar('عرض سعر / Quotation'), 42, 58, { align: 'right' });
+  if (q.rollLocation && q.rollLocation !== 'NOT_SPECIFIED') {
+    doc.font(ARABIC_REGULAR).fontSize(7.5).fillColor(GRAY).text(ar(`مكان الرول: ${locPdfMap[q.rollLocation] ?? q.rollLocation}`), 42, rightY, { align: 'right' });
+    rightY += 11;
+  }
+  doc.font(LATIN_REGULAR).fontSize(10).fillColor(DARK).text(q.quotationNumber, 42, rightY, { align: 'right' });
+  rightY += 13;
+  doc.font(ARABIC_REGULAR).fontSize(8).fillColor(GRAY).text(ar('عرض سعر / Quotation'), 42, rightY, { align: 'right' });
   doc.font(LATIN_REGULAR).fontSize(7.5).fillColor(GRAY).text(
     `CR: ${config.hanycard.cr}    VAT: ${config.hanycard.vat}`,
     42,
