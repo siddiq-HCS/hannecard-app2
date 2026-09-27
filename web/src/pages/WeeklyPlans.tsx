@@ -266,6 +266,20 @@ export function WeeklyPlans() {
   const [to, setTo] = useState('');
   const [detail, setDetail] = useState<Plan | null>(null);
   const [printing, setPrinting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  async function deletePlan(p: Plan) {
+    if (!token) return;
+    try {
+      await api.delete(`/weekly-plans/${p.id}`, authHeaders(token));
+      setPlans((prev) => prev.filter((x) => x.id !== p.id));
+      if (detail?.id === p.id) setDetail(null);
+      setDeletingId(null);
+      toast.success(lang === 'ar' ? 'تم حذف الخطة الأسبوعية' : 'Weekly plan deleted');
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
+    }
+  }
 
   async function load() {
     if (!token) return;
@@ -374,6 +388,7 @@ export function WeeklyPlans() {
                   {p.status === 'SUBMITTED' && (
                     <button style={{ ...buttonStyle, background: '#16a34a' }} onClick={() => void approve(p)}>{t('weeklyPlans.approve')}</button>
                   )}
+                  <button style={{ ...buttonStyle, background: '#dc2626' }} onClick={() => setDeletingId(p.id)}>{lang === 'ar' ? 'حذف' : 'Delete'}</button>
                 </div>
               </td>
             </tr>
@@ -398,6 +413,7 @@ export function WeeklyPlans() {
                 {detail.status === 'SUBMITTED' && (
                   <button style={{ ...buttonStyle, background: '#16a34a' }} onClick={() => void approve(detail)}>{t('weeklyPlans.approve')}</button>
                 )}
+                <button style={{ ...buttonStyle, background: '#dc2626' }} onClick={() => setDeletingId(detail.id)}>{lang === 'ar' ? 'حذف' : 'Delete'}</button>
                 <button onClick={() => setDetail(null)} style={{ ...buttonStyle, background: '#6b7280' }}>{t('weeklyPlans.close')}</button>
               </div>
             </div>
@@ -456,6 +472,26 @@ export function WeeklyPlans() {
                   </tbody>
                 </table>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deletingId && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setDeletingId(null)}>
+          <div style={{ background: '#1e293b', border: '1px solid rgba(148, 163, 184, 0.2)', borderRadius: 12, maxWidth: 400, width: '100%', padding: 24, color: '#e2e8f0' }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ margin: '0 0 12px', fontSize: 18 }}>{lang === 'ar' ? 'تأكيد الحذف' : 'Confirm Deletion'}</h3>
+            <p style={{ margin: '0 0 20px', color: '#94a3b8', fontSize: 14 }}>
+              {lang === 'ar' ? 'هل أنت متأكد من حذف هذه الخطة الأسبوعية؟ لا يمكن التراجع عن هذا الإجراء.' : 'Are you sure you want to delete this weekly plan? This action cannot be undone.'}
+            </p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button style={{ ...buttonStyle, background: '#64748b' }} onClick={() => setDeletingId(null)}>{lang === 'ar' ? 'إلغاء' : 'Cancel'}</button>
+              <button style={{ ...buttonStyle, background: '#dc2626' }} onClick={() => {
+                const p = plans.find((x) => x.id === deletingId) || (detail?.id === deletingId ? detail : null);
+                if (p) void deletePlan(p);
+              }}>
+                {lang === 'ar' ? 'حذف' : 'Delete'}
+              </button>
             </div>
           </div>
         </div>
