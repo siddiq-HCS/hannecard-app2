@@ -23,7 +23,7 @@ const createRepSchema = z.object({
 
 router.get('/reps', requirePageAccess('PAGE_REPS_ACCESS'), async (_req, res) => {
   const reps = await prisma.user.findMany({
-    where: { role: 'REPRESENTATIVE' },
+    where: { role: 'REPRESENTATIVE', phone: { not: { startsWith: 'del_' } } },
     select: {
       id: true,
       name: true,
@@ -91,16 +91,25 @@ router.patch('/reps/:id', async (req, res) => {
   }
 });
 
-// حذف مندوب (مع منع حذف الحساب نفسه)
+// حذف مندوب (حذف ناعم Soft Delete لمنع أخطاء التعارض والمفتاح الأجنبي)
 router.delete('/reps/:id', async (req, res) => {
   const target = await prisma.user.findUnique({
     where: { id: String(req.params.id) },
-    select: { id: true, role: true, name: true },
+    select: { id: true, role: true, name: true, phone: true, email: true },
   });
   if (!target || target.role !== 'REPRESENTATIVE') return res.status(404).json({ error: 'not_found' });
   if (target.id === req.user.id) return res.status(400).json({ error: 'cannot_delete_self' });
 
-  await prisma.user.delete({ where: { id: target.id } });
+  const suffix = `_del_${target.id.slice(-6)}_${Date.now()}`;
+  await prisma.user.update({
+    where: { id: target.id },
+    data: {
+      isActive: false,
+      phone: `del_${target.phone}${suffix}`,
+      email: target.email ? `del_${target.email}${suffix}` : null,
+    },
+  });
+
   await logActivity(req.user.id, 'rep.delete', { repId: target.id, name: target.name }, req.user.name);
   res.json({ ok: true });
 });
