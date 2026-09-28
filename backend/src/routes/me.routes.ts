@@ -70,7 +70,7 @@ router.post('/me/fcm-token', authenticate, async (req, res) => {
 // (إدارة) قائمة المستخدمين النشطين لتسهيل تكليف المهام
 router.get('/users', authenticate, requireRole('SALES_MANAGER', 'DEPUTY_SALES_MANAGER', 'DEVELOPER'), async (_req, res) => {
   const users = await prisma.user.findMany({
-    where: { role: 'REPRESENTATIVE' },
+    where: { role: 'REPRESENTATIVE', phone: { not: { startsWith: 'del_' } } },
     select: { id: true, name: true, phone: true, isActive: true },
     orderBy: { name: 'asc' },
   });

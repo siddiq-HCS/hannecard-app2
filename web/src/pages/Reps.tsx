@@ -54,9 +54,10 @@ export function Reps() {
     if (!token) return;
     try {
       const res = await api.get('/manager/reps', authHeaders(token));
-      setReps(res.data);
+      const list = (res.data as Rep[]).filter((r) => !r.phone?.startsWith('del_'));
+      setReps(list);
       const permMap: Record<string, string[]> = {};
-      for (const rep of res.data as Rep[]) {
+      for (const rep of list) {
         const p = await api.get(`/manager/reps/${rep.id}/permissions`, authHeaders(token));
         permMap[rep.id] = p.data;
       }

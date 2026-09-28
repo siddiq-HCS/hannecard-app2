@@ -9,6 +9,10 @@ import type { Permission, Role } from '@prisma/client';
 
 const router = Router();
 
+// بادئة الحسابات المحذوفة ناعماً (Soft Delete) — أي حساب يبدأ بها مستبعد من كل القوائم
+const DELETED_PHONE_PREFIX = 'del_';
+const isDeletedRep = (phone: string | null | undefined) => !!phone && phone.startsWith(DELETED_PHONE_PREFIX);
+
 // كل مسارات الإدارة محمية بالدور
 router.use(authenticate, requireRole('SALES_MANAGER', 'DEPUTY_SALES_MANAGER', 'DEVELOPER'));
 
@@ -23,7 +27,7 @@ const createRepSchema = z.object({
 
 router.get('/reps', requirePageAccess('PAGE_REPS_ACCESS'), async (_req, res) => {
   const reps = await prisma.user.findMany({
-    where: { role: 'REPRESENTATIVE', phone: { not: { startsWith: 'del_' } } },
+    where: { role: 'REPRESENTATIVE', phone: { not: { startsWith: DELETED_PHONE_PREFIX } } },
     select: {
       id: true,
       name: true,
@@ -72,6 +76,13 @@ router.patch('/reps/:id', async (req, res) => {
   const parsed = updateRepSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
 
+  const target = await prisma.user.findUnique({
+    where: { id: String(req.params.id) },
+    select: { id: true, role: true, phone: true },
+  });
+  if (!target || target.role !== 'REPRESENTATIVE') return res.status(404).json({ error: 'not_found' });
+  if (isDeletedRep(target.phone)) return res.status(400).json({ error: 'already_deleted' });
+
   const data: Record<string, unknown> = { name: parsed.data.name, isActive: parsed.data.isActive };
   if (parsed.data.password) {
     data.passwordHash = await hashPassword(parsed.data.password);
@@ -80,7 +91,7 @@ router.patch('/reps/:id', async (req, res) => {
 
   try {
     const rep = await prisma.user.update({
-      where: { id: req.params.id },
+      where: { id: target.id },
       data,
       select: { id: true, name: true, phone: true, plainPassword: true, isActive: true },
     });
@@ -99,6 +110,7 @@ router.delete('/reps/:id', async (req, res) => {
   });
   if (!target || target.role !== 'REPRESENTATIVE') return res.status(404).json({ error: 'not_found' });
   if (target.id === req.user.id) return res.status(400).json({ error: 'cannot_delete_self' });
+  if (isDeletedRep(target.phone)) return res.status(400).json({ error: 'already_deleted' });
 
   const suffix = `_del_${target.id.slice(-6)}_${Date.now()}`;
   await prisma.user.update({

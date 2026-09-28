@@ -49,7 +49,9 @@ function serializeConversation(conv: ConversationRow, myId: string, unreadCount:
 router.get('/contacts', requirePageAccess('PAGE_CHAT_ACCESS'), async (req, res) => {
   const me = await prisma.user.findUnique({ where: { id: req.user.id }, select: { role: true } });
   const users = await prisma.user.findMany({
-    where: isManager(me?.role ?? '') ? { role: 'REPRESENTATIVE' } : { role: { in: MANAGER_ROLES as Role[] } },
+    where: isManager(me?.role ?? '')
+      ? { role: 'REPRESENTATIVE', phone: { not: { startsWith: 'del_' } } }
+      : { role: { in: MANAGER_ROLES as Role[] } },
     select: { id: true, name: true, phone: true, role: true, isActive: true },
     orderBy: { name: 'asc' },
   });
