@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
-import { requireRole } from '../middleware/rbac.js';
+import { isSuperAdmin } from '../lib/superadmin.js';
 import type { Permission, Role } from '@prisma/client';
 
 const router = Router();
@@ -24,14 +24,9 @@ export const PAGES: { key: string; labelKey: string; permission: Permission }[] 
 const ROLES: Role[] = ['SALES_MANAGER', 'DEPUTY_SALES_MANAGER', 'REPRESENTATIVE', 'DEVELOPER'];
 const PAGE_PERMISSIONS = PAGES.map((p) => p.permission);
 
-// إدارة صلاحيات الأدوار — متاحة للمستخدم SIDDIQ حصرياً
-router.use(authenticate, (req: any, res, next) => {
-  const user = req.user;
-  const email = (user?.email ?? '').toLowerCase().trim();
-  const name = (user?.name ?? '').toLowerCase().trim();
-  if (email === 'siddiq@hannecardsaudi.com' || name === 'siddiq') {
-    return next();
-  }
+// إدارة صلاحيات الأدوار — متاحة للمستخدم SIDDIQ حصرياً (تجاوز مضمون عبر isSuperAdmin)
+router.use(authenticate, (req, res, next) => {
+  if (isSuperAdmin(req.user)) return next();
   return res.status(403).json({ error: 'forbidden_siddiq_only' });
 });
 

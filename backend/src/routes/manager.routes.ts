@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma.js';
 import { hashPassword } from '../lib/password.js';
 import { authenticate } from '../middleware/auth.js';
 import { requireRole, requirePageAccess } from '../middleware/rbac.js';
+import { isSuperAdmin } from '../lib/superadmin.js';
 import { logActivity } from '../lib/activity.js';
 import type { Permission, Role } from '@prisma/client';
 
@@ -346,7 +347,7 @@ router.delete('/managers/:id', async (req, res) => {
     return res.status(404).json({ error: 'not_found' });
   }
   if (target.id === req.user.id) return res.status(400).json({ error: 'cannot_delete_self' });
-  if (req.user.role !== 'SALES_MANAGER') return res.status(403).json({ error: 'forbidden' });
+  if (req.user.role !== 'SALES_MANAGER' && !isSuperAdmin(req.user)) return res.status(403).json({ error: 'forbidden' });
 
   await prisma.user.delete({ where: { id: target.id } });
   await logActivity(req.user.id, 'manager.delete', { managerId: target.id, name: target.name }, req.user.name);

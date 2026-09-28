@@ -10,6 +10,7 @@ declare global {
         id: string;
         role: Role;
         name: string;
+        email: string | null;
         isActive: boolean;
       };
     }
@@ -28,7 +29,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     if (!user || !user.isActive) {
       return res.status(401).json({ error: 'invalid_token' });
     }
-    req.user = { id: user.id, role: user.role, name: user.name, isActive: user.isActive };
+    req.user = { id: user.id, role: user.role, name: user.name, email: user.email, isActive: user.isActive };
     next();
   } catch {
     return res.status(401).json({ error: 'invalid_token' });

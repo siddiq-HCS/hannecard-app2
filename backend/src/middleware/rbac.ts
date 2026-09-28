@@ -1,6 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { Permission, Role } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
+import { isSuperAdmin } from '../lib/superadmin.js';
 
 /** أدوار الإدارة (تتجاوز كل بوابات الصلاحيات في التطبيق) */
 const MANAGER_ROLES: Role[] = ['SALES_MANAGER', 'DEPUTY_SALES_MANAGER', 'DEVELOPER'];
@@ -9,6 +10,7 @@ const MANAGER_ROLES: Role[] = ['SALES_MANAGER', 'DEPUTY_SALES_MANAGER', 'DEVELOP
 export function requireRole(...roles: Role[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) return res.status(401).json({ error: 'unauthorized' });
+    if (isSuperAdmin(req.user)) return next();
     if (roles.includes(req.user.role) || MANAGER_ROLES.includes(req.user.role)) {
       next();
       return;
@@ -27,6 +29,9 @@ export function requireRole(...roles: Role[]) {
 export function requirePermission(permission: Permission) {
   return async (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) return res.status(401).json({ error: 'unauthorized' });
+
+    // المستخدم المدير الأعلى (SIDDIQ) يمر دائماً — تجاوز مضمون
+    if (isSuperAdmin(req.user)) return next();
 
     // المطور له صلاحيات كاملة دائماً
     if (req.user.role === 'DEVELOPER') return next();
@@ -67,6 +72,7 @@ export function requirePermission(permission: Permission) {
 export function requirePageAccess(permission: Permission) {
   return async (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) return res.status(401).json({ error: 'unauthorized' });
+    if (isSuperAdmin(req.user)) return next();
     if (req.user.role === 'DEVELOPER' || req.user.role === 'REPRESENTATIVE') return next();
     return requirePermission(permission)(req, res, next);
   };
@@ -78,6 +84,7 @@ export function requirePageAccess(permission: Permission) {
 export function requireDeveloper() {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) return res.status(401).json({ error: 'unauthorized' });
+    if (isSuperAdmin(req.user)) return next();
     if (req.user.role !== 'DEVELOPER') {
       return res.status(403).json({ error: 'forbidden' });
     }

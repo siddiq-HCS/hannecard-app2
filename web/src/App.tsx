@@ -57,11 +57,13 @@ function isSiddiq(user: any): boolean {
   if (!user) return false;
   const email = (user.email ?? '').toLowerCase().trim();
   const name = (user.name ?? '').toLowerCase().trim();
-  return email === 'siddiq@hannecardsaudi.com' || name === 'siddiq';
+  return email === 'siddiq@hannecardsaudi.com' || name === 'siddiq' || email === 'siddiq';
 }
 
 function hasPermission(user: any, permission: string): boolean {
   if (!user) return false;
+  // المستخدم المدير الأعلى (SIDDIQ) يتجاوز مصفوفة تصفية الأدوار والصلاحيات دائماً
+  if (isSiddiq(user)) return true;
   if (roleEq(user.role, 'DEVELOPER') || roleEq(user.role, 'REPRESENTATIVE')) return true;
   const perms = user.permissions;
   if (!Array.isArray(perms) || perms.length === 0) return true;
@@ -180,8 +182,8 @@ function Shell({ children }: { children: React.ReactNode }) {
               );
             })}
 
-            {/* Developer-only items */}
-            {roleEq(user?.role, 'DEVELOPER') &&
+            {/* Developer-only items (وأيضاً لحساب SIDDIQ المدير الأعلى) */}
+            {(roleEq(user?.role, 'DEVELOPER') || isSiddiq(user)) &&
               devItems.map(({ href, label, icon: Icon }) => {
                 const active = location.pathname === href;
                 return (
@@ -267,8 +269,8 @@ function Shell({ children }: { children: React.ReactNode }) {
 export function App() {
   const { token, user, ready } = useAuth();
 
-  // المستخدم مندوب (جلسة قديمة من قبل فصل الصلاحيات) → توجيه فوري لتطبيق الجوال مع رسالة
-  if (roleEq(user?.role, 'REPRESENTATIVE')) return <RedirectToMobile />;
+  // المستخدم مندوب (جلسة قديمة من قبل فصل الصلاحيات) → توجيه فوري لتطبيق الجوال مع رسالة (عدا SIDDIQ)
+  if (roleEq(user?.role, 'REPRESENTATIVE') && !isSiddiq(user)) return <RedirectToMobile />;
 
   // أثناء جلب /me لم يكتمل بعد (token موجود) → شاشة تحميل بدل أي وميض/مسار خاطئ لحظي
   if ((token && !user) || (token && !ready)) return <LoadingScreen />;
@@ -301,8 +303,8 @@ export function App() {
       <Route path="/attendance" element={isStaff && hasPermission(user, 'PAGE_ATTENDANCE_ACCESS') ? <Shell><Attendance /></Shell> : <Navigate to="/login" replace />} />
       <Route path="/roll-materials" element={isStaff && hasPermission(user, 'PAGE_ROLL_MATERIALS_ACCESS') ? <Shell><RollMaterials /></Shell> : <Navigate to="/login" replace />} />
       <Route path="/quotations" element={isStaff && hasPermission(user, 'PAGE_QUOTATIONS_ACCESS') ? <Shell><Quotations /></Shell> : <Navigate to="/login" replace />} />
-      <Route path="/page-permissions" element={isStaff && isDev ? <Shell><PagePermissions /></Shell> : <Navigate to="/login" replace />} />
-      <Route path="/admin/permissions" element={isStaff && isSiddiq(user) ? <Shell><Permissions /></Shell> : <Navigate to="/login" replace />} />
+      <Route path="/page-permissions" element={isStaff && (isDev || isSiddiq(user)) ? <Shell><PagePermissions /></Shell> : <Navigate to="/login" replace />} />
+      <Route path="/admin/permissions" element={token && user && isSiddiq(user) ? <Shell><Permissions /></Shell> : <Navigate to="/login" replace />} />
       <Route path="/reports" element={<Navigate to="/weekly-plans" />} />
       {/* أي مسار مجهول → أول صفحة مسموحة للحساب إن كانت جلسة سارية، وإلا صفحة الدخول */}
       <Route path="*" element={<Navigate to={isStaff ? firstAllowedHref(user) : '/login'} replace />} />
