@@ -15,7 +15,7 @@ export function requireRole(...roles: Role[]) {
       next();
       return;
     }
-    return res.status(403).json({ error: 'forbidden' });
+    return res.status(403).json({ error: 'forbidden', message: 'هذا الإجراء متاح لصلاحيات إدارية فقط' });
   };
 }
 
@@ -49,7 +49,7 @@ export function requirePermission(permission: Permission) {
     });
     if (roleRows.length > 0) {
       if (roleRows.some((r) => r.permission === permission)) return next();
-      return res.status(403).json({ error: 'forbidden' });
+      return res.status(403).json({ error: 'forbidden', message: 'صلاحيتك الحالية لا تشمل هذا الإجراء — راجع الإدارة لمنحك الإذن' });
     }
 
     if (MANAGER_ROLES.includes(req.user.role)) {
@@ -58,7 +58,7 @@ export function requirePermission(permission: Permission) {
       if (!any) return next();
     }
 
-    return res.status(403).json({ error: 'forbidden' });
+    return res.status(403).json({ error: 'forbidden', message: 'صلاحيتك الحالية لا تشمل هذا الإجراء — راجع الإدارة لمنحك الإذن' });
   };
 }
 
@@ -86,7 +86,7 @@ export function requireDeveloper() {
     if (!req.user) return res.status(401).json({ error: 'unauthorized' });
     if (isSuperAdmin(req.user)) return next();
     if (req.user.role !== 'DEVELOPER') {
-      return res.status(403).json({ error: 'forbidden' });
+      return res.status(403).json({ error: 'forbidden', message: 'هذه الخاصية متاحة للمطوّر فقط' });
     }
     next();
   };

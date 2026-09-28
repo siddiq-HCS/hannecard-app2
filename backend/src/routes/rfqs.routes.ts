@@ -231,7 +231,7 @@ router.post(
     });
     const duplicate = recent.find((r) => rfqFingerprint(r as Parameters<typeof rfqFingerprint>[0]) === candidate);
     if (duplicate) {
-      return res.status(409).json({ error: 'duplicate_rfq', rfqId: duplicate.id });
+      return res.status(409).json({ error: 'duplicate_rfq', message: 'يوجد طلب تسعير مطابق أُنشئ خلال آخر 30 ثانية — لا داعي للتكرار', rfqId: duplicate.id });
     }
 
     const serialNumber = await nextRfqSerial();

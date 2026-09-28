@@ -69,8 +69,9 @@ export function apiErrorMessage(err: unknown, t?: (key: string) => string): stri
   const { status, code, message } = extractApiError(err);
 
   if (status === 401) return t ? t('errors.sessionExpired') : 'Session expired or invalid. Please log in again.';
-  if (status === 403) return t ? t('errors.forbidden') : 'Forbidden: you do not have permission for this action.';
-  if (status === 409) return t ? t('errors.conflict') : 'Conflict: phone, email or identifier already exists.';
+  // نفضّل رسالة الخادم الصريحة عند توفرها (سبب رفض محدد للإجراء) ثم نعود للترجمة العامة
+  if (status === 403) return message || (t ? t('errors.forbidden') : 'Forbidden: you do not have permission for this action.');
+  if (status === 409) return message || (t ? t('errors.conflict') : 'Conflict: phone, email or identifier already exists.');
   if (status === 404) return t ? t('errors.notFound') : 'Not found: the requested item no longer exists.';
   if (status !== null && status >= 500) return t ? t('errors.server') : 'Server error, please try again.';
   if (status === null) return t ? t('errors.network') : 'Network error or server unreachable.';
