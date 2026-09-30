@@ -6,7 +6,6 @@ import { Prisma } from '@prisma/client';
 import { authenticate } from '../middleware/auth.js';
 import { requireRole, requirePageAccess } from '../middleware/rbac.js';
 import { captureLocation } from '../middleware/location.js';
-import { requireAttendance } from '../middleware/attendance.js';
 import { logActivity } from '../lib/activity.js';
 import { emitRfqUpdated } from '../lib/socket.js';
 import { storeUploadedFile, deleteUploadedFile, serveUploadedFile } from '../lib/storage.js';
@@ -48,7 +47,9 @@ const rfqSchema = z.object({
   requiredTime: z.enum(['TOP_URGENT', 'URGENT', 'NORMAL', 'OTHERS']),
   requiredTimeOther: z.string().max(300).optional(),
   rollLocation: z.enum(['AT_FACTORY', 'AT_CUSTOMER', 'NOT_SPECIFIED']).optional(),
-  workOrderDate: z.string(), // YYYY-MM-DD
+  workOrderDate: z.string().refine((v) => !Number.isNaN(new Date(`${v}T00:00:00Z`).getTime()), {
+    message: 'workOrderDate must be a valid date (YYYY-MM-DD)',
+  }), // YYYY-MM-DD — تحقق واضح (400) بدل خطأ 500 عند تاريخ فارغ/تالف
   paymentTerms: z.enum(['CASH', 'CREDIT']),
 });
 
@@ -196,7 +197,6 @@ router.post(
   '/',
   authenticate,
   requireRole('SALES_MANAGER', 'DEPUTY_SALES_MANAGER', 'REPRESENTATIVE'),
-  requireAttendance(),
   captureLocation('GENERIC_ACTION'),
   async (req, res) => {
     const parsed = rfqSchema.safeParse(req.body);

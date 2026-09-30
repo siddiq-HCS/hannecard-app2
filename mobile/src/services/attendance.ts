@@ -45,25 +45,17 @@ export interface AttendanceRecord {
 }
 
 /**
- * حارس الحضور الإلزامي (جانب العميل):
+ * حارس الحضور الإلزامي (جانب العميل) — مُعطّل مؤقتاً بأمر إدارة:
+ * عادت القيمة 'ok' دائماً حتى لا يُمنع المندوب من إنشاء طلب التسعير أو
+ * الخطة الأسبوعية مهما كانت حالة حضوره. (يُستأنف التشديد لاحقاً بإزالة هذا السطر)
+ * القيم الأصلية محفوظة بالأسفل للرجوع عند تفعيل الحارس مرة أخرى:
  * - 'ok'               : المندوب مسجّل حضوراً اليوم → يُسمح بالعملية.
- * - 'attendance_required' : لم يسجّل حضوراً أو انصرف → يجب منع العملية.
- * - 'error'            : تعذّر فحص السيرفر → نترك العملية (الحارس في السيرفر يحمي).
+ * - 'attendance_required' : لم يسجّل حضوراً أو انصرف → كان يمنع العملية.
+ * - 'error'            : تعذّر فحص السيرفر → تُترك العملية (الحارس في السيرفر يحمي).
  * - 'skip'             : المستخدم ليس مندوباً (مدير/نائب) → لا يخضع للشرط.
  */
-export async function requireTodayCheckIn(token: string, isRep: boolean): Promise<'ok' | 'attendance_required' | 'error' | 'skip'> {
-  if (!isRep) return 'skip';
-  try {
-    const date = await todayServerDate();
-    const res = await api.get(`/attendance/status?date=${date}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const rec = res.data?.attendance as AttendanceRecord | null;
-    if (!rec || rec.status !== 'CHECKED_IN') return 'attendance_required';
-    return 'ok';
-  } catch {
-    return 'error';
-  }
+export async function requireTodayCheckIn(_token: string, _isRep: boolean): Promise<'ok' | 'attendance_required' | 'error' | 'skip'> {
+  return 'ok';
 }
 
 /**

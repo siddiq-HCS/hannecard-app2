@@ -5,7 +5,6 @@ import { prisma } from '../lib/prisma.js';
 import { authenticate } from '../middleware/auth.js';
 import { requireRole, requirePageAccess } from '../middleware/rbac.js';
 import { captureLocation } from '../middleware/location.js';
-import { requireAttendance } from '../middleware/attendance.js';
 import { logActivity } from '../lib/activity.js';
 import { storeUploadedFile, serveUploadedFile } from '../lib/storage.js';
 import type { PlanDayName, WeeklyPlanStatus } from '@prisma/client';
@@ -211,7 +210,6 @@ router.post(
   '/',
   authenticate,
   requireRole('SALES_MANAGER', 'DEPUTY_SALES_MANAGER', 'REPRESENTATIVE'),
-  requireAttendance(),
   captureLocation('GENERIC_ACTION'),
   async (req, res) => {
     const parsed = createSchema.safeParse(req.body);
@@ -266,7 +264,6 @@ router.put(
   '/:id',
   authenticate,
   requireRole('SALES_MANAGER', 'DEPUTY_SALES_MANAGER', 'REPRESENTATIVE'),
-  requireAttendance(),
   captureLocation('GENERIC_ACTION'),
   async (req, res) => {
     const isManager = req.user.role !== 'REPRESENTATIVE';
@@ -415,7 +412,6 @@ router.post(
   '/:id/submit',
   authenticate,
   requireRole('SALES_MANAGER', 'DEPUTY_SALES_MANAGER', 'REPRESENTATIVE'),
-  requireAttendance(),
   captureLocation('GENERIC_ACTION'),
   async (req, res) => {
     const isManager = req.user.role !== 'REPRESENTATIVE';
