@@ -14,33 +14,35 @@ const router = Router();
 
 const workEnum = z.enum(['COMPLETE_MANUFACTURING', 'MANUFACTURING', 'RE_COVERING', 'RE_GRINDING', 'REPAIR', 'NORMAL', 'OTHERS']);
 const requiredWorkSchema = z.union([workEnum, z.array(workEnum)]).transform((v) => (Array.isArray(v) ? v : [v]));
+const defaultEnum = <T extends string>(values: readonly [T, ...T[]], fallback: T) =>
+  z.preprocess((value) => value == null || value === '' ? fallback : value, z.enum(values));
 
 const itemSchema = z.object({
   description: z.string().min(1).max(500),
-  quantity: z.string().max(100).optional().or(z.number()).optional(),
-  finishingType: z.enum(['NORMAL_CYLINDRICAL', 'PARABOLIC_CROWNING', 'GROOVING', 'OTHERS']),
-  finishingTypeOther: z.string().max(300).optional(),
-  requiredWork: requiredWorkSchema,
-  requiredWorkOther: z.string().max(300).optional(),
-  workEnvironment: z.enum(['CHEMICALS', 'TEMPERATURE', 'PRESSURE', 'OTHERS', 'NORMAL']),
-  workEnvironmentOther: z.string().max(500).optional(),
+  quantity: z.union([z.string().max(100), z.number()]).optional().nullable(),
+  finishingType: defaultEnum(['NORMAL_CYLINDRICAL', 'PARABOLIC_CROWNING', 'GROOVING', 'OTHERS'], 'NORMAL_CYLINDRICAL'),
+  finishingTypeOther: z.string().max(300).optional().nullable(),
+  requiredWork: z.preprocess((value) => value == null || value === '' ? 'NORMAL' : value, requiredWorkSchema),
+  requiredWorkOther: z.string().max(300).optional().nullable(),
+  workEnvironment: defaultEnum(['CHEMICALS', 'TEMPERATURE', 'PRESSURE', 'OTHERS', 'NORMAL'], 'NORMAL'),
+  workEnvironmentOther: z.string().max(500).optional().nullable(),
   // قياسات الرول (اختيارية)
-  rollMaterialId: z.string().optional(),
+  rollMaterialId: z.string().optional().nullable(),
   outerDiameter: z.any().optional().nullable(),
   innerDiameter: z.any().optional().nullable(),
   rollLength: z.any().optional().nullable(),
-  calculatedPrice: z.number().optional(),
+  calculatedPrice: z.number().optional().nullable(),
   // تسعير الرول (لكل بند على حدة)
-  unitPrice: z.number().nonnegative().optional(),
-  totalPrice: z.number().nonnegative().optional(),
+  unitPrice: z.number().nonnegative().optional().nullable(),
+  totalPrice: z.number().nonnegative().optional().nullable(),
   // مكان وجود الرول لهذا البند: في المصنع / عند العميل / غير محدد
-  rollLocation: z.enum(['AT_FACTORY', 'AT_CUSTOMER', 'NOT_SPECIFIED']).optional(),
+  rollLocation: z.enum(['AT_FACTORY', 'AT_CUSTOMER', 'NOT_SPECIFIED']).optional().nullable(),
 });
 
 const rfqSchema = z.object({
   clientName: z.string().min(1).max(200),
-  contactName: z.string().max(200).default(''),
-  contactPhone: z.string().max(50).default(''),
+  contactName: z.string().max(200).nullish().transform((value) => value ?? ''),
+  contactPhone: z.string().max(50).nullish().transform((value) => value ?? ''),
   images: z.any().optional().nullable(),
   imageUrl: z.any().optional().nullable(),
   imageUrls: z.any().optional().nullable(),
@@ -48,13 +50,13 @@ const rfqSchema = z.object({
   // إسناد الطلب إلى مندوب معيّن (المدير فقط عند الإنشاء/التعديل)
   userId: z.string().optional(),
   items: z.array(itemSchema).min(1).max(50),
-  requiredTime: z.enum(['TOP_URGENT', 'URGENT', 'NORMAL', 'OTHERS']),
-  requiredTimeOther: z.string().max(300).optional(),
-  rollLocation: z.enum(['AT_FACTORY', 'AT_CUSTOMER', 'NOT_SPECIFIED']).optional(),
+  requiredTime: defaultEnum(['TOP_URGENT', 'URGENT', 'NORMAL', 'OTHERS'], 'NORMAL'),
+  requiredTimeOther: z.string().max(300).optional().nullable(),
+  rollLocation: z.enum(['AT_FACTORY', 'AT_CUSTOMER', 'NOT_SPECIFIED']).optional().nullable(),
   workOrderDate: z.string().refine((v) => !Number.isNaN(new Date(`${v}T00:00:00Z`).getTime()), {
     message: 'workOrderDate must be a valid date (YYYY-MM-DD)',
   }), // YYYY-MM-DD — تحقق واضح (400) بدل خطأ 500 عند تاريخ فارغ/تالف
-  paymentTerms: z.enum(['CASH', 'CREDIT']),
+  paymentTerms: defaultEnum(['CASH', 'CREDIT'], 'CASH'),
 });
 
 function toDate(s: string) {
@@ -204,7 +206,18 @@ router.post(
   captureLocation('GENERIC_ACTION'),
   async (req, res) => {
     const parsed = rfqSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: 'invalid_input', details: parsed.error.flatten() });
+    if (!parsed.success) {
+      const formatted = parsed.error.format();
+      const issue = parsed.error.issues[0];
+      const field = issue?.path.map(String).join('.') || 'بيانات الطلب';
+      console.error('[rfq] POST validation failed:', formatted);
+      return res.status(400).json({
+        error: 'invalid_input',
+        field,
+        message: `يرجى التحقق من الحقل «${field}»: ${issue?.message ?? 'قيمة غير صالحة'}`,
+        details: formatted,
+      });
+    }
 
     // منع التكرار: طلب مطابق تماماً من نفس المستخدم خلال آخر 30 ثانية
     const cutoff = new Date(Date.now() - DUPLICATE_WINDOW_MS);

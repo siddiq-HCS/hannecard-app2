@@ -734,7 +734,10 @@ export function RFQs() {
       await load();
       toast.success(t('rfq.success'));
     } catch (err) {
-      toast.error(apiErrorMessage(err, t));
+      const responseData = (err as { response?: { data?: { message?: unknown; field?: unknown } } })?.response?.data;
+      const serverMessage = typeof responseData?.message === 'string' ? responseData.message : null;
+      const field = typeof responseData?.field === 'string' ? responseData.field : null;
+      toast.error(serverMessage || (field ? `${t('rfq.invalidInput')}: ${field}` : apiErrorMessage(err, t)));
     } finally {
       setCreating(false);
     }
