@@ -281,7 +281,7 @@ router.post(
         })),
         requiredTime: parsed.data.requiredTime,
         requiredTimeOther: parsed.data.requiredTimeOther ?? null,
-        rollLocation: parsed.data.rollLocation,
+        rollLocation: parsed.data.rollLocation ?? undefined,
         workOrderDate: toDate(parsed.data.workOrderDate),
         paymentTerms: parsed.data.paymentTerms,
       },
