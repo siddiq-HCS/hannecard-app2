@@ -71,7 +71,12 @@ export function Permissions() {
       const roles = Array.isArray(res.data?.roles) ? res.data.roles : [];
       const rolePermissions =
         res.data?.rolePermissions && typeof res.data.rolePermissions === 'object' && !Array.isArray(res.data.rolePermissions)
-          ? res.data.rolePermissions
+          ? Object.fromEntries(
+              Object.entries(res.data.rolePermissions).map(([role, permissions]) => [
+                role,
+                Array.isArray(permissions) ? permissions : [],
+              ]),
+            ) as Record<string, string[]>
           : {};
       setPagesMap(
         pages.reduce((acc, p) => {
@@ -97,7 +102,7 @@ export function Permissions() {
   }, [load]);
 
   const status = (role: string) => {
-    const list = draft[role] ?? [];
+    const list = draft?.[role] || [];
     return { restricted: list.length > 0, count: list.length, total: Object.keys(pagesMap).length };
   };
 
@@ -169,7 +174,7 @@ export function Permissions() {
                 </tr>
               </thead>
               <tbody>
-                {Object.values(pagesMap).map((page) => (
+                {Object.values(pagesMap || {}).map((page) => (
                   <tr key={page.permission} className="border-b border-[#f8fafc0d] hover:bg-[#ffffff05]">
                     <td className="py-2.5 px-4 text-secondary">{t(page.labelKey)}</td>
                     {(roleList ?? []).map((role) => {
@@ -180,7 +185,7 @@ export function Permissions() {
                             role={role}
                             page={page}
                             disabled={disabled}
-                            checked={(draft[role] ?? []).includes(page.permission)}
+                            checked={(draft?.[role] || []).includes(page.permission)}
                             onToggle={toggle}
                           />
                         </td>
