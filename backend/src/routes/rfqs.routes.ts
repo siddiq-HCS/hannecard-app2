@@ -26,9 +26,9 @@ const itemSchema = z.object({
   workEnvironmentOther: z.string().max(500).optional(),
   // قياسات الرول (اختيارية)
   rollMaterialId: z.string().optional(),
-  outerDiameter: z.number().positive().optional(),
-  innerDiameter: z.number().positive().optional(),
-  rollLength: z.number().positive().optional(),
+  outerDiameter: z.any().optional().nullable(),
+  innerDiameter: z.any().optional().nullable(),
+  rollLength: z.any().optional().nullable(),
   calculatedPrice: z.number().optional(),
   // تسعير الرول (لكل بند على حدة)
   unitPrice: z.number().nonnegative().optional(),
@@ -41,6 +41,10 @@ const rfqSchema = z.object({
   clientName: z.string().min(1).max(200),
   contactName: z.string().max(200).default(''),
   contactPhone: z.string().max(50).default(''),
+  images: z.any().optional().nullable(),
+  imageUrl: z.any().optional().nullable(),
+  imageUrls: z.any().optional().nullable(),
+  attachments: z.any().optional().nullable(),
   // إسناد الطلب إلى مندوب معيّن (المدير فقط عند الإنشاء/التعديل)
   userId: z.string().optional(),
   items: z.array(itemSchema).min(1).max(50),
