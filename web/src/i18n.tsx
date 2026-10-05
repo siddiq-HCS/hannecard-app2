@@ -212,7 +212,7 @@ const ar = {
     save: 'حفظ',
   },
   pagePerms: {
-    title: 'صلاحيات الصفحات (المطور)',
+    title: 'إدارة الصلاحيات',
     subtitle: 'تحديد الصفحات والقوائم التي تظهر/تختفي لكل مدير. المدير دون أي صلاحيات محددة يرى كل الصفحات (كامل الصلاحيات)، وبمجرد مَنح أي صلاحية يُقيَّد بها فقط.',
     fullAccess: 'كامل الصلاحيات',
     restricted: 'صلاحيات محددة',
@@ -796,7 +796,7 @@ const en: typeof ar = {
     save: 'Save',
   },
 pagePerms: {
-    title: 'Page Permissions (Developer)',
+    title: 'Permissions',
     subtitle: 'Control which pages/menus each manager can see. A manager with no specific permissions sees all pages (full access); once any permission is granted, they are restricted to those only.',
     fullAccess: 'Full access',
     restricted: 'Restricted',

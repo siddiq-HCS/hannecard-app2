@@ -114,9 +114,6 @@ const devItems = [
   { href: '/page-permissions', label: 'pagePerms.title', icon: ShieldCheck },
 ];
 
-// إدارة صلاحيات الأدوار — لمدير المبيعات (سيديك) والمطوّر
-const ownerItems = [{ href: '/admin/permissions', label: 'nav.permissions', icon: ShieldCheck }];
-
 function Shell({ children }: { children: React.ReactNode }) {
   const { t } = useI18n();
   const { user, logout } = useAuth();
@@ -202,25 +199,6 @@ function Shell({ children }: { children: React.ReactNode }) {
                 );
               })}
 
-            {/* إدارة صلاحيات الأدوار: لمستخدم SIDDIQ حصرياً */}
-            {isSiddiq(user) &&
-              ownerItems.map(({ href, label, icon: Icon }) => {
-                const active = location.pathname === href;
-                return (
-                  <a
-                    key={href}
-                    href={href}
-                    className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-xs font-medium transition-all shrink-0 ${
-                      active
-                        ? 'bg-amber-500/15 text-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.1)]'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
-                    }`}
-                  >
-                    <Icon size={18} strokeWidth={active ? 2.2 : 1.8} />
-                    <span className="hidden lg:block">{t(label)}</span>
-                  </a>
-                );
-              })}
           </div>
 
           {/* Language + User */}
