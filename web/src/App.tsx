@@ -18,6 +18,7 @@ import { PagePermissions } from './pages/PagePermissions';
 import { Permissions } from './pages/Permissions';
 import { Logo } from './components/Logo';
 import { Toaster } from './components/Toast';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Home, Map, Users, FileText, BarChart2, MessageSquare, Calendar, ClipboardCheck, Layers, Settings, ShieldCheck } from 'lucide-react';
 
 // شاشة تحميل مؤقتة أثناء التحقق من الجلسة (/me) — بديل عن فراغ/شاشة سوداء
@@ -269,7 +270,7 @@ export function App() {
         <Route path="/login" element={<Login />} />
 
       {/* اللوحة الإدارية محمية: أي مسار بدون جلسة سارية يُوجَّه مباشرة لـ /login */}
-      <Route path="/dashboard" element={isStaff && hasPermission(user, 'PAGE_DASHBOARD_ACCESS') ? <Shell><Dashboard /></Shell> : <Navigate to={isStaff ? firstAllowedHref(user) : '/login'} replace />} />
+      <Route path="/dashboard" element={isStaff && hasPermission(user, 'PAGE_DASHBOARD_ACCESS') ? <Shell><ErrorBoundary><Dashboard /></ErrorBoundary></Shell> : <Navigate to={isStaff ? firstAllowedHref(user) : '/login'} replace />} />
       <Route path="/map" element={isStaff && hasPermission(user, 'PAGE_MAP_ACCESS') ? <Shell><MapView /></Shell> : <Navigate to="/login" replace />} />
       <Route path="/reps" element={isStaff && hasPermission(user, 'PAGE_REPS_ACCESS') ? <Shell><Reps /></Shell> : <Navigate to="/login" replace />} />
       <Route path="/rfqs" element={isStaff && hasPermission(user, 'PAGE_RFQS_ACCESS') ? <Shell><RFQs /></Shell> : <Navigate to="/login" replace />} />
