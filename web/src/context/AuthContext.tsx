@@ -20,6 +20,22 @@ interface AuthState {
   refresh: () => Promise<void>;
 }
 
+function normalizeUser(value: unknown): User | null {
+  if (!value || typeof value !== 'object') return null;
+  const candidate = value as Record<string, unknown>;
+  if (typeof candidate.id !== 'string' || typeof candidate.name !== 'string' || typeof candidate.role !== 'string') return null;
+  return {
+    id: candidate.id,
+    name: candidate.name,
+    phone: typeof candidate.phone === 'string' ? candidate.phone : '',
+    role: candidate.role,
+    ...(typeof candidate.email === 'string' ? { email: candidate.email } : {}),
+    permissions: Array.isArray(candidate.permissions)
+      ? candidate.permissions.filter((permission): permission is string => typeof permission === 'string')
+      : [],
+  };
+}
+
 const AuthContext = createContext<AuthState>(null as unknown as AuthState);
 
 // قراءة/كتابة آمنة لـ localStorage مع احتياطي في الذاكرة:
@@ -41,14 +57,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const raw = storageGet('user');
     if (!raw) return null;
     try {
-      const parsed = JSON.parse(raw) as User;
-      const valid =
-        parsed &&
-        typeof parsed === 'object' &&
-        typeof parsed.id === 'string' &&
-        typeof parsed.role === 'string' &&
-        typeof parsed.name === 'string';
-      if (!valid) {
+      const parsed = normalizeUser(JSON.parse(raw));
+      if (!parsed) {
         storageRemove('user');
         return null;
       }
@@ -76,20 +86,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setReady(false);
     try {
       const res = await api.get('/me', authHeaders(token));
-      const data = res.data as { user?: User | null; permissions?: unknown };
+      const data = res.data as { user?: unknown; permissions?: unknown };
       // استجابة غير متوقعة (حساب محذوف/تالف) → تنظيف الجلسة بأمان وبدون انهيار
-      const me = data?.user;
-      if (!me || typeof me !== 'object' || typeof me.role !== 'string') {
+      const me = normalizeUser(data?.user);
+      if (!me) {
         storageClear();
         setToken(null);
         setUser(null);
         setReady(true);
         return;
       }
-      setUser(me as User);
       // الصلاحيات: القيم الفارغة/التالفة تُعامل كقائمة فارغة بدلاً من انهيار العرض
       const perms = Array.isArray((res.data as { permissions?: unknown }).permissions)
-        ? (res.data as { permissions: string[] }).permissions
+        ? (res.data as { permissions: unknown[] }).permissions.filter((permission): permission is string => typeof permission === 'string')
         : [];
       const merged = { ...me, permissions: perms };
       setUser(merged);
@@ -134,25 +143,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const res = await api.post('/auth/login', { email, password, app: 'web' });
-    const data = res.data as { token: string; user: User };
+    const data = res.data as { token?: unknown; user?: unknown };
     // سجل تشخيصي مؤقت: يعرض شكل الاستجابة عند أي مشكلة للتحقق من اكتمال الحقول
-    if (typeof data?.token !== 'string' || typeof data?.user?.role !== 'string') {
+    const normalizedUser = normalizeUser(data?.user);
+    if (typeof data?.token !== 'string' || typeof data?.user !== 'object' || !normalizedUser) {
       console.error('[auth][debug] unexpected login response shape:', JSON.stringify(data));
     }
     // تحقق صارم من شكل الاستجابة قبل الحفظ — استجابة غريبة لا تُحدث انهياراً
-    if (!data || typeof data.token !== 'string' || !data.token || !data.user || typeof data.user.role !== 'string') {
+    if (typeof data?.token !== 'string' || !data.token || !normalizedUser) {
       throw new Error('invalid_login_response');
     }
     // حفظ بأمان مع احتياطي في الذاكرة — حتى لو فشل التخزين يستمر الدخول في هذه الجلسة
     try {
       storageSet('token', data.token);
-      storageSet('user', JSON.stringify(data.user));
+      storageSet('user', JSON.stringify(normalizedUser));
     } catch {
       /* ignore */
     }
     setReady(false);
     setToken(data.token);
-    setUser(data.user);
+    setUser(normalizedUser);
   }, []);
 
   const logout = useCallback(() => {

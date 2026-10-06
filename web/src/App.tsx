@@ -49,23 +49,25 @@ function RedirectToMobile() {
   );
 }
 
-function roleEq(role: any, expected: string): boolean {
+function roleEq(role: unknown, expected: string): boolean {
   return typeof role === 'string' && role.toUpperCase() === expected.toUpperCase();
 }
 
-function isSiddiq(user: any): boolean {
-  if (!user) return false;
-  const email = (user.email ?? '').toLowerCase().trim();
-  const name = (user.name ?? '').toLowerCase().trim();
+function isSiddiq(user: unknown): boolean {
+  if (!user || typeof user !== 'object') return false;
+  const candidate = user as Record<string, unknown>;
+  const email = typeof candidate.email === 'string' ? candidate.email.toLowerCase().trim() : '';
+  const name = typeof candidate.name === 'string' ? candidate.name.toLowerCase().trim() : '';
   return email === 'siddiq@hannecardsaudi.com' || name === 'siddiq' || email === 'siddiq';
 }
 
-function hasPermission(user: any, permission: string): boolean {
-  if (!user) return false;
+function hasPermission(user: unknown, permission: string): boolean {
+  if (!user || typeof user !== 'object') return false;
+  const candidate = user as Record<string, unknown>;
   // المستخدم المدير الأعلى (SIDDIQ) يتجاوز مصفوفة تصفية الأدوار والصلاحيات دائماً
   if (isSiddiq(user)) return true;
-  if (roleEq(user.role, 'DEVELOPER') || roleEq(user.role, 'REPRESENTATIVE')) return true;
-  const perms = user.permissions;
+  if (roleEq(candidate.role, 'DEVELOPER') || roleEq(candidate.role, 'REPRESENTATIVE')) return true;
+  const perms = Array.isArray(candidate.permissions) ? candidate.permissions : [];
   if (!Array.isArray(perms) || perms.length === 0) return true;
   return perms.includes(permission);
 }
@@ -86,7 +88,7 @@ const pageOrder = [
   { href: '/quotations', permission: 'PAGE_QUOTATIONS_ACCESS' },
 ];
 
-function firstAllowedHref(user: any): string {
+function firstAllowedHref(user: unknown): string {
   for (const item of pageOrder) {
     if (hasPermission(user, item.permission)) return item.href;
   }
@@ -246,21 +248,18 @@ function Shell({ children }: { children: React.ReactNode }) {
 
 export function App() {
   const { token, user, ready } = useAuth();
+  const role = typeof user?.role === 'string' ? user.role.toUpperCase() : '';
 
   // المستخدم مندوب (جلسة قديمة من قبل فصل الصلاحيات) → توجيه فوري لتطبيق الجوال مع رسالة (عدا SIDDIQ)
-  if (roleEq(user?.role, 'REPRESENTATIVE') && !isSiddiq(user)) return <RedirectToMobile />;
+  if (role === 'REPRESENTATIVE' && !isSiddiq(user)) return <RedirectToMobile />;
 
   // أثناء جلب /me لم يكتمل بعد (token موجود) → شاشة تحميل بدل أي وميض/مسار خاطئ لحظي
   if ((token && !user) || (token && !ready)) return <LoadingScreen />;
 
   const staffRoles = ['SALES_MANAGER', 'DEPUTY_SALES_MANAGER', 'DEVELOPER', 'ADMIN', 'SUPER_ADMIN', 'MANAGER', 'OWNER', 'GENERAL_MANAGER'];
   // مقارنة الأدوار غير حساسة لحالة الأحرف (Case-Insensitive) لمنع رفض الدخول
-  const isStaff =
-    !!token &&
-    !!user &&
-    typeof user.role === 'string' &&
-    staffRoles.some((r) => user.role.toUpperCase() === r);
-  const isDev = typeof user?.role === 'string' && user.role.toUpperCase() === 'DEVELOPER';
+  const isStaff = !!token && !!user && staffRoles.includes(role);
+  const isDev = role === 'DEVELOPER';
 
   return (
     <>
