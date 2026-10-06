@@ -6,7 +6,7 @@ services:
     runtime: node
     rootDir: backend
     buildCommand: npm ci --prefix ../web && npm run build --prefix ../web && npm ci && npm run build && npm ci --prefix ../mobile && npm run export:web --prefix ../mobile
-    startCommand: npm start
+    startCommand: npm start --prefix .
     plan: free
     healthCheckPath: /health
     numInstances: 1
