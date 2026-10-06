@@ -18,7 +18,7 @@ const defaultEnum = <T extends string>(values: readonly [T, ...T[]], fallback: T
   z.preprocess((value) => value == null || value === '' ? fallback : value, z.enum(values));
 
 const itemSchema = z.object({
-  description: z.string().min(1).max(500),
+  description: z.string().min(1).max(5000),
   quantity: z.union([z.string().max(100), z.number()]).optional().nullable(),
   finishingType: defaultEnum(['NORMAL_CYLINDRICAL', 'PARABOLIC_CROWNING', 'GROOVING', 'OTHERS'], 'NORMAL_CYLINDRICAL'),
   finishingTypeOther: z.string().max(300).optional().nullable(),
