@@ -76,12 +76,12 @@ async function nextPlanSerial() {
 
 const visitSchema = z.object({
   id: z.string().optional(),
-  companyName: z.string().max(300),
+  companyName: z.string().max(300).optional().default(''),
   contactPerson: z.string().max(300).optional().default(''),
   phone: z.string().max(100).optional().default(''),
   address: z.string().max(500).optional().default(''),
   purpose: z.string().max(500).optional().default(''),
-  companyCategory: z.enum(CATEGORIES),
+  companyCategory: z.enum(CATEGORIES).optional().default('OTHERS'),
   categoryOther: z.string().max(300).optional().default(''),
   notes: z.string().max(2000).optional().default(''),
 });
@@ -328,14 +328,14 @@ router.put(
 
         for (const v of day.visits) {
           const payload = {
-            companyName: v.companyName,
-            contactPerson: v.contactPerson,
-            phone: v.phone,
-            address: v.address,
-            purpose: v.purpose,
-            companyCategory: v.companyCategory,
-            categoryOther: v.categoryOther,
-            notes: v.notes,
+            companyName: String(v.companyName ?? '').trim(),
+            contactPerson: String(v.contactPerson ?? '').trim(),
+            phone: String(v.phone ?? '').trim(),
+            address: String(v.address ?? '').trim(),
+            purpose: String(v.purpose ?? '').trim(),
+            companyCategory: v.companyCategory ?? 'OTHERS',
+            categoryOther: String(v.categoryOther ?? '').trim(),
+            notes: String(v.notes ?? '').trim(),
           };
           let row;
           if (v.id && existingById.has(v.id)) {
@@ -418,21 +418,31 @@ router.post(
     const plan = await canManagePlan(String(req.params.id), req.user.id, isManager);
     if (!plan) return res.status(404).json({ error: 'not_found', message: 'لم يتم العثور على الخطة المطلوبة' });
 
-    // الشركة/العميل إجباري لكل زيارة عند الإرسال
     const visits = await prisma.planVisit.findMany({
       where: { day: { planId: plan.id } },
       select: { id: true, companyName: true },
     });
-    const missing = visits.filter((v) => !v.companyName.trim());
+
+    const missing = visits.filter((v) => !String(v.companyName ?? '').trim());
     if (missing.length) {
       logPlanError(req, 'missing_company_name', 400, { userId: plan.userId, planId: plan.id, count: missing.length });
-      return res.status(400).json({ error: 'missing_company_name', message: 'أدخل اسم الشركة/العميل لكل زيارة قبل الإرسال', count: missing.length });
+      return res.status(400).json({
+        error: 'missing_company_name',
+        message: 'أدخل اسم الشركة/العميل لكل زيارة قبل الإرسال.',
+        count: missing.length,
+      });
     }
 
-    // حد أدنى 30 زيارة لإرسال الخطة
+    const remaining = MIN_VISITS_TO_SUBMIT - visits.length;
     if (visits.length < MIN_VISITS_TO_SUBMIT) {
-      logPlanError(req, 'min_visits', 400, { userId: plan.userId, planId: plan.id, count: visits.length });
-      return res.status(400).json({ error: 'min_visits', message: `يجب ألا يقل عدد الزيارات عن ${MIN_VISITS_TO_SUBMIT} زيارة قبل الإرسال (العدد الحالي: ${visits.length})`, count: visits.length, min: MIN_VISITS_TO_SUBMIT });
+      logPlanError(req, 'min_visits', 400, { userId: plan.userId, planId: plan.id, count: visits.length, remaining });
+      return res.status(400).json({
+        error: 'min_visits',
+        message: `لا يمكن إرسال الخطة حتى تصل إلى ${MIN_VISITS_TO_SUBMIT} زيارات. لديك ${visits.length} زيارة/زيارات فقط، والفرق المتبقي هو ${remaining} زيارة/زيارات.`,
+        count: visits.length,
+        min: MIN_VISITS_TO_SUBMIT,
+        remaining,
+      });
     }
 
     const updated = await prisma.weeklyPlan.update({

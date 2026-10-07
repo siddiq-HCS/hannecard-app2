@@ -10,6 +10,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
+    "backup": "node scripts/backup.js",
+    "backup:daily": "node scripts/backup-scheduler.js",
     "postinstall": "prisma generate",
     "typecheck": "tsc --noEmit",
     "db:migrate": "prisma migrate dev",
