@@ -155,9 +155,44 @@ async function loadLocalPlanDraft(userId: string): Promise<LocalPlanDraft | null
   try {
     const raw = await AsyncStorage.getItem(`${PLAN_DRAFT_PREFIX}${userId}`);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as LocalPlanDraft;
-    if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.days)) return null;
-    return parsed;
+    const parsed = JSON.parse(raw) as Partial<LocalPlanDraft>;
+    if (!parsed || typeof parsed !== 'object') return null;
+
+    const safeDays = Array.isArray(parsed.days)
+      ? parsed.days.map((day) => ({
+          dayName: DAYS.includes((day as { dayName?: string })?.dayName as DayName) ? (day as { dayName: DayName }).dayName : 'SUNDAY',
+          visits: Array.isArray((day as { visits?: unknown[] })?.visits)
+            ? (day as { visits: Visit[] }).visits
+                .filter((visit) => !!visit && typeof visit === 'object')
+                .map((visit) => ({
+                  ...newVisit(),
+                  ...(visit as Partial<Visit>),
+                  companyName: typeof (visit as Partial<Visit>)?.companyName === 'string' ? (visit as Partial<Visit>).companyName ?? '' : '',
+                  contactPerson: typeof (visit as Partial<Visit>)?.contactPerson === 'string' ? (visit as Partial<Visit>).contactPerson ?? '' : '',
+                  phone: typeof (visit as Partial<Visit>)?.phone === 'string' ? (visit as Partial<Visit>).phone ?? '' : '',
+                  address: typeof (visit as Partial<Visit>)?.address === 'string' ? (visit as Partial<Visit>).address ?? '' : '',
+                  purpose: typeof (visit as Partial<Visit>)?.purpose === 'string' ? (visit as Partial<Visit>).purpose ?? '' : '',
+                  companyCategory: typeof (visit as Partial<Visit>)?.companyCategory === 'string' ? (visit as Partial<Visit>).companyCategory ?? 'PLASTICS' : 'PLASTICS',
+                  categoryOther: typeof (visit as Partial<Visit>)?.categoryOther === 'string' ? (visit as Partial<Visit>).categoryOther ?? '' : '',
+                  notes: typeof (visit as Partial<Visit>)?.notes === 'string' ? (visit as Partial<Visit>).notes ?? '' : '',
+                  imageUrl: typeof (visit as Partial<Visit>)?.imageUrl === 'string' ? (visit as Partial<Visit>).imageUrl ?? null : null,
+                  pendingImage: null,
+                }))
+            : [newVisit()],
+        }))
+      : [];
+
+    const nextYear = typeof parsed.year === 'string' && parsed.year.trim() ? parsed.year : currentWeek().year;
+    const nextWeekNumber = typeof parsed.weekNumber === 'string' && parsed.weekNumber.trim() ? parsed.weekNumber : currentWeek().week;
+
+    return {
+      planId: typeof parsed.planId === 'string' ? parsed.planId : null,
+      year: nextYear,
+      weekNumber: nextWeekNumber,
+      days: safeDays.length > 0 ? safeDays : initDays(),
+      pendingDocs: parsed.pendingDocs && typeof parsed.pendingDocs === 'object' ? parsed.pendingDocs : {},
+      savedAt: typeof parsed.savedAt === 'number' ? parsed.savedAt : Date.now(),
+    };
   } catch {
     return null;
   }
@@ -194,7 +229,7 @@ export default function WeeklyPlansScreen() {
     return { Authorization: `Bearer ${token}` };
   }
 
-  const draftOwnerId = () => user?.id ?? 'rep';
+  const draftOwnerId = () => (user && typeof user.id === 'string' && user.id.trim() ? user.id : 'rep');
 
   // حفظ المسودة محلياً تلقائياً بعد كل تعديل (بتأخير خفيف) — لا تُفقد البيانات عند قطع الشبكة أو إغلاق التطبيق
   useEffect(() => {
@@ -258,29 +293,41 @@ export default function WeeklyPlansScreen() {
       setFormOpen(true);
     };
     void (async () => {
-      const draft = token ? await loadLocalPlanDraft(draftOwnerId()) : null;
-      const hasContent = !!draft && !!draft.year && draft.days.some((d) => d.visits.some((v) => v.companyName.trim()));
-      if (!hasContent || !draft) {
-        startNew();
-        return;
-      }
-      Alert.alert(t('weeklyPlans.draftFoundTitle'), t('weeklyPlans.draftFoundMsg'), [
-        { text: t('weeklyPlans.discardDraft'), style: 'destructive', onPress: () => { void clearLocalPlanDraft(draftOwnerId()); startNew(); } },
-        {
-          text: t('weeklyPlans.resumeDraft'),
-          onPress: () => {
-            setPlanId(draft.planId ?? null);
-            setPlanStatus('DRAFT');
-            setYear(draft.year);
-            setWeekNumber(draft.weekNumber);
-            setDays((draft.days ?? []).map((d) => ({ ...d, visits: d.visits.map((v) => ({ ...v, pendingImage: null })) })));
-            setPendingDocs(draft.pendingDocs ?? {});
-            setCollapsed({});
-            setFormOpen(true);
+      try {
+        const draft = token ? await loadLocalPlanDraft(draftOwnerId()) : null;
+        const safeDays = Array.isArray(draft?.days) ? draft.days : [];
+        const hasContent = safeDays.some((d) => Array.isArray(d?.visits) && d.visits.some((v) => typeof v?.companyName === 'string' && v.companyName.trim().length > 0));
+
+        if (!draft || !hasContent) {
+          startNew();
+          return;
+        }
+
+        Alert.alert(t('weeklyPlans.draftFoundTitle'), t('weeklyPlans.draftFoundMsg'), [
+          { text: t('weeklyPlans.discardDraft'), style: 'destructive', onPress: () => { void clearLocalPlanDraft(draftOwnerId()); startNew(); } },
+          {
+            text: t('weeklyPlans.resumeDraft'),
+            onPress: () => {
+              const safeYear = Number(draft.year) >= 2000 && Number(draft.year) <= 2100 ? String(draft.year) : currentWeek().year;
+              const safeWeek = Number(draft.weekNumber) >= 1 && Number(draft.weekNumber) <= 53 ? String(draft.weekNumber) : currentWeek().week;
+              setPlanId(draft.planId ?? null);
+              setPlanStatus('DRAFT');
+              setYear(safeYear);
+              setWeekNumber(safeWeek);
+              setDays((safeDays ?? []).map((d) => ({
+                ...d,
+                visits: Array.isArray(d.visits) ? d.visits.map((v) => ({ ...v, companyName: typeof v.companyName === 'string' ? v.companyName : '', pendingImage: null })) : [newVisit()],
+              })));
+              setPendingDocs(draft.pendingDocs ?? {});
+              setCollapsed({});
+              setFormOpen(true);
+            },
           },
-        },
-        { text: t('common.cancel'), style: 'cancel', onPress: () => startNew() },
-      ]);
+          { text: t('common.cancel'), style: 'cancel', onPress: () => startNew() },
+        ]);
+      } catch {
+        startNew();
+      }
     })();
   }
 
