@@ -812,6 +812,7 @@ export function RFQs() {
         <thead>
           <tr style={{ background: '#1e293b', color: '#fff', textAlign: 'start' }}>
             <th style={thStyle}>{t('rfq.serial')}</th>
+            <th style={thStyle}>{t('rfq.sentOn')}</th>
             <th style={thStyle}>{t('rfq.clientName')}</th>
             <th style={thStyle}>{t('rfq.rep')}</th>
             <th style={thStyle}>{t('rfq.requiredWork')}</th>
@@ -828,6 +829,7 @@ export function RFQs() {
           {sorted.map((r) => (
             <tr key={r.id} onClick={() => setDetail(r)} style={rowStyle}>
               <td style={tdStyle}><strong>{r.serialNumber || '—'}</strong></td>
+              <td style={tdStyle}>{formatDate(r.createdAt, lang)}</td>
               <td style={tdStyle}>{r.clientName}</td>
               <td style={tdStyle}>{r.user?.name ?? '—'}</td>
               <td style={tdStyle}>{distinctLabels(t, r.items, 'rfqWork', (i) => i.requiredWork)}</td>
