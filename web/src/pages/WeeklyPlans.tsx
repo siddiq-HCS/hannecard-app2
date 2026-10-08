@@ -74,6 +74,82 @@ function flattenVisits(p: Plan) {
   return out;
 }
 
+function normalizeVisit(value: unknown): Visit | null {
+  if (!value || typeof value !== 'object') return null;
+  const raw = value as Record<string, unknown>;
+  if (typeof raw.id !== 'string') return null;
+
+  return {
+    id: raw.id,
+    planDayId: typeof raw.planDayId === 'string' ? raw.planDayId : '',
+    companyName: typeof raw.companyName === 'string' ? raw.companyName : '',
+    contactPerson: typeof raw.contactPerson === 'string' ? raw.contactPerson : '',
+    phone: typeof raw.phone === 'string' ? raw.phone : '',
+    address: typeof raw.address === 'string' ? raw.address : '',
+    purpose: typeof raw.purpose === 'string' ? raw.purpose : '',
+    companyCategory: typeof raw.companyCategory === 'string' ? raw.companyCategory : '',
+    categoryOther: typeof raw.categoryOther === 'string' ? raw.categoryOther : '',
+    notes: typeof raw.notes === 'string' ? raw.notes : '',
+    imageUrl: typeof raw.imageUrl === 'string' ? raw.imageUrl : null,
+  };
+}
+
+function normalizeDay(value: unknown): Day | null {
+  if (!value || typeof value !== 'object') return null;
+  const raw = value as Record<string, unknown>;
+  if (typeof raw.id !== 'string' || typeof raw.dayName !== 'string') return null;
+
+  const visits = Array.isArray(raw.visits)
+    ? raw.visits.map((item) => normalizeVisit(item)).filter((item): item is Visit => !!item)
+    : [];
+
+  return {
+    id: raw.id,
+    planId: typeof raw.planId === 'string' ? raw.planId : '',
+    dayName: raw.dayName,
+    visits,
+  };
+}
+
+function normalizePlan(value: unknown): Plan | null {
+  if (!value || typeof value !== 'object') return null;
+  const raw = value as Record<string, unknown>;
+  if (typeof raw.id !== 'string') return null;
+
+  const days = Array.isArray(raw.days)
+    ? raw.days.map((item) => normalizeDay(item)).filter((item): item is Day => !!item)
+    : [];
+
+  const user = raw.user && typeof raw.user === 'object'
+    ? (() => {
+        const u = raw.user as Record<string, unknown>;
+        if (typeof u.id !== 'string' || typeof u.name !== 'string') return null;
+        return { id: u.id, name: u.name, phone: typeof u.phone === 'string' ? u.phone : '' };
+      })()
+    : null;
+
+  return {
+    id: raw.id,
+    userId: typeof raw.userId === 'string' ? raw.userId : '',
+    year: typeof raw.year === 'number' ? raw.year : 0,
+    weekNumber: typeof raw.weekNumber === 'number' ? raw.weekNumber : 0,
+    serialNumber: typeof raw.serialNumber === 'string' ? raw.serialNumber : '',
+    startDate: typeof raw.startDate === 'string' ? raw.startDate : '',
+    endDate: typeof raw.endDate === 'string' ? raw.endDate : '',
+    status: typeof raw.status === 'string' ? raw.status : 'DRAFT',
+    submittedAt: typeof raw.submittedAt === 'string' || raw.submittedAt === null ? raw.submittedAt : null,
+    createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : new Date().toISOString(),
+    updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : new Date().toISOString(),
+    user,
+    days,
+  };
+}
+
+function normalizePlanList(value: unknown): Plan[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => normalizePlan(item)).filter((item): item is Plan => item !== null);
+}
+
 function statusChip(t: T, status: string) {
   const map: Record<string, { label: string; bg: string; fg: string }> = {
     DRAFT: { label: t('weeklyPlans.statusDraft'), bg: '#fef3c7', fg: '#92400e' },
@@ -289,12 +365,18 @@ export function WeeklyPlans() {
     if (from) params.set('from', from);
     if (to) params.set('to', to);
     const res = await api.get(`/weekly-plans?${params.toString()}`, authHeaders(token));
-    setPlans(res.data);
+    setPlans(normalizePlanList(res.data));
   }
 
   useEffect(() => {
     if (!token) return;
-    api.get('/manager/reps', authHeaders(token)).then((r) => setReps(r.data));
+    api.get('/manager/reps', authHeaders(token)).then((r) => {
+      if (Array.isArray(r.data)) {
+        setReps(r.data.filter((rep): rep is Rep => !!rep && typeof rep === 'object' && typeof (rep as Record<string, unknown>).id === 'string' && typeof (rep as Record<string, unknown>).name === 'string'));
+      } else {
+        setReps([]);
+      }
+    });
   }, [token]);
 
   useEffect(() => {
@@ -308,7 +390,8 @@ export function WeeklyPlans() {
       await load();
       if (detail?.id === p.id) {
         const res = await api.get(`/weekly-plans/${p.id}`, authHeaders(token));
-        setDetail(res.data);
+        const next = normalizePlan(res.data);
+        setDetail(next ?? null);
       }
       toast.success(lang === 'ar' ? 'تم الاعتماد' : 'Approved');
     } catch (err) {
@@ -330,7 +413,8 @@ export function WeeklyPlans() {
   const openDetail = useCallback(async (p: Plan) => {
     if (!token) return;
     const res = await api.get(`/weekly-plans/${p.id}`, authHeaders(token));
-    setDetail(res.data);
+    const next = normalizePlan(res.data);
+    setDetail(next ?? null);
   }, [token]);
 
   const totalVisits = (p: Plan) => (p.days ?? []).reduce((sum, d) => sum + (d.visits?.length ?? 0), 0);
