@@ -3,6 +3,7 @@ import { api, authHeaders, apiErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useI18n, formatDate, formatDateTime, type Lang } from '../i18n';
 import { toast } from '../components/Toast';
+import { safeText } from '../lib/safeText';
 
 interface Visit {
   id: string;
@@ -81,32 +82,33 @@ function normalizeVisit(value: unknown): Visit | null {
 
   return {
     id: raw.id,
-    planDayId: typeof raw.planDayId === 'string' ? raw.planDayId : '',
-    companyName: typeof raw.companyName === 'string' ? raw.companyName : '',
-    contactPerson: typeof raw.contactPerson === 'string' ? raw.contactPerson : '',
-    phone: typeof raw.phone === 'string' ? raw.phone : '',
-    address: typeof raw.address === 'string' ? raw.address : '',
-    purpose: typeof raw.purpose === 'string' ? raw.purpose : '',
-    companyCategory: typeof raw.companyCategory === 'string' ? raw.companyCategory : '',
-    categoryOther: typeof raw.categoryOther === 'string' ? raw.categoryOther : '',
-    notes: typeof raw.notes === 'string' ? raw.notes : '',
-    imageUrl: typeof raw.imageUrl === 'string' ? raw.imageUrl : null,
+    planDayId: safeText(raw.planDayId),
+    companyName: safeText(raw.companyName),
+    contactPerson: safeText(raw.contactPerson),
+    phone: safeText(raw.phone),
+    address: safeText(raw.address),
+    purpose: safeText(raw.purpose),
+    companyCategory: safeText(raw.companyCategory),
+    categoryOther: safeText(raw.categoryOther),
+    notes: safeText(raw.notes),
+    imageUrl: raw.imageUrl == null ? null : safeText(raw.imageUrl),
   };
 }
 
 function normalizeDay(value: unknown): Day | null {
   if (!value || typeof value !== 'object') return null;
   const raw = value as Record<string, unknown>;
-  if (typeof raw.id !== 'string' || typeof raw.dayName !== 'string') return null;
+  const dayName = safeText(raw.dayName);
+  if (!safeText(raw.id) || !dayName) return null;
 
   const visits = Array.isArray(raw.visits)
     ? raw.visits.map((item) => normalizeVisit(item)).filter((item): item is Visit => !!item)
     : [];
 
   return {
-    id: raw.id,
-    planId: typeof raw.planId === 'string' ? raw.planId : '',
-    dayName: raw.dayName,
+    id: safeText(raw.id),
+    planId: safeText(raw.planId),
+    dayName,
     visits,
   };
 }
@@ -114,7 +116,8 @@ function normalizeDay(value: unknown): Day | null {
 function normalizePlan(value: unknown): Plan | null {
   if (!value || typeof value !== 'object') return null;
   const raw = value as Record<string, unknown>;
-  if (typeof raw.id !== 'string') return null;
+  const id = safeText(raw.id);
+  if (!id) return null;
 
   const days = Array.isArray(raw.days)
     ? raw.days.map((item) => normalizeDay(item)).filter((item): item is Day => !!item)
@@ -123,23 +126,25 @@ function normalizePlan(value: unknown): Plan | null {
   const user = raw.user && typeof raw.user === 'object'
     ? (() => {
         const u = raw.user as Record<string, unknown>;
-        if (typeof u.id !== 'string' || typeof u.name !== 'string') return null;
-        return { id: u.id, name: u.name, phone: typeof u.phone === 'string' ? u.phone : '' };
+        const id = safeText(u.id);
+        const name = safeText(u.name);
+        if (!id || !name) return null;
+        return { id, name, phone: safeText(u.phone) };
       })()
     : null;
 
   return {
-    id: raw.id,
-    userId: typeof raw.userId === 'string' ? raw.userId : '',
+    id,
+    userId: safeText(raw.userId),
     year: typeof raw.year === 'number' ? raw.year : 0,
     weekNumber: typeof raw.weekNumber === 'number' ? raw.weekNumber : 0,
-    serialNumber: typeof raw.serialNumber === 'string' ? raw.serialNumber : '',
-    startDate: typeof raw.startDate === 'string' ? raw.startDate : '',
-    endDate: typeof raw.endDate === 'string' ? raw.endDate : '',
-    status: typeof raw.status === 'string' ? raw.status : 'DRAFT',
-    submittedAt: typeof raw.submittedAt === 'string' || raw.submittedAt === null ? raw.submittedAt : null,
-    createdAt: typeof raw.createdAt === 'string' ? raw.createdAt : new Date().toISOString(),
-    updatedAt: typeof raw.updatedAt === 'string' ? raw.updatedAt : new Date().toISOString(),
+    serialNumber: safeText(raw.serialNumber),
+    startDate: safeText(raw.startDate),
+    endDate: safeText(raw.endDate),
+    status: safeText(raw.status) || 'DRAFT',
+    submittedAt: raw.submittedAt == null ? null : safeText(raw.submittedAt) || null,
+    createdAt: safeText(raw.createdAt) || new Date().toISOString(),
+    updatedAt: safeText(raw.updatedAt) || new Date().toISOString(),
     user,
     days,
   };

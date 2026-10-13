@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { api, authHeaders } from '../api/client';
 import { storageGet, storageSet, storageRemove, storageClear } from '../lib/safeStorage';
+import { safeText } from '../lib/safeText';
 
 interface User {
   id: string;
@@ -23,15 +24,18 @@ interface AuthState {
 function normalizeUser(value: unknown): User | null {
   if (!value || typeof value !== 'object') return null;
   const candidate = value as Record<string, unknown>;
-  if (typeof candidate.id !== 'string' || typeof candidate.name !== 'string' || typeof candidate.role !== 'string') return null;
+  const id = safeText(candidate.id);
+  const name = safeText(candidate.name);
+  const role = safeText(candidate.role);
+  if (!id || !name || !role) return null;
   return {
-    id: candidate.id,
-    name: candidate.name,
-    phone: typeof candidate.phone === 'string' ? candidate.phone : '',
-    role: candidate.role,
-    ...(typeof candidate.email === 'string' ? { email: candidate.email } : {}),
+    id,
+    name,
+    phone: safeText(candidate.phone),
+    role,
+    ...(candidate.email !== undefined ? { email: safeText(candidate.email) } : {}),
     permissions: Array.isArray(candidate.permissions)
-      ? candidate.permissions.filter((permission): permission is string => typeof permission === 'string')
+      ? candidate.permissions.map(safeText).filter(Boolean)
       : [],
   };
 }
