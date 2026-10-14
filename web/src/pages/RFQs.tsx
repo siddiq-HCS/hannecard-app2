@@ -422,6 +422,19 @@ function distinctLabels(t: T, items: RfqItem[] | undefined, prefix: string, val:
   return [...set].join(' / ') || '—';
 }
 
+function createInitialForm() {
+  return {
+    clientName: '',
+    contactName: '',
+    contactPhone: '',
+    userId: '',
+    requiredTime: 'NORMAL',
+    workOrderDate: '',
+    paymentTerms: 'CASH',
+    items: [{ description: '', quantity: '', finishingType: 'NORMAL_CYLINDRICAL', requiredWork: ['NORMAL'], workEnvironment: 'NORMAL', rollLocation: 'NOT_SPECIFIED' }],
+  };
+}
+
 export function RFQs() {
   const { token, user } = useAuth();
   const { t, lang } = useI18n();
@@ -677,11 +690,7 @@ export function RFQs() {
   else sorted.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
   const [showCreate, setShowCreate] = useState(false);
-  const [createForm, setCreateForm] = useState({
-    clientName: '', contactName: '', contactPhone: '', userId: '',
-    requiredTime: 'NORMAL', workOrderDate: '', paymentTerms: 'CASH',
-    items: [{ description: '', quantity: '', finishingType: 'NORMAL_CYLINDRICAL', requiredWork: ['NORMAL'] as string[], workEnvironment: 'NORMAL', rollLocation: 'NOT_SPECIFIED' }],
-  });
+  const [createForm, setCreateForm] = useState(createInitialForm);
   const [creating, setCreating] = useState(false);
 
   function addCreateItem() {
@@ -705,12 +714,13 @@ export function RFQs() {
   }
 
   async function submitCreate() {
-    if (!token) return;
+    if (!token || creating) return;
     if (!createForm.clientName.trim() || !createForm.workOrderDate || createForm.items.some((it) => !it.description.trim())) {
       alert(t('rfq.fillRequired'));
       return;
     }
     setCreating(true);
+    let submitted = false;
     try {
       await api.post('/rfqs', {
         clientName: createForm.clientName.trim(),
@@ -730,9 +740,11 @@ export function RFQs() {
         paymentTerms: createForm.paymentTerms,
       }, authHeaders(token));
       setShowCreate(false);
-      setCreateForm({ clientName: '', contactName: '', contactPhone: '', userId: '', requiredTime: 'NORMAL', workOrderDate: '', paymentTerms: 'CASH', items: [{ description: '', quantity: '', finishingType: 'NORMAL_CYLINDRICAL', requiredWork: ['NORMAL'], workEnvironment: 'NORMAL', rollLocation: 'NOT_SPECIFIED' }] });
-      await load();
-      toast.success(t('rfq.success'));
+      setCreateForm(createInitialForm());
+      submitted = true;
+      toast.success(lang === 'ar'
+        ? 'تم إرسال طلب التسعير بنجاح. النموذج جاهز لإدخال طلب جديد.'
+        : 'RFQ submitted successfully. The form is ready for a new request.');
     } catch (err) {
       const responseData = (err as { response?: { data?: { message?: unknown; field?: unknown } } })?.response?.data;
       const serverMessage = typeof responseData?.message === 'string' ? responseData.message : null;
@@ -741,6 +753,7 @@ export function RFQs() {
     } finally {
       setCreating(false);
     }
+    if (submitted) void load().catch(() => {});
   }
 
   return (
