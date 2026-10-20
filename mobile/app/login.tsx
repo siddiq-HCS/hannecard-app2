@@ -26,9 +26,6 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // إذا كان المندوب مسجلاً بالفعل → تجاوز شاشة الدخول مباشرة إلى "حسابي"
-  if (token && user?.role === 'REPRESENTATIVE') return <Redirect href="/profile" />;
-
   // حساب المدير (دور غير مندوب) على نسخة الويب → تحويل تلقائي للوحة الإدارية
   useEffect(() => {
     if (token && user && user.role !== 'REPRESENTATIVE') {
@@ -39,6 +36,9 @@ export default function LoginScreen() {
       }
     }
   }, [token, user, t]);
+
+  // إذا كان المندوب مسجلاً بالفعل → تجاوز شاشة الدخول مباشرة إلى "حسابي"
+  if (token && user?.role === 'REPRESENTATIVE') return <Redirect href="/profile" />;
 
   async function onLogin() {
     // حماية إضافية ضد إعادة الإرسال أثناء المعالجة
