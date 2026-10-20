@@ -369,7 +369,11 @@ export function WeeklyPlans() {
     if (status) params.set('status', status);
     if (from) params.set('from', from);
     if (to) params.set('to', to);
-    const res = await api.get(`/weekly-plans?${params.toString()}`, authHeaders(token));
+    params.set('t', String(Date.now()));
+    const res = await api.get(`/weekly-plans?${params.toString()}`, {
+      ...authHeaders(token),
+      headers: { ...authHeaders(token).headers, 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+    });
     setPlans(normalizePlanList(res.data));
   }
 

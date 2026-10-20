@@ -11,6 +11,14 @@ import type { PlanDayName, WeeklyPlanStatus } from '@prisma/client';
 
 const router = Router();
 
+router.use((_req, res, next) => {
+  res.set({
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    Pragma: 'no-cache',
+  });
+  next();
+});
+
 const DAYS: PlanDayName[] = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY'];
 const DAY_INDEX: Record<string, number> = { SUNDAY: 0, MONDAY: 1, TUESDAY: 2, WEDNESDAY: 3, THURSDAY: 4 };
 

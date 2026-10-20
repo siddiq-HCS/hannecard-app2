@@ -214,6 +214,8 @@ export default function WeeklyPlansScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
+  const draftWritesRef = useRef<Promise<void>>(Promise.resolve());
+  const draftCleanupRef = useRef(false);
 
   const [formOpen, setFormOpen] = useState(false);
   const [planId, setPlanId] = useState<string | null>(null);
@@ -233,16 +235,16 @@ export default function WeeklyPlansScreen() {
 
   // حفظ المسودة محلياً تلقائياً بعد كل تعديل (بتأخير خفيف) — لا تُفقد البيانات عند قطع الشبكة أو إغلاق التطبيق
   useEffect(() => {
-    if (!token || !formOpen || planStatus !== 'DRAFT') return;
+    if (!token || !formOpen || planStatus !== 'DRAFT' || draftCleanupRef.current) return;
     const handle = setTimeout(() => {
-      void saveLocalPlanDraft(draftOwnerId(), {
-        planId,
-        year,
-        weekNumber,
-        days,
-        pendingDocs,
-        savedAt: Date.now(),
-      });
+      draftWritesRef.current = draftWritesRef.current.then(() => saveLocalPlanDraft(draftOwnerId(), {
+          planId,
+          year,
+          weekNumber,
+          days,
+          pendingDocs,
+          savedAt: Date.now(),
+        }));
     }, 500);
     return () => clearTimeout(handle);
   }, [token, formOpen, planStatus, planId, year, weekNumber, days, pendingDocs]);
@@ -261,7 +263,9 @@ export default function WeeklyPlansScreen() {
 
   async function load() {
     if (!token) return;
-    const res = await api.get('/weekly-plans', { headers: auth() });
+    const res = await api.get(`/weekly-plans?t=${Date.now()}`, {
+      headers: { ...auth(), 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+    });
     setPlans(res.data);
   }
 
@@ -282,6 +286,7 @@ export default function WeeklyPlansScreen() {
   }
 
   function openNew() {
+    draftCleanupRef.current = false;
     const startNew = () => {
       setPlanId(null);
       setPlanStatus('DRAFT');
@@ -332,6 +337,7 @@ export default function WeeklyPlansScreen() {
   }
 
   function openPlan(p: Plan) {
+    draftCleanupRef.current = false;
     setPlanId(p.id);
     setPlanStatus(p.status);
     setYear(String(p.year));
@@ -593,9 +599,11 @@ export default function WeeklyPlansScreen() {
         await api.post(`/weekly-plans/${id}/submit`, { date: await todayServerDate() }, { headers: auth() });
       }
       Alert.alert(t('weeklyPlans.ok'), isSubmit ? t('weeklyPlans.submittedMsg') : t('weeklyPlans.draftSaved'));
+      draftCleanupRef.current = true;
       closeForm();
       // نجاح الرفع: نمسح المسودة المحلية نهائياً كي لا تقترح استئناف خطة وُضعت بالفعل
-      await clearLocalPlanDraft(draftOwnerId());
+      draftWritesRef.current = draftWritesRef.current.then(() => clearLocalPlanDraft(draftOwnerId()));
+      await draftWritesRef.current;
       try {
         await load();
       } catch {
