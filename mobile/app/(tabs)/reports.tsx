@@ -486,11 +486,25 @@ export default function WeeklyPlansScreen() {
     const fallback = isSubmitF ? t('weeklyPlans.submitErr') : t('weeklyPlans.saveErr');
     try {
       const known = err as {
-        response?: { data?: { error?: string; message?: string }; status?: number };
+        response?: { data?: { error?: string; message?: string; details?: unknown }; status?: number };
         code?: string;
       };
       const code = known?.response?.data?.error ?? known?.code;
       const status = known?.response?.status ?? 0;
+      const serverMessage = known?.response?.data?.message;
+      const details = known?.response?.data?.details;
+      if (serverMessage) {
+        const issues = Array.isArray(details)
+          ? details.map((issue) => {
+              if (!issue || typeof issue !== 'object') return '';
+              const item = issue as { path?: unknown; message?: unknown };
+              const path = Array.isArray(item.path) ? item.path.join('.') : '';
+              const message = typeof item.message === 'string' ? item.message : '';
+              return path ? `${path}: ${message}` : message;
+            }).filter(Boolean)
+          : [];
+        return issues.length ? `${serverMessage}\n${issues.join('\n')}` : serverMessage;
+      }
       const map: Record<string, string> = {
         attendance_required: t('weeklyPlans.errAttendance'),
         not_editable: t('weeklyPlans.errNotEditable'),
@@ -499,7 +513,6 @@ export default function WeeklyPlansScreen() {
         invalid_input: t('weeklyPlans.errInvalid'),
       };
       if (code && map[code]) return map[code];
-      if (known?.response?.data?.message) return known.response.data.message;
       if (status >= 500) return t('weeklyPlans.errServer');
       if (!known?.response && known?.code) {
         // بدون استجابة من الخادم (ECONNABORTED/ERR_NETWORK وغيرها)
@@ -548,17 +561,24 @@ export default function WeeklyPlansScreen() {
         dayName: d.dayName,
         visits: d.visits.map((v) => ({
           id: v.id,
-          companyName: v.companyName,
-          contactPerson: v.contactPerson,
-          phone: v.phone,
-          address: v.address,
-          purpose: v.purpose,
-          companyCategory: v.companyCategory,
-          categoryOther: v.categoryOther,
-          notes: v.notes,
+          companyName: typeof v.companyName === 'string' ? v.companyName : '',
+          contactPerson: typeof v.contactPerson === 'string' ? v.contactPerson : '',
+          phone: typeof v.phone === 'string' ? v.phone : '',
+          address: typeof v.address === 'string' ? v.address : '',
+          purpose: typeof v.purpose === 'string' ? v.purpose : '',
+          companyCategory: CATEGORIES.includes(v.companyCategory as (typeof CATEGORIES)[number]) ? v.companyCategory : 'OTHERS',
+          categoryOther: typeof v.categoryOther === 'string' ? v.categoryOther : '',
+          notes: typeof v.notes === 'string' ? v.notes : '',
         })),
       }));
-      const res = await api.put(`/weekly-plans/${id}`, { ...meta, days: payloadDays }, { headers: auth() });
+      const updatePayload = { ...meta, days: payloadDays };
+      console.info('[weeklyPlans] sending plan update', {
+        planId: id,
+        visitCount: payloadDays.reduce((sum, day) => sum + day.visits.length, 0),
+        dayVisitCounts: payloadDays.map((day) => ({ dayName: day.dayName, count: day.visits.length })),
+        payloadCharacters: JSON.stringify(updatePayload).length,
+      });
+      const res = await api.put(`/weekly-plans/${id}`, updatePayload, { headers: auth() });
       const echo = res.data as Plan;
 
       for (let di = 0; di < days.length; di++) {

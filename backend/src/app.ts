@@ -166,7 +166,11 @@ app.use(
       return res.status(400).json({ error: 'invalid_json', message: 'Request body is not valid JSON' });
     }
     if (err.type === 'entity.too.large') {
-      return res.status(413).json({ error: 'payload_too_large' });
+      return res.status(413).json({
+        error: 'payload_too_large',
+        message: 'حجم الطلب تجاوز الحد المسموح به (10 MB). أزل الملفات المرفقة وأعد المحاولة.',
+        limitBytes: 10 * 1024 * 1024,
+      });
     }
     if (err.type === 'entity.verify.failed') {
       return res.status(415).json({ error: 'unsupported_media_type' });

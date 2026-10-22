@@ -222,8 +222,13 @@ router.post(
   async (req, res) => {
     const parsed = createSchema.safeParse(req.body);
     if (!parsed.success) {
-      logPlanError(req, 'invalid_input', 400, { userId: req.user.id, bodyKeys: Object.keys(req.body ?? {}) });
-      return res.status(400).json({ error: 'invalid_input', message: 'بعض البيانات غير صحيحة، تحقق من الحقول (السنة، رقم الأسبوع، الفئة) ثم أعد المحاولة', details: parsed.error.flatten() });
+      const details = parsed.error.issues.map((issue) => ({ path: issue.path, message: issue.message, code: issue.code }));
+      logPlanError(req, 'invalid_input', 400, { userId: req.user.id, bodyKeys: Object.keys(req.body ?? {}), details });
+      return res.status(400).json({
+        error: 'invalid_input',
+        message: 'بيانات السنة أو رقم الأسبوع غير صحيحة.',
+        details,
+      });
     }
 
     const { start, end, year, weekNumber } = parsed.data.startDate
@@ -286,8 +291,28 @@ router.put(
 
     const parsed = updateSchema.safeParse(req.body);
     if (!parsed.success) {
-      logPlanError(req, 'invalid_input', 400, { userId: req.user.id, planId: plan.id, bodyKeys: Object.keys(req.body ?? {}) });
-      return res.status(400).json({ error: 'invalid_input', message: 'بعض البيانات غير صحيحة، تحقق من الحقول (السنة، رقم الأسبوع، الفئة) ثم أعد المحاولة', details: parsed.error.flatten() });
+      const issues = parsed.error.issues.map((issue) => ({
+        path: issue.path,
+        message: issue.message,
+        code: issue.code,
+      }));
+      logPlanError(req, 'invalid_input', 400, {
+        userId: req.user.id,
+        planId: plan.id,
+        bodyKeys: Object.keys(req.body ?? {}),
+        dayVisitCounts: Array.isArray(req.body?.days)
+          ? req.body.days.map((day: { dayName?: unknown; visits?: unknown }) => ({
+              dayName: day?.dayName,
+              count: Array.isArray(day?.visits) ? day.visits.length : null,
+            }))
+          : null,
+        issues,
+      });
+      return res.status(400).json({
+        error: 'invalid_input',
+        message: 'بعض بيانات الخطة غير صحيحة. تفاصيل الحقول المرفوضة مرفقة.',
+        details: issues,
+      });
     }
 
     const data: Record<string, unknown> = {};
@@ -428,16 +453,21 @@ router.post(
 
     const visits = await prisma.planVisit.findMany({
       where: { day: { planId: plan.id } },
-      select: { id: true, companyName: true },
+      select: { id: true, companyName: true, day: { select: { dayName: true } } },
     });
 
     const missing = visits.filter((v) => !String(v.companyName ?? '').trim());
     if (missing.length) {
       logPlanError(req, 'missing_company_name', 400, { userId: plan.userId, planId: plan.id, count: missing.length });
+      const details = missing.map((visit) => ({
+        path: ['days', visit.day.dayName, 'visits', visit.id, 'companyName'],
+        message: 'اسم الشركة/العميل مطلوب.',
+      }));
       return res.status(400).json({
         error: 'missing_company_name',
-        message: 'أدخل اسم الشركة/العميل لكل زيارة قبل الإرسال.',
+        message: `اسم الشركة/العميل مطلوب في ${missing.length} زيارة. راجع تفاصيل الزيارات المرفقة.`,
         count: missing.length,
+        details,
       });
     }
 
