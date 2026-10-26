@@ -35,8 +35,13 @@ function normalizeActivities(value: unknown): Activity[] {
 
 export function Dashboard() {
   const { token } = useAuth();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [feed, setFeed] = useState<Activity[]>([]);
+  const activityLabel = (type: string) => {
+    const key = `dashboard.activities.${type.replace(/[.-]/g, '_')}`;
+    const translated = t(key);
+    return translated === key ? type.replace(/[._]/g, ' ') : translated;
+  };
 
   useEffect(() => {
     if (!token) return;
@@ -70,8 +75,8 @@ export function Dashboard() {
         {feed.map((a) => (
           <li key={a.id} style={{ background: 'rgba(30, 41, 59, 0.4)', padding: 12, borderRadius: 8, marginBottom: 8, border: '1px solid rgba(148, 163, 184, 0.08)' }}>
             <strong>{a.userName ?? a.userId}</strong>
-            <span style={{ color: '#94a3b8' }}> — {a.type}</span>
-            <div style={{ fontSize: 12, color: '#64748b' }}>{new Date(a.createdAt).toLocaleString()}</div>
+            <span style={{ color: '#94a3b8' }}> — {activityLabel(a.type)}</span>
+            <div style={{ fontSize: 12, color: '#64748b' }}>{new Date(a.createdAt).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en-GB')}</div>
           </li>
         ))}
       </ul>

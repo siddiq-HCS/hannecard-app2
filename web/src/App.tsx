@@ -23,9 +23,10 @@ import { Home, Map, Users, FileText, BarChart2, MessageSquare, Calendar, Clipboa
 
 // شاشة تحميل مؤقتة أثناء التحقق من الجلسة (/me) — بديل عن فراغ/شاشة سوداء
 function LoadingScreen() {
+  const { t } = useI18n();
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#020617' }}>
-      <p style={{ color: '#94a3b8', fontSize: 14 }}>جارٍ التحقق من الجلسة...</p>
+      <p style={{ color: '#94a3b8', fontSize: 14 }}>{t('common.verifyingSession')}</p>
     </div>
   );
 }
@@ -44,7 +45,7 @@ function RedirectToMobile() {
       <div style={{ maxWidth: 440, textAlign: 'center' }}>
         <p style={{ color: '#f59e0b', fontSize: 17, margin: '0 0 8px', fontWeight: 600 }}>⚠️</p>
         <p style={{ color: '#e2e8f0', fontSize: 16, margin: '0 0 8px' }}>{t('login.repNotAllowed')}</p>
-        <p style={{ color: '#94a3b8', fontSize: 13, margin: 0 }}>جارٍ تحويلك إلى تطبيق الجوال...</p>
+        <p style={{ color: '#94a3b8', fontSize: 13, margin: 0 }}>{t('common.redirectingMobile')}</p>
       </div>
     </div>
   );

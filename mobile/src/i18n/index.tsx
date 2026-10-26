@@ -53,6 +53,13 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     void readLang().then(setLangState);
   }, []);
 
+  useEffect(() => {
+    if (isWeb && typeof document !== 'undefined') {
+      document.documentElement.lang = lang;
+      document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+    }
+  }, [lang]);
+
   const setLang = useCallback((l: Lang) => {
     setLangState(l);
     void writeLang(l);

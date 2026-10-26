@@ -82,7 +82,7 @@ export const translations = {
     purpose: {
       PRODUCT_PRESENTATION: 'عرض منتجات',
       PAYMENT_COLLECTION: 'تحصيل أموال',
-      DELIVERY: 'تسليم + Delivery Doc',
+      DELIVERY: 'تسليم + مستند التسليم',
     },
     reports: {
       dailyReport: 'التقرير اليومي',
@@ -119,7 +119,7 @@ export const translations = {
       draftKeptLocally: 'لم يُرفع هذا التعديل بعد، لكن بياناتك محفوظة محلياً على جهازك ولن تُفقد. أعد المحاولة عند توفر الاتصال.',
       saveErr: 'تعذر حفظ الخطة',
       submitErr: 'تعذر إرسال الخطة',
-      errAttendance: 'يجب تسجيل الحضور أولاً في شاشة الحضور (Check-in) قبل حفظ أو إرسال الخطة الأسبوعية',
+      errAttendance: 'يجب تسجيل الحضور أولاً في شاشة الحضور قبل حفظ أو إرسال الخطة الأسبوعية',
       errNotEditable: 'لا يمكن تعديل هذه الخطة لأنها أُرسلت أو اعتُمدت بالفعل',
       errMissingCompany: 'أدخل اسم الشركة/العميل لكل زيارة قبل الإرسال',
       errMinVisits: 'يجب ألا يقل عدد الزيارات عن 30 زيارة قبل الإرسال (العدد الحالي أقل من الحد الأدنى)',
@@ -345,6 +345,7 @@ export const translations = {
     paymentOptions: {
       CASH: 'نقدي',
       CREDIT: 'آجل',
+      NORMAL: 'عادي',
     },
   },
   en: {
@@ -703,5 +704,12 @@ type LeafKeys<T, P extends string = ''> = {
       : `${P}.${string & K}`
     : LeafKeys<T[K], P extends '' ? `${string & K}` : `${P}.${string & K}`>
 }[keyof T];
+
+type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false;
+type Assert<T extends true> = T;
+type ArabicKeysMissingInEnglish = Exclude<LeafKeys<typeof translations.ar>, LeafKeys<typeof translations.en>>;
+type EnglishKeysMissingInArabic = Exclude<LeafKeys<typeof translations.en>, LeafKeys<typeof translations.ar>>;
+type ArabicKeysAreComplete = Assert<Equal<ArabicKeysMissingInEnglish, never>>;
+type EnglishKeysAreComplete = Assert<Equal<EnglishKeysMissingInArabic, never>>;
 
 export type TKey = LeafKeys<typeof translations.ar>;

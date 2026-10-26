@@ -481,7 +481,7 @@ export function WeeklyPlans() {
                   {p.status === 'SUBMITTED' && (
                     <button style={{ ...buttonStyle, background: '#16a34a' }} onClick={() => void approve(p)}>{t('weeklyPlans.approve')}</button>
                   )}
-                  <button style={{ ...buttonStyle, background: '#dc2626' }} onClick={() => setDeletingId(p.id)}>{lang === 'ar' ? 'حذف' : 'Delete'}</button>
+                  <button style={{ ...buttonStyle, background: '#dc2626' }} onClick={() => setDeletingId(p.id)}>{t('common.delete')}</button>
                 </div>
               </td>
             </tr>
@@ -506,7 +506,7 @@ export function WeeklyPlans() {
                 {detail.status === 'SUBMITTED' && (
                   <button style={{ ...buttonStyle, background: '#16a34a' }} onClick={() => void approve(detail)}>{t('weeklyPlans.approve')}</button>
                 )}
-                <button style={{ ...buttonStyle, background: '#dc2626' }} onClick={() => setDeletingId(detail.id)}>{lang === 'ar' ? 'حذف' : 'Delete'}</button>
+                <button style={{ ...buttonStyle, background: '#dc2626' }} onClick={() => setDeletingId(detail.id)}>{t('common.delete')}</button>
                 <button onClick={() => setDetail(null)} style={{ ...buttonStyle, background: '#6b7280' }}>{t('weeklyPlans.close')}</button>
               </div>
             </div>
