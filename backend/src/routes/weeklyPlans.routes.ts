@@ -69,7 +69,7 @@ function isoWeekInfo(start: Date) {
 // الأحد (بداية أسبوع العمل) من سنة ISO + رقم أسبوع
 function sundayOfIsoWeek(year: number, week: number) {
   const monday = new Date(Date.UTC(year, 0, 4));
-  monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7) + 1); // إثنين الأسبوع الأول
+  monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7)); // إثنين الأسبوع الأول
   monday.setUTCDate(monday.getUTCDate() + (week - 1) * 7);
   monday.setUTCDate(monday.getUTCDate() - 1); // الأحد الذي يسبق الإثنين
   return monday;

@@ -31,6 +31,10 @@ const ar = {
     none: '—',
     all: 'الكل',
     search: 'بحث...',
+    print: 'طباعة',
+    refresh: 'تحديث',
+    edit: 'تعديل',
+    save: 'حفظ',
   },
   errors: {
     failed: 'فشل تنفيذ الأمر',
@@ -86,6 +90,7 @@ const ar = {
   },
   analytics: {
     title: 'الإحصائيات',
+    printReport: 'طباعة الإحصائيات',
     allReps: 'كل المناديب',
     periodAll: 'كل الفترات',
     periodWeek: 'آخر أسبوع',
@@ -104,6 +109,7 @@ const ar = {
   },
   attendance: {
     title: 'سجل الحضور والانصراف',
+    printReport: 'طباعة سجل الحضور',
     date: 'التاريخ',
     rep: 'المندوب',
     allReps: 'كل المناديب',
@@ -155,6 +161,9 @@ const ar = {
     name: 'الاسم',
     phone: 'الهاتف',
     password: 'كلمة المرور',
+    editRep: 'تعديل بيانات المندوب',
+    saveChanges: 'حفظ التعديلات',
+    newPassword: 'كلمة مرور جديدة (اختياري)',
     addRep: 'إضافة مندوب',
     searchPlaceholder: 'بحث بالاسم أو الهاتف...',
     active: 'نشط',
@@ -646,6 +655,10 @@ const en: typeof ar = {
     none: '—',
     all: 'All',
     search: 'Search...',
+    print: 'Print',
+    refresh: 'Refresh',
+    edit: 'Edit',
+    save: 'Save',
   },
   errors: {
     failed: 'Action failed',
@@ -701,6 +714,7 @@ const en: typeof ar = {
   },
   analytics: {
     title: 'Analytics',
+    printReport: 'Print analytics',
     allReps: 'All reps',
     periodAll: 'All time',
     periodWeek: 'Last week',
@@ -719,6 +733,7 @@ const en: typeof ar = {
   },
   attendance: {
     title: 'Attendance Log',
+    printReport: 'Print attendance log',
     date: 'Date',
     rep: 'Rep',
     allReps: 'All reps',
@@ -770,6 +785,9 @@ const en: typeof ar = {
     name: 'Name',
     phone: 'Phone',
     password: 'Password',
+    editRep: 'Edit sales rep',
+    saveChanges: 'Save changes',
+    newPassword: 'New password (optional)',
     addRep: 'Add Rep',
     searchPlaceholder: 'Search by name or phone...',
     active: 'Active',

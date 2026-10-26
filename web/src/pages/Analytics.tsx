@@ -3,6 +3,7 @@ import { api, authHeaders, apiErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n';
 import { toast } from '../components/Toast';
+import { Printer } from 'lucide-react';
 
 interface Rep {
   id: string;
@@ -66,10 +67,15 @@ export function Analytics() {
   const selectStyle: React.CSSProperties = { padding: 8, borderRadius: 8 };
 
   return (
-    <div>
-      <h2>{t('analytics.title')}</h2>
+    <div className="print-page">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h2>{t('analytics.title')}</h2>
+        <button className="no-print" type="button" title={t('analytics.printReport')} aria-label={t('analytics.printReport')} onClick={() => window.print()} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 38, height: 38, borderRadius: 8, border: '1px solid #475569', background: '#1e293b', color: '#fff', cursor: 'pointer' }}>
+          <Printer size={17} />
+        </button>
+      </div>
 
-      <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+      <div className="no-print" style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
         <select value={repId} onChange={(e) => setRepId(e.target.value)} style={selectStyle}>
           <option value="">{t('analytics.allReps')}</option>
           {(data?.reps ?? []).map((r) => (

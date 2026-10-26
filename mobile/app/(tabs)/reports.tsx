@@ -101,7 +101,7 @@ function initDays(): Day[] {
 
 function currentWeek() {
   const now = new Date();
-  const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
   const dayNum = (d.getUTCDay() + 6) % 7;
   d.setUTCDate(d.getUTCDate() - dayNum + 3);
   const year = d.getUTCFullYear();
@@ -115,7 +115,7 @@ function currentWeek() {
 // الأحد (بداية أسبوع العمل) من سنة ISO + رقم أسبوع
 function isoWeekSunday(year: number, week: number) {
   const monday = new Date(Date.UTC(year, 0, 4));
-  monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7) + 1);
+  monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7));
   monday.setUTCDate(monday.getUTCDate() + (week - 1) * 7);
   monday.setUTCDate(monday.getUTCDate() - 1);
   return monday;
@@ -129,6 +129,11 @@ function formatDayDate(date: Date, lang: string) {
   const month = date.getUTCMonth();
   if (lang === 'ar') return `${day} ${DAY_MONTHS_AR[month]}`;
   return `${DAY_MONTHS_EN[month]} ${day}`;
+}
+
+function formatPlanDate(iso: string, lang: string) {
+  const [year, month, day] = iso.slice(0, 10).split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', { timeZone: 'UTC' });
 }
 
 // مسودة الخطة تُحفظ محلياً (AsyncStorage) مع كل تعديل حتى لا تُفقد عند قطع الشبكة أو إغلاق التطبيق
@@ -930,8 +935,8 @@ export default function WeeklyPlansScreen() {
                   {t('weeklyPlans.weekRange')}: {p.weekNumber} / {p.year}
                 </Text>
                 <Text style={styles.cardMeta}>
-                  {new Date(p.startDate).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB')} →{' '}
-                  {new Date(p.endDate).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB')} · {t('weeklyPlans.visit')}: {total} / {MIN_VISITS_TO_SUBMIT}
+                  {formatPlanDate(p.startDate, lang)} →{' '}
+                  {formatPlanDate(p.endDate, lang)} · {t('weeklyPlans.visit')}: {total} / {MIN_VISITS_TO_SUBMIT}
                 </Text>
                 <Text style={styles.cardMeta}>
                   {first?.visits?.[0]?.companyName || '—'}

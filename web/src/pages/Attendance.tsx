@@ -3,6 +3,7 @@ import { api, authHeaders, apiErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n';
 import { toast } from '../components/Toast';
+import { Printer } from 'lucide-react';
 
 interface Rep {
   id: string;
@@ -129,9 +130,13 @@ export function Attendance() {
   };
 
   return (
-    <div>
+    <div className="print-page">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <h2 style={{ margin: 0 }}>{t('attendance.title')}</h2>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="no-print" type="button" title={t('attendance.printReport')} aria-label={t('attendance.printReport')} onClick={() => window.print()} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 38, height: 38, borderRadius: 8, border: '1px solid #475569', background: '#1e293b', color: '#fff', cursor: 'pointer' }}>
+            <Printer size={17} />
+          </button>
         <button
           onClick={() => {
             if (!token) return;
@@ -146,11 +151,12 @@ export function Attendance() {
           }}
           style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#1e293b', color: '#fff', cursor: 'pointer', fontSize: 13 }}
         >
-          ↻ {lang === 'ar' ? 'تحديث' : 'Refresh'}
+          ↻ {t('common.refresh')}
         </button>
+        </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
+      <div className="no-print" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
           {t('attendance.date')}
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ padding: 8, borderRadius: 8, border: '1px solid #d1d5db' }} />
@@ -166,7 +172,7 @@ export function Attendance() {
         </label>
       </div>
 
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+      <div className="no-print" style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
         <span style={{ background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', padding: '6px 14px', borderRadius: 8, fontSize: 14, fontWeight: 600, border: '1px solid rgba(34, 197, 94, 0.2)' }}>
           {t('attendance.presentCount')}: {present}
         </span>
@@ -178,7 +184,7 @@ export function Attendance() {
         </span>
       </div>
 
-      {loading ? (
+      <div className="print-page-content">{loading ? (
         <p style={{ color: '#6b7280' }}>{t('attendance.loading')}</p>
       ) : rows.length === 0 ? (
         <p style={{ color: '#6b7280' }}>{t('attendance.noData')}</p>
@@ -221,7 +227,7 @@ export function Attendance() {
             ))}
           </tbody>
         </table>
-      )}
+      )}</div>
     </div>
   );
 }

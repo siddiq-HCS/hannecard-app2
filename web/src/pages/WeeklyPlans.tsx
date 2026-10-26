@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, authHeaders, apiErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { useI18n, formatDate, formatDateTime, type Lang } from '../i18n';
+import { useI18n, formatDateTime, type Lang } from '../i18n';
 import { toast } from '../components/Toast';
+import { Printer } from 'lucide-react';
 import { safeText } from '../lib/safeText';
 
 interface Visit {
@@ -50,6 +51,12 @@ interface Rep {
 const DAY_INDEX: Record<string, number> = { SUNDAY: 0, MONDAY: 1, TUESDAY: 2, WEDNESDAY: 3, THURSDAY: 4 };
 
 type T = (key: string) => string;
+
+function formatPlanDate(iso: string, lang: Lang) {
+  const [year, month, day] = iso.slice(0, 10).split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', { timeZone: 'UTC' });
+}
 
 function optLabel(t: T, prefix: string, val: string) {
   const l = t(`${prefix}.${val}`);
@@ -291,7 +298,7 @@ function printPlan(plan: Plan, t: T, lang: Lang, images: Map<string, string>) {
     <div style="text-align:end;font-size:12px;color:#555;">${t('weeklyPlans.title')}<br>${formatDateTime(plan.createdAt, lang)}</div>
   </div>
   <div style="margin-top:14px;font-size:15px;color:#111;">
-    <strong>${t('weeklyPlans.rep')}:</strong> ${plan.user?.name ?? '—'} · ${t('weeklyPlans.week')}: ${formatDate(plan.startDate, lang)} → ${formatDate(plan.endDate, lang)} · ${statusChipHtml(t, plan.status)}
+    <strong>${t('weeklyPlans.rep')}:</strong> ${plan.user?.name ?? '—'} · ${t('weeklyPlans.week')}: ${formatPlanDate(plan.startDate, lang)} → ${formatPlanDate(plan.endDate, lang)} · ${statusChipHtml(t, plan.status)}
   </div>
   ${daysHtml}
 </body></html>`);
@@ -315,7 +322,7 @@ function downloadPlan(p: Plan, t: T, lang: Lang) {
   const lines: string[] = [];
   lines.push(`${t('weeklyPlans.title')}: ${p.serialNumber}`);
   lines.push(`${t('weeklyPlans.rep')}: ${p.user?.name ?? '—'}`);
-  lines.push(`${t('weeklyPlans.week')}: ${formatDate(p.startDate, lang)} → ${formatDate(p.endDate, lang)}`);
+  lines.push(`${t('weeklyPlans.week')}: ${formatPlanDate(p.startDate, lang)} → ${formatPlanDate(p.endDate, lang)}`);
   lines.push(`${t('weeklyPlans.status')}: ${statusChipHtml(t, p.status)}`);
   lines.push(`${t('weeklyPlans.visits')}: ${visits.length}`);
   lines.push('');
@@ -430,7 +437,7 @@ export function WeeklyPlans() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
+      <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
         <h2 style={{ margin: 0 }}>{t('weeklyPlans.title')}</h2>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <select value={repId} onChange={(e) => setRepId(e.target.value)} style={inputStyle}>
@@ -472,7 +479,7 @@ export function WeeklyPlans() {
             <tr key={p.id}>
               <td style={tdStyle}>{p.user?.name ?? '—'}</td>
               <td style={tdStyle}><strong>{p.serialNumber}</strong></td>
-              <td style={tdStyle}>{formatDate(p.startDate, lang)} → {formatDate(p.endDate, lang)}</td>
+              <td style={tdStyle}>{formatPlanDate(p.startDate, lang)} → {formatPlanDate(p.endDate, lang)}</td>
               <td style={tdStyle}>{totalVisits(p)}</td>
               <td style={tdStyle}>{statusChip(t, p.status)}</td>
               <td style={tdStyle}>
@@ -498,7 +505,7 @@ export function WeeklyPlans() {
               <h3 style={{ margin: 0 }}>{t('weeklyPlans.details')} — {detail.serialNumber}</h3>
               <div style={{ display: 'flex', gap: 8 }}>
                 <button style={{ ...buttonStyle, background: '#1e293b' }} onClick={() => void doPrint(detail)} disabled={printing}>
-                  {printing ? t('weeklyPlans.loading') : t('weeklyPlans.print')}
+                  {printing ? t('weeklyPlans.loading') : <><Printer size={15} aria-hidden="true" /> {t('weeklyPlans.print')}</>}
                 </button>
                 <button style={{ ...buttonStyle, background: '#7c3aed' }} onClick={() => downloadPlan(detail, t, lang)}>
                   {t('weeklyPlans.downloadFile')}
@@ -514,7 +521,7 @@ export function WeeklyPlans() {
             {([
               [t('weeklyPlans.rep'), detail.user?.name ?? '—'],
               [t('weeklyPlans.serial'), detail.serialNumber],
-              [t('weeklyPlans.week'), `${formatDate(detail.startDate, lang)} → ${formatDate(detail.endDate, lang)}`],
+              [t('weeklyPlans.week'), `${formatPlanDate(detail.startDate, lang)} → ${formatPlanDate(detail.endDate, lang)}`],
               [t('weeklyPlans.status'), statusChip(t, detail.status)],
               [t('weeklyPlans.visits'), String(totalVisits(detail))],
               ...(detail.submittedAt ? [[t('weeklyPlans.submittedOn'), formatDateTime(detail.submittedAt, lang)] as [string, string]] : []),

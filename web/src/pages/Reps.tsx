@@ -49,6 +49,10 @@ export function Reps() {
   const [showFormPassword, setShowFormPassword] = useState(false);
   const [revealedId, setRevealedId] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<Rep | null>(null);
+  const [editingRepId, setEditingRepId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editPassword, setEditPassword] = useState('');
 
   async function load() {
     if (!token) return;
@@ -108,6 +112,31 @@ export function Reps() {
       await api.patch(`/manager/reps/${rep.id}`, { isActive: !rep.isActive }, authHeaders(token));
       await load();
       toast.success(lang === 'ar' ? (rep.isActive ? 'تم إيقاف الحساب' : 'تم تفعيل الحساب') : rep.isActive ? 'Account suspended' : 'Account activated');
+    } catch (err) {
+      toast.error(apiErrorMessage(err, t));
+    }
+  }
+
+  function beginEdit(rep: Rep) {
+    setExpanded(rep.id);
+    setEditingRepId(rep.id);
+    setEditName(rep.name);
+    setEditEmail(rep.email ?? '');
+    setEditPassword('');
+  }
+
+  async function saveRepChanges(rep: Rep) {
+    if (!token) return;
+    try {
+      await api.patch(`/manager/reps/${rep.id}`, {
+        name: editName.trim(),
+        email: editEmail.trim(),
+        ...(editPassword ? { password: editPassword } : {}),
+      }, authHeaders(token));
+      setEditingRepId(null);
+      setEditPassword('');
+      await load();
+      toast.success(lang === 'ar' ? 'تم تحديث بيانات المندوب' : 'Rep details updated');
     } catch (err) {
       toast.error(apiErrorMessage(err, t));
     }
@@ -178,6 +207,7 @@ export function Reps() {
 
             <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
               <button onClick={() => navigate(`/chat?userId=${rep.id}`)} style={chatBtnStyle}>{t('reps.message')}</button>
+              <button onClick={() => beginEdit(rep)} style={buttonStyle}>{t('reps.editRep')}</button>
               <button onClick={() => void toggleActive(rep)} style={{ ...buttonStyle, background: rep.isActive ? '#ef4444' : '#22c55e' }}>
                 {rep.isActive ? t('reps.suspend') : t('reps.activate')}
               </button>
@@ -186,6 +216,15 @@ export function Reps() {
 
             {isOpen && (
               <div style={{ marginTop: 14, borderTop: '1px solid #e5e7eb', paddingTop: 12 }}>
+                {editingRepId === rep.id && (
+                  <form onSubmit={(e) => { e.preventDefault(); void saveRepChanges(rep); }} style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+                    <input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder={t('reps.name')} style={inputStyle} required maxLength={100} />
+                    <input value={editEmail} onChange={(e) => setEditEmail(e.target.value)} placeholder={t('reps.email')} type="email" style={inputStyle} required />
+                    <input value={editPassword} onChange={(e) => setEditPassword(e.target.value)} placeholder={t('reps.newPassword')} type="password" style={inputStyle} minLength={6} />
+                    <button type="submit" style={buttonStyle}>{t('reps.saveChanges')}</button>
+                    <button type="button" style={toggleStyle} onClick={() => setEditingRepId(null)}>{t('common.cancel')}</button>
+                  </form>
+                )}
                 <div style={gridStyle}>
                   <div><strong>{t('reps.email')}:</strong> {rep.email ?? '—'}</div>
                   <div>

@@ -68,14 +68,15 @@ router.post('/reps', async (req, res) => {
 });
 
 const updateRepSchema = z.object({
-  name: z.string().min(1).max(100).optional(),
+  name: z.string().trim().min(1).max(100).optional(),
+  email: z.string().trim().email().transform((value) => value.toLowerCase()).optional(),
   isActive: z.boolean().optional(),
   password: z.string().min(6).optional(),
-});
+}).refine((value) => Object.keys(value).length > 0, { message: 'At least one field is required' });
 
-router.patch('/reps/:id', async (req, res) => {
+router.patch('/reps/:id', requirePageAccess('PAGE_REPS_ACCESS'), async (req, res) => {
   const parsed = updateRepSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: 'invalid_input' });
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input', details: parsed.error.flatten() });
 
   const target = await prisma.user.findUnique({
     where: { id: String(req.params.id) },
@@ -84,7 +85,7 @@ router.patch('/reps/:id', async (req, res) => {
   if (!target || target.role !== 'REPRESENTATIVE') return res.status(404).json({ error: 'not_found' });
   if (isDeletedRep(target.phone)) return res.status(400).json({ error: 'already_deleted' });
 
-  const data: Record<string, unknown> = { name: parsed.data.name, isActive: parsed.data.isActive };
+  const data: Record<string, unknown> = { name: parsed.data.name, email: parsed.data.email, isActive: parsed.data.isActive };
   if (parsed.data.password) {
     data.passwordHash = await hashPassword(parsed.data.password);
     data.plainPassword = parsed.data.password;
@@ -94,12 +95,17 @@ router.patch('/reps/:id', async (req, res) => {
     const rep = await prisma.user.update({
       where: { id: target.id },
       data,
-      select: { id: true, name: true, phone: true, plainPassword: true, isActive: true },
+      select: { id: true, name: true, phone: true, email: true, plainPassword: true, isActive: true },
     });
     await logActivity(req.user.id, 'rep.update', { repId: rep.id }, req.user.name);
     res.json(rep);
-  } catch {
-    return res.status(404).json({ error: 'not_found' });
+  } catch (error) {
+    if ((error as { code?: string })?.code === 'P2002') {
+      return res.status(409).json({ error: 'email_or_phone_exists', message: 'البريد الإلكتروني مستخدم بالفعل.' });
+    }
+    if ((error as { code?: string })?.code === 'P2025') return res.status(404).json({ error: 'not_found' });
+    console.error('[manager] representative update failed', error);
+    return res.status(500).json({ error: 'internal_error' });
   }
 });
 

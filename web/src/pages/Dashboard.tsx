@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Printer } from 'lucide-react';
 import { io } from 'socket.io-client';
 import { api, authHeaders, SOCKET_URL } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -69,8 +70,13 @@ export function Dashboard() {
   }, [token]);
 
   return (
-    <div>
-      <h2>{t('dashboard.title')}</h2>
+    <div className="print-page">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h2>{t('dashboard.title')}</h2>
+        <button className="no-print" type="button" title={t('common.print')} aria-label={t('common.print')} onClick={() => window.print()} style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 38, height: 38, borderRadius: 8, border: '1px solid #475569', background: '#1e293b', color: '#fff', cursor: 'pointer' }}>
+          <Printer size={17} />
+        </button>
+      </div>
       <ul style={{ listStyle: 'none', padding: 0 }}>
         {feed.map((a) => (
           <li key={a.id} style={{ background: 'rgba(30, 41, 59, 0.4)', padding: 12, borderRadius: 8, marginBottom: 8, border: '1px solid rgba(148, 163, 184, 0.08)' }}>
