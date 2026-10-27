@@ -31,7 +31,7 @@ const quotationSchema = z.object({
   clientId: z.string().min(1),
   rollerSpecId: z.string().min(1),
   qNumber: z.string().max(200).optional().or(z.literal('')),
-  rollLocation: z.enum(['AT_FACTORY', 'AT_CUSTOMER', 'NOT_SPECIFIED']).optional().default('NOT_SPECIFIED'),
+  rollLocation: z.enum(['IN_FACTORY', 'AT_CUSTOMER', 'NOT_SPECIFIED']).optional().default('NOT_SPECIFIED'),
   discountPercentage: z.number().min(0).max(100).default(0),
   terms: z.string().max(2000).optional().or(z.literal('')),
 });
@@ -76,7 +76,7 @@ router.get('/:id', authenticate, requireRole('SALES_MANAGER', 'REPRESENTATIVE'),
 router.patch('/:id', authenticate, requireRole('SALES_MANAGER', 'REPRESENTATIVE'), async (req, res) => {
   const updateSchema = z.object({
     qNumber: z.string().max(200).optional().or(z.literal('')),
-    rollLocation: z.enum(['AT_FACTORY', 'AT_CUSTOMER', 'NOT_SPECIFIED']).optional(),
+    rollLocation: z.enum(['IN_FACTORY', 'AT_CUSTOMER', 'NOT_SPECIFIED']).optional(),
     terms: z.string().max(2000).optional().or(z.literal('')),
   });
   const parsed = updateSchema.safeParse(req.body);

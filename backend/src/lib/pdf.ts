@@ -68,7 +68,7 @@ export async function generateQuotationPdf(data: QuotationPdfData): Promise<{ fi
 
   // رقم العرض على اليمين (رقم Q ومكان الرول عند توفرهما أعلى رقم العرض)
   const locPdfMap: Record<string, string> = {
-    AT_FACTORY: 'في المصنع (At Factory)',
+    IN_FACTORY: 'في المصنع (In Factory)',
     AT_CUSTOMER: 'عند العميل (At Customer)',
     NOT_SPECIFIED: 'غير محدد (Not Specified)',
   };

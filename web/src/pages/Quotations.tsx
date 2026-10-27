@@ -320,7 +320,7 @@ export function Quotations() {
               <label style={labelStyle}>{t('quotations.rollLocation')}</label>
               <select value={rollLocation} onChange={(e) => setRollLocation(e.target.value)} style={inputStyle}>
                 <option value="NOT_SPECIFIED">{lang === 'ar' ? 'غير محدد' : 'Not Specified'}</option>
-                <option value="AT_FACTORY">{lang === 'ar' ? 'في المصنع' : 'At Factory'}</option>
+                <option value="IN_FACTORY">{lang === 'ar' ? 'في المصنع' : 'In Factory'}</option>
                 <option value="AT_CUSTOMER">{lang === 'ar' ? 'عند العميل' : 'At Customer'}</option>
               </select>
             </div>
@@ -403,7 +403,7 @@ export function Quotations() {
             {([
               ['quotations.quotationNumber', detail.quotationNumber],
               ['quotations.qNumber', detail.qNumber || '—'],
-              ['quotations.rollLocation', lang === 'ar' ? (detail.rollLocation === 'AT_FACTORY' ? 'في المصنع' : detail.rollLocation === 'AT_CUSTOMER' ? 'عند العميل' : 'غير محدد') : (detail.rollLocation === 'AT_FACTORY' ? 'At Factory' : detail.rollLocation === 'AT_CUSTOMER' ? 'At Customer' : 'Not Specified')],
+              ['quotations.rollLocation', lang === 'ar' ? (detail.rollLocation === 'IN_FACTORY' ? 'في المصنع' : detail.rollLocation === 'AT_CUSTOMER' ? 'عند العميل' : 'غير محدد') : (detail.rollLocation === 'IN_FACTORY' ? 'In Factory' : detail.rollLocation === 'AT_CUSTOMER' ? 'At Customer' : 'Not Specified')],
               ['quotations.client', detail.client.companyName],
               ['quotations.createdBy', detail.createdBy?.name ?? '—'],
               ['quotations.status', t(`quotations.status${detail.status}`)],
@@ -450,7 +450,7 @@ export function Quotations() {
                     <label style={{ fontSize: 12, color: '#94a3b8', display: 'block', marginBottom: 4 }}>{t('quotations.rollLocation')}</label>
                     <select value={edit.rollLocation} onChange={(e) => setEdit({ ...edit, rollLocation: e.target.value })} style={{ ...inputStyle, background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(148, 163, 184, 0.2)', color: '#e2e8f0' }}>
                       <option value="NOT_SPECIFIED">{lang === 'ar' ? 'غير محدد' : 'Not Specified'}</option>
-                      <option value="AT_FACTORY">{lang === 'ar' ? 'في المصنع' : 'At Factory'}</option>
+                      <option value="IN_FACTORY">{lang === 'ar' ? 'في المصنع' : 'In Factory'}</option>
                       <option value="AT_CUSTOMER">{lang === 'ar' ? 'عند العميل' : 'At Customer'}</option>
                     </select>
                   </div>

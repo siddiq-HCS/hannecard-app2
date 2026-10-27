@@ -22,6 +22,7 @@ const WORK_ENVIRONMENTS = ['NORMAL', 'CHEMICALS', 'TEMPERATURE', 'PRESSURE', 'OT
 const FINISHING_TYPES = ['NORMAL_CYLINDRICAL', 'PARABOLIC_CROWNING', 'GROOVING', 'OTHERS'] as const;
 const REQUIRED_TIMES = ['TOP_URGENT', 'URGENT', 'NORMAL', 'OTHERS'] as const;
 const PAYMENT_TERMS = ['CASH', 'CREDIT'] as const;
+const ROLL_LOCATIONS = ['IN_FACTORY', 'AT_CUSTOMER', 'NOT_SPECIFIED'] as const;
 
 interface RfqDocument {
   id: string;
@@ -96,6 +97,7 @@ interface Rfq {
   }[];
   requiredTime: string;
   requiredTimeOther?: string;
+  rollLocation?: string;
   paymentTerms: string;
   imageUrl?: string | null;
   imageUrls?: string[] | null;
@@ -168,10 +170,12 @@ export default function RfqScreen() {
   const [items, setItems] = useState<Item[]>([newItem()]);
   const [requiredTime, setRequiredTime] = useState<string>(REQUIRED_TIMES[0]);
   const [requiredTimeOther, setRequiredTimeOther] = useState('');
+  const [rollLocation, setRollLocation] = useState<string>('NOT_SPECIFIED');
   const [workOrderDate, setWorkOrderDate] = useState('');
   const [paymentTerms, setPaymentTerms] = useState<string>(PAYMENT_TERMS[0]);
 
   const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [rollLocationPickerOpen, setRollLocationPickerOpen] = useState(false);
   const [finishPickerFor, setFinishPickerFor] = useState<number | null>(null);
   const [envPickerFor, setEnvPickerFor] = useState<number | null>(null);
   const [detailRfq, setDetailRfq] = useState<Rfq | null>(null);
@@ -216,6 +220,7 @@ export default function RfqScreen() {
     setContactPhone(editingRfq.contactPhone);
     setRequiredTime(editingRfq.requiredTime);
     setRequiredTimeOther(editingRfq.requiredTimeOther ?? '');
+    setRollLocation(editingRfq.rollLocation ?? 'NOT_SPECIFIED');
     setWorkOrderDate(editingRfq.workOrderDate?.split('T')[0] ?? '');
     setPaymentTerms(editingRfq.paymentTerms);
     setItems(editingRfq.items.map((it) => ({
@@ -486,6 +491,7 @@ export default function RfqScreen() {
             items: itemPayload,
             requiredTime,
             requiredTimeOther: requiredTime === 'OTHERS' ? requiredTimeOther.trim() : undefined,
+            rollLocation,
             workOrderDate,
             paymentTerms,
           },
@@ -503,6 +509,7 @@ export default function RfqScreen() {
             items: itemPayload,
             requiredTime,
             requiredTimeOther: requiredTime === 'OTHERS' ? requiredTimeOther.trim() : undefined,
+            rollLocation,
             workOrderDate,
             paymentTerms,
             date: await todayServerDate(),
@@ -550,6 +557,7 @@ export default function RfqScreen() {
       setContactPhone('');
       setItems([newItem()]);
       setRequiredTimeOther('');
+      setRollLocation('NOT_SPECIFIED');
       setWorkOrderDate('');
       setRequiredTime(REQUIRED_TIMES[0]);
       setPaymentTerms(PAYMENT_TERMS[0]);
@@ -775,6 +783,12 @@ export default function RfqScreen() {
         {renderChips(REQUIRED_TIMES, requiredTime, setRequiredTime, (k) => t(`requiredTimeOptions.${k}`))}
         {requiredTime === 'OTHERS' && othersInput(requiredTimeOther, setRequiredTimeOther)}
 
+        <Text style={styles.label}>{t('rfq.rollLocation')}</Text>
+        <Pressable style={[styles.input, styles.dateInput]} onPress={() => setRollLocationPickerOpen(true)}>
+          <Text style={styles.dateValue}>{t(`rollLocationOptions.${rollLocation}`)}</Text>
+          <Text style={styles.calendarIcon}>▾</Text>
+        </Pressable>
+
         <Text style={styles.label}>{t('rfq.workOrderDate')}</Text>
         <Pressable style={[styles.input, styles.dateInput]} onPress={() => setDatePickerOpen(true)}>
           <Text style={workOrderDate ? styles.dateValue : styles.datePlaceholder}>{workOrderDate || 'YYYY-MM-DD'}</Text>
@@ -864,6 +878,7 @@ export default function RfqScreen() {
                     {first.workEnvironment !== 'NORMAL' ? t(`workEnvironmentOptions.${first.workEnvironment}`) : ''}
                   </Text>
                 )}
+                <Text style={styles.cardMeta}>{t('rfq.rollLocation')}: {t(`rollLocationOptions.${r.rollLocation ?? 'NOT_SPECIFIED'}`)}</Text>
                 <Text style={styles.cardMeta}>{t('rfq.items')}: {r.items?.length ?? 0} · {t('rfq.totalRolls')}: {totalRolls(r.items)} · {t(`paymentOptions.${r.paymentTerms}`)}</Text>
                 <Text style={styles.cardMeta}>{t('rfq.sentOn')}: {new Date(r.createdAt).toLocaleString('ar-EG')}</Text>
                 {r.pricingStatus === 'APPROVED' && r.price != null && String(r.price) !== '' ? (
@@ -947,6 +962,14 @@ export default function RfqScreen() {
       />
 
       <SelectModal
+        visible={rollLocationPickerOpen}
+        title={t('rfq.rollLocation')}
+        options={ROLL_LOCATIONS.map((location) => ({ value: location, label: t(`rollLocationOptions.${location}`) }))}
+        onSelect={setRollLocation}
+        onClose={() => setRollLocationPickerOpen(false)}
+      />
+
+      <SelectModal
         visible={materialPickerFor != null}
         title={t('rfq.selectMaterial') || 'اختر الخامة'}
         options={rollMaterials.map((m) => ({ value: m.id, label: m.name }))}
@@ -983,6 +1006,9 @@ export default function RfqScreen() {
 
               <Text style={styles.detailLabel}>{t('rfq.requiredTime')}</Text>
               <Text style={styles.detailValue}>{t(`requiredTimeOptions.${detailRfq.requiredTime}`)}</Text>
+
+              <Text style={styles.detailLabel}>{t('rfq.rollLocation')}</Text>
+              <Text style={styles.detailValue}>{t(`rollLocationOptions.${detailRfq.rollLocation ?? 'NOT_SPECIFIED'}`)}</Text>
 
               <Text style={styles.detailLabel}>{t('rfq.paymentTerms')}</Text>
               <Text style={styles.detailValue}>{t(`paymentOptions.${detailRfq.paymentTerms}`)}</Text>

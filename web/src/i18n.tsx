@@ -532,7 +532,7 @@ const ar = {
     CREDIT: 'آجل',
   },
   rfqLocation: {
-    AT_FACTORY: 'في المصنع',
+    IN_FACTORY: 'في المصنع',
     AT_CUSTOMER: 'عند العميل',
     NOT_SPECIFIED: 'غير محدد',
   },
@@ -1161,7 +1161,7 @@ pagePerms: {
     CREDIT: 'Credit',
   },
   rfqLocation: {
-    AT_FACTORY: 'At Factory',
+    IN_FACTORY: 'In Factory',
     AT_CUSTOMER: 'At Customer',
     NOT_SPECIFIED: 'Not Specified',
   },

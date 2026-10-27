@@ -36,7 +36,7 @@ const itemSchema = z.object({
   unitPrice: z.number().nonnegative().optional().nullable(),
   totalPrice: z.number().nonnegative().optional().nullable(),
   // مكان وجود الرول لهذا البند: في المصنع / عند العميل / غير محدد
-  rollLocation: z.enum(['AT_FACTORY', 'AT_CUSTOMER', 'NOT_SPECIFIED']).optional().nullable(),
+  rollLocation: z.enum(['IN_FACTORY', 'AT_CUSTOMER', 'NOT_SPECIFIED']).optional().nullable(),
 });
 
 const rfqSchema = z.object({
@@ -52,7 +52,7 @@ const rfqSchema = z.object({
   items: z.array(itemSchema).min(1).max(50),
   requiredTime: defaultEnum(['TOP_URGENT', 'URGENT', 'NORMAL', 'OTHERS'], 'NORMAL'),
   requiredTimeOther: z.string().max(300).optional().nullable(),
-  rollLocation: z.enum(['AT_FACTORY', 'AT_CUSTOMER', 'NOT_SPECIFIED']).optional().nullable(),
+  rollLocation: z.enum(['IN_FACTORY', 'AT_CUSTOMER', 'NOT_SPECIFIED']).optional().nullable(),
   workOrderDate: z.string().refine((v) => !Number.isNaN(new Date(`${v}T00:00:00Z`).getTime()), {
     message: 'workOrderDate must be a valid date (YYYY-MM-DD)',
   }), // YYYY-MM-DD — تحقق واضح (400) بدل خطأ 500 عند تاريخ فارغ/تالف
@@ -121,7 +121,7 @@ function normalizeItemList(its: { description: string; quantity?: string | numbe
   );
 }
 
-function rfqFingerprint(r: { clientName: string; contactName: string; contactPhone: string; items: unknown; requiredTime: string; requiredTimeOther: string | null; workOrderDate: Date; paymentTerms: string }) {
+function rfqFingerprint(r: { clientName: string; contactName: string; contactPhone: string; items: unknown; requiredTime: string; requiredTimeOther: string | null; rollLocation?: string | null; workOrderDate: Date; paymentTerms: string }) {
   return JSON.stringify([
     r.clientName.trim(),
     r.contactName.trim(),
@@ -129,6 +129,7 @@ function rfqFingerprint(r: { clientName: string; contactName: string; contactPho
     normalizeItemList(r.items as { description: string; quantity?: string | number | null; finishingType: string; finishingTypeOther?: string | null; requiredWork: string | string[]; requiredWorkOther?: string | null; workEnvironment: string; workEnvironmentOther?: string | null; rollLocation?: string }[]),
     r.requiredTime,
     (r.requiredTimeOther ?? '').trim(),
+    r.rollLocation ?? 'NOT_SPECIFIED',
     r.workOrderDate.toISOString(),
     r.paymentTerms,
   ]);
@@ -231,6 +232,7 @@ router.post(
         items: true,
         requiredTime: true,
         requiredTimeOther: true,
+        rollLocation: true,
         workOrderDate: true,
         paymentTerms: true,
       },
@@ -243,6 +245,7 @@ router.post(
       items: parsed.data.items,
       requiredTime: parsed.data.requiredTime,
       requiredTimeOther: parsed.data.requiredTimeOther ?? null,
+      rollLocation: parsed.data.rollLocation ?? 'NOT_SPECIFIED',
       workOrderDate: toDate(parsed.data.workOrderDate),
       paymentTerms: parsed.data.paymentTerms,
     });
@@ -485,7 +488,7 @@ router.patch(
 );
 
 // تعيين مكان الرول (المدير فقط): في المصنع أو عند العميل — دون المساس بحالة التسعير
-const rollLocationSchema = z.object({ rollLocation: z.enum(['AT_FACTORY', 'AT_CUSTOMER', 'NOT_SPECIFIED']) });
+const rollLocationSchema = z.object({ rollLocation: z.enum(['IN_FACTORY', 'AT_CUSTOMER', 'NOT_SPECIFIED']) });
 
 router.patch(
   '/:id/roll-location',

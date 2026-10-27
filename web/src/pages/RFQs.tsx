@@ -284,7 +284,7 @@ function pricingChip(pricingStatus: string | undefined, t: T) {
 
 function locationChip(value: string | undefined, t: T) {
   const colors =
-    value === 'AT_FACTORY'
+    value === 'IN_FACTORY'
       ? { background: 'rgba(37, 99, 235, 0.12)', color: '#2563eb' }
       : value === 'AT_CUSTOMER'
         ? { background: 'rgba(124, 58, 237, 0.12)', color: '#7c3aed' }
@@ -440,6 +440,7 @@ function createInitialForm() {
     contactPhone: '',
     userId: '',
     requiredTime: 'NORMAL',
+    rollLocation: 'NOT_SPECIFIED',
     workOrderDate: '',
     paymentTerms: 'CASH',
     items: [{ description: '', quantity: '', finishingType: 'NORMAL_CYLINDRICAL', requiredWork: ['NORMAL'], workEnvironment: 'NORMAL', rollLocation: 'NOT_SPECIFIED' }],
@@ -762,6 +763,7 @@ export function RFQs() {
           rollLocation: it.rollLocation ?? 'NOT_SPECIFIED',
         })),
         requiredTime: createForm.requiredTime,
+        rollLocation: createForm.rollLocation,
         workOrderDate: createForm.workOrderDate,
         paymentTerms: createForm.paymentTerms,
       }, authHeaders(token));
@@ -962,7 +964,7 @@ export function RFQs() {
                   style={{ ...inputStyle, width: '100%', background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(148, 163, 184, 0.2)', color: '#e2e8f0' }}
                 >
                   <option value="NOT_SPECIFIED">{t('rfqLocation.NOT_SPECIFIED')}</option>
-                  <option value="AT_FACTORY">{t('rfqLocation.AT_FACTORY')}</option>
+                  <option value="IN_FACTORY">{t('rfqLocation.IN_FACTORY')}</option>
                   <option value="AT_CUSTOMER">{t('rfqLocation.AT_CUSTOMER')}</option>
                 </select>
               </div>
@@ -1283,6 +1285,11 @@ export function RFQs() {
                 <option value="NORMAL">{t('rfqTime.NORMAL')}</option>
                 <option value="OTHERS">{t('rfqTime.OTHERS')}</option>
               </select>
+              <select aria-label={t('rfq.rollLocation')} value={createForm.rollLocation} onChange={(e) => setCreateForm((f) => ({ ...f, rollLocation: e.target.value }))} style={inputStyle}>
+                <option value="NOT_SPECIFIED">{t('rfqLocation.NOT_SPECIFIED')}</option>
+                <option value="IN_FACTORY">{t('rfqLocation.IN_FACTORY')}</option>
+                <option value="AT_CUSTOMER">{t('rfqLocation.AT_CUSTOMER')}</option>
+              </select>
               <input type="date" value={createForm.workOrderDate} onChange={(e) => setCreateForm((f) => ({ ...f, workOrderDate: e.target.value }))} style={inputStyle} />
               <select value={createForm.paymentTerms} onChange={(e) => setCreateForm((f) => ({ ...f, paymentTerms: e.target.value }))} style={inputStyle}>
                 <option value="CASH">{t('rfqPay.CASH')}</option>
@@ -1305,7 +1312,7 @@ export function RFQs() {
                   <label style={{ fontSize: 13, whiteSpace: 'nowrap' }}>{t('rfq.rollLocation')}:</label>
                   <select value={item.rollLocation ?? 'NOT_SPECIFIED'} onChange={(e) => updateCreateItem(i, { rollLocation: e.target.value })} style={{ ...inputStyle, flex: 1 }}>
                     <option value="NOT_SPECIFIED">{t('rfqLocation.NOT_SPECIFIED')}</option>
-                    <option value="AT_FACTORY">{t('rfqLocation.AT_FACTORY')}</option>
+                    <option value="IN_FACTORY">{t('rfqLocation.IN_FACTORY')}</option>
                     <option value="AT_CUSTOMER">{t('rfqLocation.AT_CUSTOMER')}</option>
                   </select>
                 </div>
