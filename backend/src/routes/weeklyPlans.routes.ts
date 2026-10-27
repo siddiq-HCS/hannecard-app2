@@ -283,10 +283,10 @@ router.put(
     const plan = await canManagePlan(String(req.params.id), req.user.id, isManager);
     if (!plan) return res.status(404).json({ error: 'not_found', message: 'لم يتم العثور على الخطة المطلوبة' });
 
-    // الخطة قابلة للتعديل فقط وهي مسودة؛ بعد الإرسال/الاعتماد تصبح للقراءة فقط
-    if (plan.status !== 'DRAFT') {
+    // تسمح بالتعديل للمسودة أو الخطة المرسلة قبل اعتمادها النهائي فقط
+    if (plan.status === 'APPROVED') {
       logPlanError(req, 'not_editable', 400, { userId: req.user.id, planId: plan.id, status: plan.status });
-      return res.status(400).json({ error: 'not_editable', message: 'لا يمكن تعديل هذه الخطة لأنها أُرسلت أو اعتُمدت بالفعل', status: plan.status });
+      return res.status(400).json({ error: 'not_editable', message: 'لا يمكن تعديل الخطة بعد اعتمادها النهائي', status: plan.status });
     }
 
     const parsed = updateSchema.safeParse(req.body);
@@ -313,6 +313,25 @@ router.put(
         message: 'بعض بيانات الخطة غير صحيحة. تفاصيل الحقول المرفوضة مرفقة.',
         details: issues,
       });
+    }
+
+    if (plan.status === 'SUBMITTED' && parsed.data.days) {
+      const visits = parsed.data.days.flatMap((day) => day.visits.map((visit, visitIndex) => ({ dayName: day.dayName, visit, visitIndex })));
+      const missingNames = visits.filter(({ visit }) => !visit.companyName.trim());
+      if (visits.length < MIN_VISITS_TO_SUBMIT || missingNames.length > 0) {
+        return res.status(400).json({
+          error: missingNames.length ? 'missing_company_name' : 'min_visits',
+          message: missingNames.length
+            ? 'يجب إدخال اسم الشركة/العميل لكل زيارة قبل حفظ الخطة المرسلة.'
+            : `يجب أن تحتوي الخطة المرسلة على ${MIN_VISITS_TO_SUBMIT} زيارة على الأقل.`,
+          count: visits.length,
+          min: MIN_VISITS_TO_SUBMIT,
+          details: missingNames.map(({ dayName, visitIndex }) => ({
+            path: ['days', dayName, 'visits', visitIndex, 'companyName'],
+            message: 'اسم الشركة/العميل مطلوب.',
+          })),
+        });
+      }
     }
 
     const data: Record<string, unknown> = {};
@@ -450,6 +469,7 @@ router.post(
     const isManager = req.user.role !== 'REPRESENTATIVE';
     const plan = await canManagePlan(String(req.params.id), req.user.id, isManager);
     if (!plan) return res.status(404).json({ error: 'not_found', message: 'لم يتم العثور على الخطة المطلوبة' });
+    if (plan.status === 'APPROVED') return res.status(400).json({ error: 'not_editable', message: 'الخطة معتمدة بالفعل.' });
 
     const visits = await prisma.planVisit.findMany({
       where: { day: { planId: plan.id } },

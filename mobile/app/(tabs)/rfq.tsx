@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { useI18n } from '@/i18n';
@@ -897,6 +898,20 @@ export default function RfqScreen() {
                   style={styles.thumb}
                 />
               )}
+              {r.documents?.[0] && (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('common.download')}
+                  hitSlop={8}
+                  onPress={(event) => {
+                    event.stopPropagation();
+                    void downloadDoc(r.documents![0]);
+                  }}
+                  style={styles.downloadIconButton}
+                >
+                  <Ionicons name="download-outline" size={21} color="#2563eb" />
+                </Pressable>
+              )}
             </Pressable>
           );
           });
@@ -1090,6 +1105,7 @@ const styles = StyleSheet.create({
   card: { backgroundColor: '#fff', marginHorizontal: 16, marginBottom: 10, padding: 14, borderRadius: 10, flexDirection: 'row', alignItems: 'center' },
   cardTitle: { fontSize: 15, fontWeight: '600' },
   cardMeta: { fontSize: 12, color: '#666', marginTop: 4 },
+  downloadIconButton: { width: 40, height: 40, borderRadius: 8, backgroundColor: '#eff6ff', alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
   thumb: { width: 48, height: 48, borderRadius: 8, marginLeft: 10, borderWidth: 1, borderColor: '#e5e7eb' },
   pricedChip: { marginTop: 8, alignSelf: 'flex-start', backgroundColor: '#dcfce7', color: '#166534', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, fontSize: 12, fontWeight: '700', overflow: 'hidden' },
   approvedChip: { marginTop: 8, alignSelf: 'flex-start', backgroundColor: '#16a34a', color: '#fff', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, fontSize: 12, fontWeight: '800', overflow: 'hidden' },

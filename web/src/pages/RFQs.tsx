@@ -3,6 +3,7 @@ import { api, authHeaders, apiErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useI18n, formatDate, formatDateTime, type Lang } from '../i18n';
 import { toast } from '../components/Toast';
+import { Download } from 'lucide-react';
 
 interface RfqItem {
   description: string;
@@ -48,6 +49,16 @@ interface Rfq {
   createdAt: string;
   user?: { id: string; name: string; phone: string } | null;
   comments?: RfqComment[];
+  documents?: RfqDocument[];
+}
+
+interface RfqDocument {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+  createdAt: string;
+  uploadedBy: string;
 }
 
 interface Rep {
@@ -438,6 +449,21 @@ function createInitialForm() {
 export function RFQs() {
   const { token, user } = useAuth();
   const { t, lang } = useI18n();
+
+  async function downloadDocument(doc: RfqDocument) {
+    if (!token) return;
+    try {
+      const response = await api.get(`/rfq-documents/${doc.id}/file`, { ...authHeaders(token), responseType: 'blob' });
+      const url = URL.createObjectURL(response.data as Blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = doc.fileName;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      toast.error(apiErrorMessage(error, t));
+    }
+  }
   const [rfqs, setRfqs] = useState<Rfq[]>([]);
   const [reps, setReps] = useState<Rep[]>([]);
   const [repId, setRepId] = useState('');
@@ -870,6 +896,22 @@ export function RFQs() {
                       {approving ? t('rfq.approving') : `✓ ${t('rfq.approve')}`}
                     </button>
                   )}
+                  {(r.pricingStatus === 'PRICED' || r.pricingStatus === 'APPROVED' || r.pricingStatus === 'UNPRICED') && r.documents?.map((doc) => (
+                    <button
+                      key={doc.id}
+                      type="button"
+                      title={`${t('common.download')}: ${doc.fileName}`}
+                      aria-label={`${t('common.download')}: ${doc.fileName}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void downloadDocument(doc);
+                      }}
+                      style={{ ...buttonStyle, background: '#0f766e', padding: '4px 8px', display: 'inline-flex', alignItems: 'center', gap: 5, alignSelf: 'flex-start' }}
+                    >
+                      <Download size={14} />
+                      {doc.fileName}
+                    </button>
+                  ))}
                 </div>
               </td>
             </tr>

@@ -355,6 +355,9 @@ export function WeeklyPlans() {
   const [detail, setDetail] = useState<Plan | null>(null);
   const [printing, setPrinting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingDetail, setEditingDetail] = useState(false);
+  const [editedDays, setEditedDays] = useState<Day[]>([]);
+  const [savingPlan, setSavingPlan] = useState(false);
 
   async function deletePlan(p: Plan) {
     if (!token) return;
@@ -412,6 +415,46 @@ export function WeeklyPlans() {
       toast.success(lang === 'ar' ? 'تم الاعتماد' : 'Approved');
     } catch (err) {
       toast.error(apiErrorMessage(err, t));
+    }
+  }
+
+  function beginEditPlan(p: Plan) {
+    setEditedDays(sortedDays(p).map((day) => ({
+      ...day,
+      visits: (day.visits ?? []).map((visit) => ({ ...visit })),
+    })));
+    setEditingDetail(true);
+  }
+
+  async function savePlanEdits() {
+    if (!token || !detail) return;
+    const visitCount = editedDays.reduce((count, day) => count + day.visits.length, 0);
+    if (editedDays.some((day) => day.visits.some((visit) => !visit.companyName.trim()))) {
+      toast.error(t('weeklyPlans.requiredCompany'));
+      return;
+    }
+    if (visitCount < 30) {
+      toast.error(t('weeklyPlans.minVisits'));
+      return;
+    }
+    setSavingPlan(true);
+    try {
+      const response = await api.put(`/weekly-plans/${detail.id}`, {
+        year: detail.year,
+        weekNumber: detail.weekNumber,
+        days: editedDays.map((day) => ({ dayName: day.dayName, visits: day.visits })),
+      }, authHeaders(token));
+      const next = normalizePlan(response.data);
+      if (next) {
+        setDetail(next);
+        setPlans((previous) => previous.map((plan) => plan.id === next.id ? next : plan));
+      }
+      setEditingDetail(false);
+      toast.success(t('weeklyPlans.changesSaved'));
+    } catch (error) {
+      toast.error(apiErrorMessage(error, t));
+    } finally {
+      setSavingPlan(false);
     }
   }
 
@@ -504,13 +547,24 @@ export function WeeklyPlans() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
               <h3 style={{ margin: 0 }}>{t('weeklyPlans.details')} — {detail.serialNumber}</h3>
               <div style={{ display: 'flex', gap: 8 }}>
+                {detail.status === 'SUBMITTED' && !editingDetail && (
+                  <button style={{ ...buttonStyle, background: '#0f766e' }} onClick={() => beginEditPlan(detail)}>{t('weeklyPlans.editSubmitted')}</button>
+                )}
+                {editingDetail && (
+                  <>
+                    <button style={{ ...buttonStyle, background: '#16a34a' }} onClick={() => void savePlanEdits()} disabled={savingPlan}>
+                      {savingPlan ? t('weeklyPlans.loading') : t('weeklyPlans.saveChanges')}
+                    </button>
+                    <button style={{ ...buttonStyle, background: '#64748b' }} onClick={() => setEditingDetail(false)} disabled={savingPlan}>{t('weeklyPlans.close')}</button>
+                  </>
+                )}
                 <button style={{ ...buttonStyle, background: '#1e293b' }} onClick={() => void doPrint(detail)} disabled={printing}>
                   {printing ? t('weeklyPlans.loading') : <><Printer size={15} aria-hidden="true" /> {t('weeklyPlans.print')}</>}
                 </button>
                 <button style={{ ...buttonStyle, background: '#7c3aed' }} onClick={() => downloadPlan(detail, t, lang)}>
                   {t('weeklyPlans.downloadFile')}
                 </button>
-                {detail.status === 'SUBMITTED' && (
+                {detail.status === 'SUBMITTED' && !editingDetail && (
                   <button style={{ ...buttonStyle, background: '#16a34a' }} onClick={() => void approve(detail)}>{t('weeklyPlans.approve')}</button>
                 )}
                 <button style={{ ...buttonStyle, background: '#dc2626' }} onClick={() => setDeletingId(detail.id)}>{t('common.delete')}</button>
@@ -553,20 +607,21 @@ export function WeeklyPlans() {
                     </tr>
                   </thead>
                   <tbody>
-                    {flattenVisits(detail).map((f) => (
-                      <tr key={f.visit.id}>
-                        <td style={{ ...tdStyle, textAlign: 'center' }}>{f.num}</td>
-                        <td style={tdStyle}>{t(`dayNames.${f.dayName}`)}</td>
-                        <td style={tdStyle}><strong>{f.visit.companyName || '—'}</strong></td>
-                        <td style={tdStyle}>{f.visit.contactPerson || '—'}</td>
-                        <td style={tdStyle} dir="ltr">{f.visit.phone || '—'}</td>
-                        <td style={tdStyle}>{f.visit.address || '—'}</td>
-                        <td style={tdStyle}>{f.visit.purpose || '—'}</td>
-                        <td style={tdStyle}>{categoryLabel(t, f.visit)}</td>
-                        <td style={tdStyle}>{f.visit.notes || '—'}</td>
-                        <td style={tdStyle}>
-                          {token && <VisitImage visitId={f.visit.id} imageUrl={f.visit.imageUrl} token={token} t={t} />}
-                        </td>
+                    {(editingDetail
+                      ? editedDays.flatMap((day) => day.visits.map((visit) => ({ dayName: day.dayName, visit })))
+                      : flattenVisits(detail)
+                    ).map((row, index) => (
+                      <tr key={row.visit.id}>
+                        <td style={{ ...tdStyle, textAlign: 'center' }}>{index + 1}</td>
+                        <td style={tdStyle}>{t(`dayNames.${row.dayName}`)}</td>
+                        <td style={tdStyle}>{editingDetail ? <input value={row.visit.companyName} onChange={(event) => setEditedDays((previous) => previous.map((day) => day.dayName !== row.dayName ? day : { ...day, visits: day.visits.map((visit) => visit.id === row.visit.id ? { ...visit, companyName: event.target.value } : visit) }))} /> : <strong>{row.visit.companyName || '—'}</strong>}</td>
+                        <td style={tdStyle}>{editingDetail ? <input value={row.visit.contactPerson} onChange={(event) => setEditedDays((previous) => previous.map((day) => day.dayName !== row.dayName ? day : { ...day, visits: day.visits.map((visit) => visit.id === row.visit.id ? { ...visit, contactPerson: event.target.value } : visit) }))} /> : row.visit.contactPerson || '—'}</td>
+                        <td style={tdStyle} dir="ltr">{editingDetail ? <input value={row.visit.phone} onChange={(event) => setEditedDays((previous) => previous.map((day) => day.dayName !== row.dayName ? day : { ...day, visits: day.visits.map((visit) => visit.id === row.visit.id ? { ...visit, phone: event.target.value } : visit) }))} /> : row.visit.phone || '—'}</td>
+                        <td style={tdStyle}>{editingDetail ? <input value={row.visit.address} onChange={(event) => setEditedDays((previous) => previous.map((day) => day.dayName !== row.dayName ? day : { ...day, visits: day.visits.map((visit) => visit.id === row.visit.id ? { ...visit, address: event.target.value } : visit) }))} /> : row.visit.address || '—'}</td>
+                        <td style={tdStyle}>{editingDetail ? <input value={row.visit.purpose} onChange={(event) => setEditedDays((previous) => previous.map((day) => day.dayName !== row.dayName ? day : { ...day, visits: day.visits.map((visit) => visit.id === row.visit.id ? { ...visit, purpose: event.target.value } : visit) }))} /> : row.visit.purpose || '—'}</td>
+                        <td style={tdStyle}>{editingDetail ? <div style={{ display: 'grid', gap: 4 }}><select value={row.visit.companyCategory} onChange={(event) => setEditedDays((previous) => previous.map((day) => day.dayName !== row.dayName ? day : { ...day, visits: day.visits.map((visit) => visit.id === row.visit.id ? { ...visit, companyCategory: event.target.value } : visit) }))}>{['PLASTICS', 'PRINTING', 'PACKAGING', 'WOOD', 'METAL', 'PAPER', 'TISSUES', 'TEXTILES', 'FOOD_INDUSTRY', 'OTHERS'].map((category) => <option key={category} value={category}>{t(`companyCategory.${category}`)}</option>)}</select>{row.visit.companyCategory === 'OTHERS' && <input value={row.visit.categoryOther} placeholder={t('weeklyPlans.categoryOther')} onChange={(event) => setEditedDays((previous) => previous.map((day) => day.dayName !== row.dayName ? day : { ...day, visits: day.visits.map((visit) => visit.id === row.visit.id ? { ...visit, categoryOther: event.target.value } : visit) }))} />}</div> : categoryLabel(t, row.visit)}</td>
+                        <td style={tdStyle}>{editingDetail ? <input value={row.visit.notes} onChange={(event) => setEditedDays((previous) => previous.map((day) => day.dayName !== row.dayName ? day : { ...day, visits: day.visits.map((visit) => visit.id === row.visit.id ? { ...visit, notes: event.target.value } : visit) }))} /> : row.visit.notes || '—'}</td>
+                        <td style={tdStyle}>{token && <VisitImage visitId={row.visit.id} imageUrl={row.visit.imageUrl} token={token} t={t} />}</td>
                       </tr>
                     ))}
                   </tbody>

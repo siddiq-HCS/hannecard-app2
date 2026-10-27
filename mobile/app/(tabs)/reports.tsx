@@ -542,7 +542,8 @@ export default function WeeklyPlansScreen() {
     if (!year.trim() || !weekNumber.trim() || Number.isNaN(y) || Number.isNaN(w) || y < 2000 || y > 2100 || w < 1 || w > 53) {
       return Alert.alert(t('login.alertTitle'), t('weeklyPlans.needWeek'));
     }
-    if (isSubmit) {
+    const mustRemainSubmittable = isSubmit || planStatus === 'SUBMITTED';
+    if (mustRemainSubmittable) {
       const empty = days.some((d) => d.visits.some((v) => !v.companyName.trim()));
       if (empty) return Alert.alert(t('login.alertTitle'), t('weeklyPlans.requiredCompany'));
       if (totalVisits() < MIN_VISITS_TO_SUBMIT) {
@@ -672,7 +673,7 @@ export default function WeeklyPlansScreen() {
   }
 
   if (formOpen) {
-    const readOnly = planId != null && planStatus !== 'DRAFT';
+    const readOnly = planId != null && planStatus === 'APPROVED';
 
     // ربط كل يوم من أيام العمل الخمسة بتاريخه الفعلي في الأسبوع المحدد
     const weekStart = (() => {
@@ -869,11 +870,13 @@ export default function WeeklyPlansScreen() {
           {!readOnly && (
             <View style={styles.saveRow}>
               <Pressable style={styles.draftBtn} onPress={() => void save(false)} disabled={saving}>
-                {saving ? <ActivityIndicator color="#0f172a" /> : <Text style={styles.draftBtnText}>{t('weeklyPlans.saveDraft')}</Text>}
+                {saving ? <ActivityIndicator color="#0f172a" /> : <Text style={styles.draftBtnText}>{planStatus === 'SUBMITTED' ? t('weeklyPlans.saveChanges') : t('weeklyPlans.saveDraft')}</Text>}
               </Pressable>
-              <Pressable style={styles.submitBtn} onPress={() => void save(true)} disabled={saving}>
-                {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>{t('weeklyPlans.submit')}</Text>}
-              </Pressable>
+              {planStatus === 'DRAFT' && (
+                <Pressable style={styles.submitBtn} onPress={() => void save(true)} disabled={saving}>
+                  {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitBtnText}>{t('weeklyPlans.submit')}</Text>}
+                </Pressable>
+              )}
             </View>
           )}
         </ScrollView>
@@ -929,8 +932,8 @@ export default function WeeklyPlansScreen() {
           const total = (p.days ?? []).reduce((sum, d) => sum + (d.visits?.length ?? 0), 0);
           const first = (p.days ?? [])[0];
           return (
-            <Pressable key={p.id} style={styles.card} onPress={() => openPlan(p)}>
-              <View style={{ flex: 1 }}>
+            <View key={p.id} style={styles.card}>
+              <Pressable style={{ flex: 1 }} onPress={() => openPlan(p)}>
                 <Text style={styles.cardTitle}>
                   {t('weeklyPlans.weekRange')}: {p.weekNumber} / {p.year}
                 </Text>
@@ -943,8 +946,13 @@ export default function WeeklyPlansScreen() {
                   {first?.visits?.[0]?.imageUrl ? ' · 📷' : ''}
                 </Text>
                 {statusBadge(p.status)}
-              </View>
-            </Pressable>
+              </Pressable>
+              {p.status === 'SUBMITTED' && (
+                <Pressable style={styles.addVisitBtn} onPress={() => openPlan(p)}>
+                  <Text style={styles.addVisitText}>{t('weeklyPlans.editPlan')}</Text>
+                </Pressable>
+              )}
+            </View>
           );
         })}
       </ScrollView>
