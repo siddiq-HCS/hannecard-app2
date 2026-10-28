@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, authHeaders, apiErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { useI18n, formatDateTime, type Lang } from '../i18n';
+import { useI18n, formatDateTime, formatYmd, type Lang } from '../i18n';
 import { toast } from '../components/Toast';
 import { Printer } from 'lucide-react';
 import { safeText } from '../lib/safeText';
@@ -338,7 +338,7 @@ function downloadPlan(p: Plan, t: T, lang: Lang) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `WeeklyPlan_${p.serialNumber}_${new Date().toISOString().slice(0, 10)}.txt`;
+  a.download = `WeeklyPlan_${p.serialNumber}_${formatYmd(new Date())}.txt`;
   a.click();
   URL.revokeObjectURL(url);
 }

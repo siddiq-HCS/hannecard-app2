@@ -1264,6 +1264,24 @@ pagePerms: {
 export type Dict = typeof ar;
 const dicts: Record<Lang, Dict> = { ar, en };
 
+export function formatYmd(value: string | Date | null | undefined): string {
+  if (!value) return '';
+
+  if (value instanceof Date) {
+    const d = value;
+    if (Number.isNaN(d.getTime())) return '';
+    return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
+  }
+
+  const raw = String(value);
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.exec(raw);
+  if (dateOnly) return raw;
+
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return '';
+  return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
+}
+
 export function formatDate(iso: string | null | undefined, lang: Lang): string {
   if (!iso) return '—';
   const d = new Date(iso.length === 10 ? `${iso}T00:00:00` : iso);

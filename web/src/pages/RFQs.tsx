@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, authHeaders, apiErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { useI18n, formatDate, formatDateTime, type Lang } from '../i18n';
+import { useI18n, formatDate, formatDateTime, formatYmd, type Lang } from '../i18n';
 import { toast } from '../components/Toast';
 import { Download } from 'lucide-react';
 
@@ -416,7 +416,7 @@ function downloadRfqs(list: Rfq[], t: T, lang: Lang) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `RFQs_${new Date().toISOString().slice(0, 10)}.txt`;
+  a.download = `RFQs_${formatYmd(new Date())}.txt`;
   a.click();
   URL.revokeObjectURL(url);
 }

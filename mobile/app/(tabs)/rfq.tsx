@@ -74,6 +74,19 @@ function sanitizeFileName(name: string): string {
   return (name || 'file').replace(/[\\/:*?"<>|]/g, '_').slice(0, 120);
 }
 
+function formatYmd(value: string | null | undefined): string {
+  if (!value) return '';
+
+  const raw = String(value);
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.exec(raw);
+  if (dateOnly) return raw;
+
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return '';
+
+  return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
+}
+
 interface Rfq {
   id: string;
   serialNumber?: string;
@@ -221,7 +234,7 @@ export default function RfqScreen() {
     setRequiredTime(editingRfq.requiredTime);
     setRequiredTimeOther(editingRfq.requiredTimeOther ?? '');
     setRollLocation(editingRfq.rollLocation ?? 'NOT_SPECIFIED');
-    setWorkOrderDate(editingRfq.workOrderDate?.split('T')[0] ?? '');
+    setWorkOrderDate(formatYmd(editingRfq.workOrderDate));
     setPaymentTerms(editingRfq.paymentTerms);
     setItems(editingRfq.items.map((it) => ({
       description: it.description ?? '',
