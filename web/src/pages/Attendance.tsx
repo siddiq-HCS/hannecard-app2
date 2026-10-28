@@ -54,7 +54,8 @@ export function Attendance() {
   useEffect(() => {
     if (!token) return;
     setLoading(true);
-    const params = new URLSearchParams({ date });
+    const params = new URLSearchParams();
+    if (date) params.set('date', date);
     if (repId) params.set('repId', repId);
     api
       .get(`/attendance/manage?${params.toString()}`, authHeaders(token))
@@ -69,7 +70,8 @@ export function Attendance() {
   useEffect(() => {
     if (!token) return;
     const id = setInterval(() => {
-      const params = new URLSearchParams({ date });
+      const params = new URLSearchParams();
+      if (date) params.set('date', date);
       if (repId) params.set('repId', repId);
       api
         .get(`/attendance/manage?${params.toString()}`, authHeaders(token))
@@ -141,7 +143,8 @@ export function Attendance() {
           onClick={() => {
             if (!token) return;
             setLoading(true);
-            const params = new URLSearchParams({ date });
+            const params = new URLSearchParams();
+            if (date) params.set('date', date);
             if (repId) params.set('repId', repId);
             api
               .get(`/attendance/manage?${params.toString()}`, authHeaders(token))
@@ -157,9 +160,9 @@ export function Attendance() {
       </div>
 
       <div className="no-print" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', minWidth: 0, fontSize: 14 }}>
           {t('attendance.date')}
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ padding: 8, borderRadius: 8, border: '1px solid #d1d5db' }} />
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ padding: 8, borderRadius: 8, border: '1px solid #d1d5db', boxSizing: 'border-box', direction: 'ltr', minWidth: 0, maxWidth: '100%' }} />
         </label>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
           {t('attendance.rep')}

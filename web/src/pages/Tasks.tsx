@@ -58,7 +58,10 @@ export function Tasks() {
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('NEW_CLIENT');
   const [type, setType] = useState('DAILY');
-  const [dueDate, setDueDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [dueDate, setDueDate] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  });
   const [dueTime, setDueTime] = useState('');
   const [assignRepId, setAssignRepId] = useState('');
 
@@ -67,7 +70,7 @@ export function Tasks() {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (selectedRepId) params.set('repId', selectedRepId);
+      if (selectedRepId && selectedRepId !== 'ALL') params.set('repId', selectedRepId);
       if (status) params.set('status', status);
       const res = await api.get(`/tasks?${params.toString()}`, authHeaders(token));
       setTasks(Array.isArray(res.data) ? res.data : []);
@@ -128,7 +131,8 @@ export function Tasks() {
     }
   }
 
-  const selectedRep = selectedRepId ? (reps ?? []).find((r) => r.id === selectedRepId) : null;
+  const allTasksSelected = selectedRepId === 'ALL';
+  const selectedRep = selectedRepId && !allTasksSelected ? (reps ?? []).find((r) => r.id === selectedRepId) : null;
 
   // تجميع المهام حسب التاريخ (أحدث يوم في الأعلى)
   const groups: { date: string; items: Task[] }[] = [];
@@ -141,14 +145,14 @@ export function Tasks() {
   groups.sort((a, b) => b.date.localeCompare(a.date));
 
   // === عرض قائمة المناديب ===
-  if (!selectedRepId) {
+  if (selectedRepId === null) {
     return (
       <div>
         <h2>{t('tasks.title')}</h2>
         <p style={{ color: '#94a3b8', fontSize: 13 }}>{t('tasks.subtitle')}</p>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12, marginBottom: 24 }}>
-          <button onClick={() => { setSelectedRepId(''); setShowForm(false); }} style={{ ...cardBtn, border: selectedRepId === null && !showForm ? '2px solid #2563eb' : '1px solid #e5e7eb' }}>
+          <button onClick={() => { setSelectedRepId('ALL'); setShowForm(false); }} style={{ ...cardBtn, border: allTasksSelected && !showForm ? '2px solid #2563eb' : '1px solid #e5e7eb' }}>
             <div style={{ fontSize: 26 }}>🗂️</div>
             <strong>{t('tasks.allTasks')}</strong>
             <span style={{ color: '#94a3b8', fontSize: 12 }}>{t('tasks.allDesc')}</span>
@@ -205,7 +209,7 @@ export function Tasks() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
         <div>
           <button onClick={() => setSelectedRepId(null)} style={backBtn}>{t('tasks.backAll')}</button>
-          <h2 style={{ margin: '6px 0 0' }}>{t('tasks.tasksOf')} {selectedRep?.name ?? t('tasks.rep')}</h2>
+          <h2 style={{ margin: '6px 0 0' }}>{allTasksSelected ? t('tasks.allTasks') : `${t('tasks.tasksOf')} ${selectedRep?.name ?? t('tasks.rep')}`}</h2>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <select value={status} onChange={(e) => setStatus(e.target.value)} style={inputStyle}>

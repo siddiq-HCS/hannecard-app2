@@ -33,7 +33,7 @@ export function DatePickerModal({ visible, value, onSelect, onClose, title }: Pr
 
   const firstDayIndex = (new Date(view.y, view.m, 1).getDay() + 1) % 7; // السبت أولاً
   const daysInMonth = new Date(view.y, view.m + 1, 0).getDate();
-  const today = now.toISOString().slice(0, 10);
+  const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 
   function move(dir: number) {
     setView((v) => {

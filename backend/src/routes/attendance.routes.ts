@@ -259,17 +259,17 @@ router.get(
   requireRole('SALES_MANAGER', 'DEPUTY_SALES_MANAGER'),
   requirePageAccess('PAGE_ATTENDANCE_ACCESS'),
   async (req, res) => {
-    const dateStr = (req.query.date as string) || todayInRiyadh();
-    const date = /^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? toDayStart(dateStr) : toDayStart(todayInRiyadh());
+    const dateStr = typeof req.query.date === 'string' ? req.query.date : '';
+    const date = dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr) ? toDayStart(dateStr) : undefined;
     const repId = (req.query.repId as string) || undefined;
 
     const records = await prisma.legacyAttendance.findMany({
-      where: { date, ...(repId ? { userId: repId } : {}) },
+      where: { ...(date ? { date } : {}), ...(repId ? { userId: repId } : {}) },
       include: { user: { select: { id: true, name: true, phone: true } } },
       orderBy: [{ userId: 'asc' }, { date: 'desc' }],
     });
 
-    res.json({ date: date.toISOString().slice(0, 10), records });
+    res.json({ date: date?.toISOString().slice(0, 10) ?? null, records });
   },
 );
 

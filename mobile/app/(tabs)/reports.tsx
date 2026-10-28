@@ -102,6 +102,7 @@ function initDays(): Day[] {
 function currentWeek() {
   const now = new Date();
   const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+  if (d.getUTCDay() === 0) d.setUTCDate(d.getUTCDate() + 1);
   const dayNum = (d.getUTCDay() + 6) % 7;
   d.setUTCDate(d.getUTCDate() - dayNum + 3);
   const year = d.getUTCFullYear();

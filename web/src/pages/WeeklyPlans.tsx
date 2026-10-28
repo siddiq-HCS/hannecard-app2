@@ -495,11 +495,11 @@ export function WeeklyPlans() {
             <option value="SUBMITTED">{t('weeklyPlans.statusSubmitted')}</option>
             <option value="APPROVED">{t('weeklyPlans.statusApproved')}</option>
           </select>
-          <label style={{ fontSize: 13 }}>{t('weeklyPlans.from')}:
-            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={inputStyle} />
+          <label style={dateLabelStyle}>{t('weeklyPlans.from')}:
+            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={dateInputStyle} />
           </label>
-          <label style={{ fontSize: 13 }}>{t('weeklyPlans.to')}:
-            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={inputStyle} />
+          <label style={dateLabelStyle}>{t('weeklyPlans.to')}:
+            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={dateInputStyle} />
           </label>
         </div>
       </div>
@@ -656,6 +656,8 @@ export function WeeklyPlans() {
 }
 
 const inputStyle: React.CSSProperties = { padding: 8, borderRadius: 8 };
+const dateLabelStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 13, minWidth: 0 };
+const dateInputStyle: React.CSSProperties = { ...inputStyle, boxSizing: 'border-box', direction: 'ltr', minWidth: 0, maxWidth: '100%' };
 const buttonStyle: React.CSSProperties = { padding: '8px 12px', borderRadius: 8, border: 'none', color: '#fff', cursor: 'pointer' };
 const thStyle: React.CSSProperties = { padding: '10px 12px', fontSize: 13, fontWeight: 600, textAlign: 'start' };
 const tdStyle: React.CSSProperties = { padding: '10px 12px', borderBottom: '1px solid #f1f5f9', fontSize: 14 };

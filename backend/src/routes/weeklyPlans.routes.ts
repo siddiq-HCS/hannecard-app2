@@ -41,6 +41,12 @@ function addDays(d: Date, n: number) {
   return out;
 }
 
+function sundayOfWorkweek(date: Date) {
+  const monday = addDays(date, 1);
+  monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() + 6) % 7));
+  return addDays(monday, -1);
+}
+
 // تاريخ اليوم الفعلي (YYYY-MM-DD) داخل الأسبوع: الأحد = startDate، وكل يوم يليه +1
 function dayDate(start: Date, dayName: string) {
   const idx = DAY_INDEX[dayName];
@@ -56,6 +62,7 @@ function withDayDates<T extends { startDate: Date; days: Array<{ dayName: string
 // رقم الأسبوع ISO من تاريخ معيّن (للتوافق القديم عند إرسال startDate)
 function isoWeekInfo(start: Date) {
   const date = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()));
+  date.setUTCDate(date.getUTCDate() + 1); // الأحد يتبع أسبوع العمل الذي يبدأ به
   const dayNum = (date.getUTCDay() + 6) % 7; // الإثنين=0 .. الأحد=6
   date.setUTCDate(date.getUTCDate() - dayNum + 3); // الخميس من نفس الأسبوع
   const year = date.getUTCFullYear();
@@ -162,9 +169,8 @@ router.get(
     }
     if (status) where.status = status as WeeklyPlanStatus;
     if (from || to) {
-      where.startDate = {};
-      if (from) (where.startDate as Record<string, unknown>).gte = toDate(from);
-      if (to) (where.startDate as Record<string, unknown>).lte = toDate(to);
+      if (from) where.endDate = { gte: toDate(from) };
+      if (to) where.startDate = { lte: toDate(to) };
     }
 
     const plans = await prisma.weeklyPlan.findMany({
@@ -233,7 +239,7 @@ router.post(
 
     const { start, end, year, weekNumber } = parsed.data.startDate
       ? (() => {
-          const s = toDate(parsed.data.startDate);
+          const s = sundayOfWorkweek(toDate(parsed.data.startDate));
           const info = isoWeekInfo(s);
           return { start: s, end: addDays(s, 4), year: info.year, weekNumber: info.weekNumber };
         })()
@@ -336,7 +342,7 @@ router.put(
 
     const data: Record<string, unknown> = {};
     if (parsed.data.startDate !== undefined || (parsed.data.year !== undefined && parsed.data.weekNumber !== undefined)) {
-      const start = parsed.data.startDate !== undefined ? toDate(parsed.data.startDate) : sundayOfIsoWeek(parsed.data.year!, parsed.data.weekNumber!);
+      const start = parsed.data.startDate !== undefined ? sundayOfWorkweek(toDate(parsed.data.startDate)) : sundayOfIsoWeek(parsed.data.year!, parsed.data.weekNumber!);
       const info = parsed.data.startDate !== undefined ? isoWeekInfo(start) : { year: parsed.data.year!, weekNumber: parsed.data.weekNumber! };
       data.startDate = start;
       data.endDate = addDays(start, 4);

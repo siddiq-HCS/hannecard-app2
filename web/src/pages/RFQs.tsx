@@ -815,7 +815,7 @@ export function RFQs() {
             <option value="rep">{t('rfq.sortRep')}</option>
             <option value="client">{t('rfq.sortClient')}</option>
           </select>
-          <input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} style={inputStyle} title={t('rfq.filterDate') || 'Filter by date'} />
+          <input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} style={dateInputStyle} title={t('rfq.filterDate') || 'Filter by date'} />
           <button style={{ ...buttonStyle, background: '#7c3aed' }} onClick={() => downloadRfqs(sorted, t, lang)} disabled={!sorted.length}>
             {t('rfq.download')}
           </button>
@@ -1341,6 +1341,7 @@ export function RFQs() {
 }
 
 const inputStyle: React.CSSProperties = { padding: 8, borderRadius: 8 };
+const dateInputStyle: React.CSSProperties = { ...inputStyle, boxSizing: 'border-box', direction: 'ltr', minWidth: 0, maxWidth: '100%' };
 const buttonStyle: React.CSSProperties = { padding: '8px 12px', borderRadius: 8, border: 'none', color: '#fff', cursor: 'pointer' };
 const thStyle: React.CSSProperties = { padding: '10px 12px', fontSize: 13, fontWeight: 600, textAlign: 'start' };
 const tdStyle: React.CSSProperties = { padding: '10px 12px', borderBottom: '1px solid #f1f5f9', fontSize: 14 };

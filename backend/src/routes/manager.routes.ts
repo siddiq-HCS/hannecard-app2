@@ -376,6 +376,7 @@ router.get('/rep-report', async (req, res) => {
   const to = req.query.to as string | undefined;
   const start = from ? new Date(`${from}T00:00:00Z`) : new Date('2020-01-01T00:00:00Z');
   const end = to ? new Date(`${to}T00:00:00Z`) : new Date('2100-01-01T00:00:00Z');
+  if (to) end.setUTCDate(end.getUTCDate() + 1);
 
   const [visits, reports] = await Promise.all([
     prisma.visit.findMany({

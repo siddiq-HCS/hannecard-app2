@@ -38,15 +38,20 @@ interface RepReport {
   summary: { totalVisits: number; totalCollected: number; reportsSubmitted: number };
 }
 
+const localDate = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+
 export function Reports() {
   const { token } = useAuth();
   const { t, lang } = useI18n();
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(localDate);
   const [summaries, setSummaries] = useState<Summary[]>([]);
   const [reps, setReps] = useState<Rep[]>([]);
   const [repId, setRepId] = useState('');
-  const [fromDate, setFromDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [toDate, setToDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [fromDate, setFromDate] = useState(localDate);
+  const [toDate, setToDate] = useState(localDate);
   const [printData, setPrintData] = useState<RepReport | null>(null);
   const [printError, setPrintError] = useState('');
   const [loadingPrint, setLoadingPrint] = useState(false);
@@ -75,7 +80,9 @@ export function Reports() {
     setPrintError('');
     setLoadingPrint(true);
     try {
-      const params = new URLSearchParams({ repId, from: fromDate, to: toDate });
+      const params = new URLSearchParams({ repId });
+      if (fromDate) params.set('from', fromDate);
+      if (toDate) params.set('to', toDate);
       const res = await api.get(`/manager/rep-report?${params.toString()}`, authHeaders(token));
       setPrintData(res.data as RepReport);
       setTimeout(() => window.print(), 200);
@@ -91,7 +98,7 @@ export function Reports() {
       <h2>{t('reports.title')}</h2>
       <label>
         {t('reports.date')}:{' '}
-        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={inputStyle} />
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={dateInputStyle} />
       </label>
 
       <div style={{ marginTop: 24, borderTop: '2px solid #e5e7eb', paddingTop: 16 }}>
@@ -103,11 +110,11 @@ export function Reports() {
               <option key={r.id} value={r.id}>{r.name}</option>
             ))}
           </select>
-          <label style={{ fontSize: 13 }}>{t('reports.from')}:
-            <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} style={inputStyle} />
+          <label style={dateLabelStyle}>{t('reports.from')}:
+            <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} style={dateInputStyle} />
           </label>
-          <label style={{ fontSize: 13 }}>{t('reports.to')}:
-            <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} style={inputStyle} />
+          <label style={dateLabelStyle}>{t('reports.to')}:
+            <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} style={dateInputStyle} />
           </label>
           <button onClick={() => void printReport()} style={buttonStyle} disabled={loadingPrint}>
             {loadingPrint ? t('common.loading') : t('reports.printComp')}
@@ -212,6 +219,8 @@ const PRINT_CSS = `
 `;
 
 const inputStyle: React.CSSProperties = { padding: 8, borderRadius: 8 };
+const dateLabelStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 13, minWidth: 0 };
+const dateInputStyle: React.CSSProperties = { ...inputStyle, boxSizing: 'border-box', direction: 'ltr', minWidth: 0, maxWidth: '100%' };
 const buttonStyle: React.CSSProperties = { padding: '8px 12px', borderRadius: 8, border: 'none', background: '#2563eb', color: '#fff', cursor: 'pointer' };
 const thStyle: React.CSSProperties = { padding: 10, borderBottom: '2px solid #e5e7eb', textAlign: 'right' };
 const tdStyle: React.CSSProperties = { padding: 10, borderBottom: '1px solid #e5e7eb' };
