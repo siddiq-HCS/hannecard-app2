@@ -52,6 +52,10 @@ const DAY_INDEX: Record<string, number> = { SUNDAY: 0, MONDAY: 1, TUESDAY: 2, WE
 
 type T = (key: string) => string;
 
+function isValidYmd(value: string | null | undefined): boolean {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.trim());
+}
+
 function formatPlanDate(iso: string, lang: Lang) {
   const [year, month, day] = iso.slice(0, 10).split('-').map(Number);
   const date = new Date(Date.UTC(year, month - 1, day));
@@ -377,8 +381,8 @@ export function WeeklyPlans() {
     const params = new URLSearchParams();
     if (repId) params.set('repId', repId);
     if (status) params.set('status', status);
-    if (from) params.set('from', from);
-    if (to) params.set('to', to);
+    if (isValidYmd(from)) params.set('from', from.trim());
+    if (isValidYmd(to)) params.set('to', to.trim());
     params.set('t', String(Date.now()));
     const res = await api.get(`/weekly-plans?${params.toString()}`, {
       ...authHeaders(token),
@@ -496,10 +500,10 @@ export function WeeklyPlans() {
             <option value="APPROVED">{t('weeklyPlans.statusApproved')}</option>
           </select>
           <label style={dateLabelStyle}>{t('weeklyPlans.from')}:
-            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={dateInputStyle} />
+            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} style={dateInputStyle} placeholder="YYYY-MM-DD" dir="ltr" />
           </label>
           <label style={dateLabelStyle}>{t('weeklyPlans.to')}:
-            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={dateInputStyle} />
+            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} style={dateInputStyle} placeholder="YYYY-MM-DD" dir="ltr" />
           </label>
         </div>
       </div>
@@ -522,7 +526,7 @@ export function WeeklyPlans() {
             <tr key={p.id}>
               <td style={tdStyle}>{p.user?.name ?? '—'}</td>
               <td style={tdStyle}><strong>{p.serialNumber}</strong></td>
-              <td style={tdStyle}>{formatPlanDate(p.startDate, lang)} → {formatPlanDate(p.endDate, lang)}</td>
+              <td style={tdStyle}><span dir="ltr">{formatPlanDate(p.startDate, lang)} → {formatPlanDate(p.endDate, lang)}</span></td>
               <td style={tdStyle}>{totalVisits(p)}</td>
               <td style={tdStyle}>{statusChip(t, p.status)}</td>
               <td style={tdStyle}>
@@ -575,7 +579,7 @@ export function WeeklyPlans() {
             {([
               [t('weeklyPlans.rep'), detail.user?.name ?? '—'],
               [t('weeklyPlans.serial'), detail.serialNumber],
-              [t('weeklyPlans.week'), `${formatPlanDate(detail.startDate, lang)} → ${formatPlanDate(detail.endDate, lang)}`],
+              [t('weeklyPlans.week'), <span key="weekly-week" dir="ltr">{`${formatPlanDate(detail.startDate, lang)} → ${formatPlanDate(detail.endDate, lang)}`}</span>],
               [t('weeklyPlans.status'), statusChip(t, detail.status)],
               [t('weeklyPlans.visits'), String(totalVisits(detail))],
               ...(detail.submittedAt ? [[t('weeklyPlans.submittedOn'), formatDateTime(detail.submittedAt, lang)] as [string, string]] : []),

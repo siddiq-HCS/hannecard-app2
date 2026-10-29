@@ -76,6 +76,10 @@ interface RfqComment {
 
 type T = (key: string) => string;
 
+function isValidYmd(value: string | null | undefined): boolean {
+  return typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.trim());
+}
+
 function optLabel(t: T, prefix: string, val: string) {
   const l = t(`${prefix}.${val}`);
   return l !== `${prefix}.${val}` ? l : val || '—';
@@ -498,7 +502,7 @@ export function RFQs() {
     const params = new URLSearchParams();
     if (repId) params.set('repId', repId);
     if (status) params.set('pricingStatus', status);
-    if (dateFilter) params.set('date', dateFilter);
+    if (isValidYmd(dateFilter)) params.set('date', dateFilter.trim());
     const res = await api.get(`/rfqs?${params.toString()}`, authHeaders(token));
     setRfqs(res.data);
   }
@@ -815,7 +819,7 @@ export function RFQs() {
             <option value="rep">{t('rfq.sortRep')}</option>
             <option value="client">{t('rfq.sortClient')}</option>
           </select>
-          <input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} style={dateInputStyle} title={t('rfq.filterDate') || 'Filter by date'} />
+          <input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} style={dateInputStyle} title={t('rfq.filterDate') || 'Filter by date'} placeholder="YYYY-MM-DD" dir="ltr" />
           <button style={{ ...buttonStyle, background: '#7c3aed' }} onClick={() => downloadRfqs(sorted, t, lang)} disabled={!sorted.length}>
             {t('rfq.download')}
           </button>
@@ -870,7 +874,7 @@ export function RFQs() {
           {sorted.map((r) => (
             <tr key={r.id} onClick={() => setDetail(r)} style={rowStyle}>
               <td style={tdStyle}><strong>{r.serialNumber || '—'}</strong></td>
-              <td style={tdStyle}>{formatDate(r.createdAt, lang)}</td>
+              <td style={tdStyle}><span dir="ltr">{formatDate(r.createdAt, lang)}</span></td>
               <td style={tdStyle}>{r.clientName}</td>
               <td style={tdStyle}>{r.user?.name ?? '—'}</td>
               <td style={tdStyle}>{distinctLabels(t, r.items, 'rfqWork', (i) => i.requiredWork)}</td>
@@ -942,7 +946,7 @@ export function RFQs() {
               [t('rfq.requiredTime'), optLabel(t, 'rfqTime', detail.requiredTime)],
               ...(detail.requiredTime === 'OTHERS' && detail.requiredTimeOther ? [[t('rfq.othersDetail'), detail.requiredTimeOther] as [string, string]] : []),
               [t('rfq.rollLocation'), optLabel(t, 'rfqLocation', detail.rollLocation ?? 'NOT_SPECIFIED')],
-              [t('rfq.workOrderDate'), formatDate(detail.workOrderDate, lang)],
+              [t('rfq.workOrderDate'), <span key="work-order-date" dir="ltr">{formatDate(detail.workOrderDate, lang)}</span>],
               [t('rfq.paymentTerms'), optLabel(t, 'rfqPay', detail.paymentTerms)],
               [t('rfq.sentOn'), formatDateTime(detail.createdAt, lang)],
             ] as [string, string][]).map(([k, v]) => (
@@ -1290,7 +1294,7 @@ export function RFQs() {
                 <option value="IN_FACTORY">{t('rfqLocation.IN_FACTORY')}</option>
                 <option value="AT_CUSTOMER">{t('rfqLocation.AT_CUSTOMER')}</option>
               </select>
-              <input type="date" value={createForm.workOrderDate} onChange={(e) => setCreateForm((f) => ({ ...f, workOrderDate: e.target.value }))} style={inputStyle} />
+              <input type="date" value={createForm.workOrderDate} onChange={(e) => setCreateForm((f) => ({ ...f, workOrderDate: e.target.value }))} style={inputStyle} placeholder="YYYY-MM-DD" dir="ltr" />
               <select value={createForm.paymentTerms} onChange={(e) => setCreateForm((f) => ({ ...f, paymentTerms: e.target.value }))} style={inputStyle}>
                 <option value="CASH">{t('rfqPay.CASH')}</option>
                 <option value="CREDIT">{t('rfqPay.CREDIT')}</option>
