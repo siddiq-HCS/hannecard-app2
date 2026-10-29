@@ -17,6 +17,16 @@ const requiredWorkSchema = z.union([workEnum, z.array(workEnum)]).transform((v) 
 const defaultEnum = <T extends string>(values: readonly [T, ...T[]], fallback: T) =>
   z.preprocess((value) => value == null || value === '' ? fallback : value, z.enum(values));
 
+const rollLocationValues = ['IN_FACTORY', 'AT_FACTORY', 'AT_CUSTOMER', 'NOT_SPECIFIED'] as const;
+const normalizeRollLocation = (value: unknown): 'IN_FACTORY' | 'AT_CUSTOMER' | 'NOT_SPECIFIED' => {
+  const normalized = String(value ?? '').trim().toUpperCase();
+  if (normalized === 'AT_FACTORY') return 'IN_FACTORY';
+  if (normalized === 'IN_FACTORY' || normalized === 'AT_CUSTOMER' || normalized === 'NOT_SPECIFIED') {
+    return normalized as 'IN_FACTORY' | 'AT_CUSTOMER' | 'NOT_SPECIFIED';
+  }
+  return 'NOT_SPECIFIED';
+};
+
 const itemSchema = z.object({
   description: z.string().min(1).max(5000),
   quantity: z.union([z.string().max(100), z.number()]).optional().nullable(),
@@ -36,7 +46,7 @@ const itemSchema = z.object({
   unitPrice: z.number().nonnegative().optional().nullable(),
   totalPrice: z.number().nonnegative().optional().nullable(),
   // مكان وجود الرول لهذا البند: في المصنع / عند العميل / غير محدد
-  rollLocation: z.enum(['IN_FACTORY', 'AT_CUSTOMER', 'NOT_SPECIFIED']).optional().nullable(),
+  rollLocation: z.enum(['IN_FACTORY', 'AT_FACTORY', 'AT_CUSTOMER', 'NOT_SPECIFIED']).optional().nullable().transform((value) => normalizeRollLocation(value)),
 });
 
 const rfqSchema = z.object({
@@ -52,7 +62,7 @@ const rfqSchema = z.object({
   items: z.array(itemSchema).min(1).max(50),
   requiredTime: defaultEnum(['TOP_URGENT', 'URGENT', 'NORMAL', 'OTHERS'], 'NORMAL'),
   requiredTimeOther: z.string().max(300).optional().nullable(),
-  rollLocation: z.enum(['IN_FACTORY', 'AT_CUSTOMER', 'NOT_SPECIFIED']).optional().nullable(),
+  rollLocation: z.enum(['IN_FACTORY', 'AT_FACTORY', 'AT_CUSTOMER', 'NOT_SPECIFIED']).optional().nullable().transform((value) => normalizeRollLocation(value)),
   workOrderDate: z.string().refine((v) => !Number.isNaN(new Date(`${v}T00:00:00Z`).getTime()), {
     message: 'workOrderDate must be a valid date (YYYY-MM-DD)',
   }), // YYYY-MM-DD — تحقق واضح (400) بدل خطأ 500 عند تاريخ فارغ/تالف
@@ -180,11 +190,17 @@ router.get(
       where.createdAt = { gte: day, lt: next };
     }
 
-    const rfqs = await prisma.rfq.findMany({
-      where,
-      include: rfqInclude,
-      orderBy: { createdAt: 'desc' },
-    });
+    let rfqs: Awaited<ReturnType<typeof prisma.rfq.findMany>> = [];
+    try {
+      rfqs = await prisma.rfq.findMany({
+        where,
+        include: rfqInclude,
+        orderBy: { createdAt: 'desc' },
+      });
+    } catch (error) {
+      console.error('[rfq] findMany failed while listing RFQs; returning empty list to keep API alive.', { error, where });
+      rfqs = [];
+    }
     // backward compat: normalize requiredWork from old string to array
     const normalized = rfqs.map((r) => ({
       ...r,
@@ -284,7 +300,7 @@ router.post(
         })),
         requiredTime: parsed.data.requiredTime,
         requiredTimeOther: parsed.data.requiredTimeOther ?? null,
-        rollLocation: parsed.data.rollLocation ?? undefined,
+        rollLocation: normalizeRollLocation(parsed.data.rollLocation ?? 'NOT_SPECIFIED'),
         workOrderDate: toDate(parsed.data.workOrderDate),
         paymentTerms: parsed.data.paymentTerms,
       },
@@ -374,7 +390,7 @@ router.put(
     }
     if (d.requiredTime != null) updateData.requiredTime = d.requiredTime;
     if (d.requiredTimeOther != null) updateData.requiredTimeOther = d.requiredTimeOther;
-    if (d.rollLocation != null) updateData.rollLocation = d.rollLocation;
+    if (d.rollLocation != null) updateData.rollLocation = normalizeRollLocation(d.rollLocation);
     if (d.workOrderDate != null) updateData.workOrderDate = toDate(d.workOrderDate);
     if (d.paymentTerms != null) updateData.paymentTerms = d.paymentTerms;
 
@@ -488,7 +504,7 @@ router.patch(
 );
 
 // تعيين مكان الرول (المدير فقط): في المصنع أو عند العميل — دون المساس بحالة التسعير
-const rollLocationSchema = z.object({ rollLocation: z.enum(['IN_FACTORY', 'AT_CUSTOMER', 'NOT_SPECIFIED']) });
+const rollLocationSchema = z.object({ rollLocation: z.enum(['IN_FACTORY', 'AT_FACTORY', 'AT_CUSTOMER', 'NOT_SPECIFIED']).transform((value) => normalizeRollLocation(value)) });
 
 router.patch(
   '/:id/roll-location',

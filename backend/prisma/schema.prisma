@@ -499,6 +499,7 @@ enum RfqPricingStatus {
 }
 
 enum RollLocation {
+  AT_FACTORY // اسم قديم/بديل: في المصنع
   IN_FACTORY // في المصنع
   AT_CUSTOMER // عند العميل
   NOT_SPECIFIED // غير محدد (افتراضي)
