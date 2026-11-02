@@ -526,7 +526,7 @@ export function WeeklyPlans() {
             <tr key={p.id}>
               <td style={tdStyle}>{p.user?.name ?? '—'}</td>
               <td style={tdStyle}><strong>{p.serialNumber}</strong></td>
-              <td style={tdStyle}><span dir="ltr">{formatPlanDate(p.startDate, lang)} → {formatPlanDate(p.endDate, lang)}</span></td>
+              <td style={tdStyle}><span dir="ltr" className="inline-block unicode-bidi-isolate">{formatPlanDate(p.startDate, lang)} → {formatPlanDate(p.endDate, lang)}</span></td>
               <td style={tdStyle}>{totalVisits(p)}</td>
               <td style={tdStyle}>{statusChip(t, p.status)}</td>
               <td style={tdStyle}>
@@ -579,7 +579,7 @@ export function WeeklyPlans() {
             {([
               [t('weeklyPlans.rep'), detail.user?.name ?? '—'],
               [t('weeklyPlans.serial'), detail.serialNumber],
-              [t('weeklyPlans.week'), <span key="weekly-week" dir="ltr">{`${formatPlanDate(detail.startDate, lang)} → ${formatPlanDate(detail.endDate, lang)}`}</span>],
+              [t('weeklyPlans.week'), <span key="weekly-week" dir="ltr" className="inline-block unicode-bidi-isolate">{`${formatPlanDate(detail.startDate, lang)} → ${formatPlanDate(detail.endDate, lang)}`}</span>],
               [t('weeklyPlans.status'), statusChip(t, detail.status)],
               [t('weeklyPlans.visits'), String(totalVisits(detail))],
               ...(detail.submittedAt ? [[t('weeklyPlans.submittedOn'), formatDateTime(detail.submittedAt, lang)] as [string, string]] : []),

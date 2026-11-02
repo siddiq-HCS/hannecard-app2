@@ -12,6 +12,11 @@ body {
   min-height: 100vh;
 }
 
+.unicode-bidi-isolate {
+  display: inline-block;
+  unicode-bidi: isolate;
+}
+
 /* ── Dark Glass Theme Globals ── */
 table {
   background: rgba(30, 41, 59, 0.5);

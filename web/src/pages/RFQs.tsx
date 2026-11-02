@@ -1224,11 +1224,18 @@ export function RFQs() {
                     <td style={tdStyle}>{it.description || '—'}</td>
                     <td style={tdStyle}>{it.quantity || '—'}</td>
                     <td style={tdStyle}>
-                      {optLabel(t, 'rfqFinish', it.finishingType)}
-                      {it.finishingType === 'OTHERS' && it.finishingTypeOther ? ` (${it.finishingTypeOther})` : ''}
+                      <div>{optLabel(t, 'rfqFinish', it.finishingType)}</div>
+                      {it.finishingTypeOther && (
+                        <small className="text-gray-400 block">({it.finishingTypeOther})</small>
+                      )}
                     </td>
                     <td style={tdStyle}>{workWithOther(t, it.requiredWork, it.requiredWorkOther)}</td>
-                    <td style={tdStyle}>{envWithOther(t, it.workEnvironment, it.workEnvironmentOther)}</td>
+                    <td style={tdStyle}>
+                      <div>{envWithOther(t, it.workEnvironment, null) || '—'}</div>
+                      {it.workEnvironmentOther && (
+                        <small className="text-gray-400 block">({it.workEnvironmentOther})</small>
+                      )}
+                    </td>
                     <td style={tdStyle}>{locationChip(it.rollLocation, t)}</td>
                     {detail.items?.some((item) => item.rollMaterialId) && (
                       <>
