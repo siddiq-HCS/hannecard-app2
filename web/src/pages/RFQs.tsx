@@ -15,6 +15,7 @@ interface RfqItem {
   workEnvironment: string;
   workEnvironmentOther?: string;
   rollLocation?: string;
+  location?: string;
   rollMaterialId?: string;
   outerDiameter?: number;
   innerDiameter?: number;
@@ -35,6 +36,7 @@ interface Rfq {
   requiredTime: string;
   requiredTimeOther?: string | null;
   rollLocation?: string;
+  location?: string;
   workOrderDate: string;
   paymentTerms: string;
   imageUrl?: string | null;
@@ -1236,7 +1238,7 @@ export function RFQs() {
                         <small className="text-gray-400 block">({it.workEnvironmentOther})</small>
                       )}
                     </td>
-                    <td style={tdStyle}>{locationChip(it.rollLocation, t)}</td>
+                    <td style={tdStyle}>{locationChip(it.rollLocation || it.location || detail.rollLocation || detail.location || 'NOT_SPECIFIED', t)}</td>
                     {detail.items?.some((item) => item.rollMaterialId) && (
                       <>
                         <td style={tdStyle}>
