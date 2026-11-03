@@ -48,6 +48,26 @@ interface Rep {
   name: string;
 }
 
+interface CategoryEdit {
+  dayName: string;
+  visitId: string;
+  companyCategory: string;
+  categoryOther: string;
+}
+
+const COMPANY_CATEGORIES = [
+  'PLASTICS',
+  'PRINTING',
+  'PACKAGING',
+  'WOOD',
+  'METAL',
+  'PAPER',
+  'TISSUES',
+  'TEXTILES',
+  'FOOD_INDUSTRY',
+  'OTHERS',
+] as const;
+
 const DAY_INDEX: Record<string, number> = { SUNDAY: 0, MONDAY: 1, TUESDAY: 2, WEDNESDAY: 3, THURSDAY: 4 };
 
 type T = (key: string) => string;
@@ -358,6 +378,8 @@ export function WeeklyPlans() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [detail, setDetail] = useState<Plan | null>(null);
+  const [categoryEdit, setCategoryEdit] = useState<CategoryEdit | null>(null);
+  const [savingCategory, setSavingCategory] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -417,6 +439,42 @@ export function WeeklyPlans() {
       toast.success(lang === 'ar' ? 'تم الاعتماد' : 'Approved');
     } catch (err) {
       toast.error(apiErrorMessage(err, t));
+    }
+  }
+
+  async function saveCategoryEdit() {
+    if (!token || !detail || !categoryEdit || detail.status !== 'DRAFT') return;
+    setSavingCategory(true);
+    try {
+      const response = await api.put(`/weekly-plans/${detail.id}`, {
+        year: detail.year,
+        weekNumber: detail.weekNumber,
+        days: detail.days.map((day) => ({
+          dayName: day.dayName,
+          visits: day.visits.map((visit) => ({
+            id: visit.id,
+            companyName: visit.companyName,
+            contactPerson: visit.contactPerson,
+            phone: visit.phone,
+            address: visit.address,
+            purpose: visit.purpose,
+            companyCategory: visit.id === categoryEdit.visitId ? categoryEdit.companyCategory : visit.companyCategory,
+            categoryOther: visit.id === categoryEdit.visitId ? categoryEdit.categoryOther : visit.categoryOther,
+            notes: visit.notes,
+          })),
+        })),
+      }, authHeaders(token));
+      const updated = normalizePlan(response.data);
+      if (updated) {
+        setDetail(updated);
+        setPlans((previous) => previous.map((plan) => plan.id === updated.id ? updated : plan));
+      }
+      setCategoryEdit(null);
+      toast.success(lang === 'ar' ? 'تم حفظ فئة الزيارة' : 'Visit category saved');
+    } catch (error) {
+      toast.error(apiErrorMessage(error, t));
+    } finally {
+      setSavingCategory(false);
     }
   }
 
@@ -567,7 +625,23 @@ export function WeeklyPlans() {
                         <td style={tdStyle} dir="ltr">{row.visit.phone || '—'}</td>
                         <td style={tdStyle}>{row.visit.address || '—'}</td>
                         <td style={tdStyle}>{row.visit.purpose || '—'}</td>
-                        <td style={tdStyle}>{categoryLabel(t, row.visit)}</td>
+                        <td style={tdStyle}>
+                          <div>{categoryLabel(t, row.visit)}</div>
+                          {detail.status === 'DRAFT' && (
+                            <button
+                              type="button"
+                              style={{ ...buttonStyle, background: '#2563eb', marginTop: 6, padding: '4px 8px', fontSize: 12 }}
+                              onClick={() => setCategoryEdit({
+                                dayName: row.dayName,
+                                visitId: row.visit.id,
+                                companyCategory: row.visit.companyCategory === 'OTHER' ? 'OTHERS' : row.visit.companyCategory,
+                                categoryOther: row.visit.categoryOther,
+                              })}
+                            >
+                              {lang === 'ar' ? 'تعديل الفئة' : 'Edit category'}
+                            </button>
+                          )}
+                        </td>
                         <td style={tdStyle}>{row.visit.notes || '—'}</td>
                         <td style={tdStyle}>{token && <VisitImage visitId={row.visit.id} imageUrl={row.visit.imageUrl} token={token} t={t} />}</td>
                       </tr>
@@ -594,6 +668,49 @@ export function WeeklyPlans() {
                 if (p) void deletePlan(p);
               }}>
                 {lang === 'ar' ? 'حذف' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {categoryEdit && detail?.status === 'DRAFT' && (
+        <div
+          role="presentation"
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 1300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={() => { if (!savingCategory) setCategoryEdit(null); }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="weekly-category-title"
+            style={{ background: '#1e293b', border: '1px solid rgba(148, 163, 184, 0.2)', borderRadius: 8, maxWidth: 440, width: '100%', padding: 20, color: '#e2e8f0' }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 id="weekly-category-title" style={{ margin: '0 0 16px', fontSize: 18 }}>{t('weeklyPlans.category')}</h3>
+            <select
+              value={categoryEdit.companyCategory}
+              onChange={(event) => setCategoryEdit((current) => current ? { ...current, companyCategory: event.target.value } : current)}
+              style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' }}
+            >
+              {COMPANY_CATEGORIES.map((category) => (
+                <option key={category} value={category}>{t(`companyCategory.${category}`)}</option>
+              ))}
+            </select>
+            {(categoryEdit.companyCategory === 'OTHERS' || categoryEdit.companyCategory === 'OTHER') && (
+              <input
+                type="text"
+                value={categoryEdit.categoryOther}
+                onChange={(event) => setCategoryEdit((current) => current ? { ...current, categoryOther: event.target.value } : current)}
+                placeholder={lang === 'ar' ? 'اكتب فئة الشركة' : 'Enter a custom category'}
+                maxLength={300}
+                style={{ ...inputStyle, width: '100%', boxSizing: 'border-box', marginTop: 10 }}
+              />
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+              <button type="button" style={{ ...buttonStyle, background: '#64748b' }} onClick={() => setCategoryEdit(null)} disabled={savingCategory}>{t('weeklyPlans.close')}</button>
+              <button type="button" style={{ ...buttonStyle, background: '#16a34a' }} onClick={() => void saveCategoryEdit()} disabled={savingCategory}>
+                {savingCategory ? t('weeklyPlans.loading') : lang === 'ar' ? 'حفظ' : 'Save'}
               </button>
             </div>
           </div>
