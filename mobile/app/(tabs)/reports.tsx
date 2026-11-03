@@ -99,6 +99,11 @@ function initDays(): Day[] {
   return DAYS.map((dayName) => ({ dayName, visits: Array.from({ length: DEFAULT_VISITS_PER_DAY }, () => newVisit()) }));
 }
 
+function normalizeCompanyCategory(value: unknown): string {
+  if (value === 'OTHER') return 'OTHERS';
+  return typeof value === 'string' && value ? value : 'PLASTICS';
+}
+
 function currentWeek() {
   const now = new Date();
   const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
@@ -178,7 +183,7 @@ async function loadLocalPlanDraft(userId: string): Promise<LocalPlanDraft | null
                   phone: typeof (visit as Partial<Visit>)?.phone === 'string' ? (visit as Partial<Visit>).phone ?? '' : '',
                   address: typeof (visit as Partial<Visit>)?.address === 'string' ? (visit as Partial<Visit>).address ?? '' : '',
                   purpose: typeof (visit as Partial<Visit>)?.purpose === 'string' ? (visit as Partial<Visit>).purpose ?? '' : '',
-                  companyCategory: typeof (visit as Partial<Visit>)?.companyCategory === 'string' ? (visit as Partial<Visit>).companyCategory ?? 'PLASTICS' : 'PLASTICS',
+                  companyCategory: normalizeCompanyCategory((visit as Partial<Visit>)?.companyCategory),
                   categoryOther: typeof (visit as Partial<Visit>)?.categoryOther === 'string' ? (visit as Partial<Visit>).categoryOther ?? '' : '',
                   notes: typeof (visit as Partial<Visit>)?.notes === 'string' ? (visit as Partial<Visit>).notes ?? '' : '',
                   imageUrl: typeof (visit as Partial<Visit>)?.imageUrl === 'string' ? (visit as Partial<Visit>).imageUrl ?? null : null,
@@ -354,7 +359,7 @@ export default function WeeklyPlansScreen() {
         return {
           dayName,
           // ضمان وجود زيارة واحدة افتراضية على الأقل لكل يوم عند الفتح
-          visits: existing && existing.visits.length ? existing.visits.map((v) => ({ ...v, pendingImage: null })) : [newVisit()],
+          visits: existing && existing.visits.length ? existing.visits.map((v) => ({ ...v, companyCategory: normalizeCompanyCategory(v.companyCategory), pendingImage: null })) : [newVisit()],
         };
       }),
     );
@@ -573,7 +578,7 @@ export default function WeeklyPlansScreen() {
           phone: typeof v.phone === 'string' ? v.phone : '',
           address: typeof v.address === 'string' ? v.address : '',
           purpose: typeof v.purpose === 'string' ? v.purpose : '',
-          companyCategory: CATEGORIES.includes(v.companyCategory as (typeof CATEGORIES)[number]) ? v.companyCategory : 'OTHERS',
+          companyCategory: CATEGORIES.includes(normalizeCompanyCategory(v.companyCategory) as (typeof CATEGORIES)[number]) ? normalizeCompanyCategory(v.companyCategory) : 'OTHERS',
           categoryOther: typeof v.categoryOther === 'string' ? v.categoryOther : '',
           notes: typeof v.notes === 'string' ? v.notes : '',
         })),

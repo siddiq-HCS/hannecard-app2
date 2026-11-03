@@ -96,7 +96,10 @@ const visitSchema = z.object({
   phone: z.string().max(100).optional().default(''),
   address: z.string().max(500).optional().default(''),
   purpose: z.string().max(500).optional().default(''),
-  companyCategory: z.enum(CATEGORIES).optional().default('OTHERS'),
+  companyCategory: z.preprocess(
+    (value) => value === 'OTHER' ? 'OTHERS' : value,
+    z.enum(CATEGORIES).optional().default('OTHERS'),
+  ),
   categoryOther: z.string().max(300).optional().default(''),
   notes: z.string().max(2000).optional().default(''),
 });

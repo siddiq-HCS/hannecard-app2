@@ -68,8 +68,9 @@ function optLabel(t: T, prefix: string, val: string) {
 }
 
 function categoryLabel(t: T, v: Visit) {
-  const base = optLabel(t, 'companyCategory', v.companyCategory);
-  return v.companyCategory === 'OTHERS' && v.categoryOther ? `${base} (${v.categoryOther})` : base;
+  const category = v.companyCategory === 'OTHER' ? 'OTHERS' : v.companyCategory;
+  const base = optLabel(t, 'companyCategory', category);
+  return category === 'OTHERS' && v.categoryOther ? `${base} (${v.categoryOther})` : base;
 }
 
 function sortedDays(p: Plan) {
@@ -99,7 +100,7 @@ function normalizeVisit(value: unknown): Visit | null {
     phone: safeText(raw.phone),
     address: safeText(raw.address),
     purpose: safeText(raw.purpose),
-    companyCategory: safeText(raw.companyCategory),
+    companyCategory: safeText(raw.companyCategory) === 'OTHER' ? 'OTHERS' : safeText(raw.companyCategory),
     categoryOther: safeText(raw.categoryOther),
     notes: safeText(raw.notes),
     imageUrl: raw.imageUrl == null ? null : safeText(raw.imageUrl),
