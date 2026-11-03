@@ -139,6 +139,19 @@ function rfqTotalAmount(items?: RfqItem[]): number {
   return (items ?? []).reduce((sum, it) => sum + itemLineTotal(it), 0);
 }
 
+function rfqPriceBreakdown(value: unknown) {
+  const rawSubtotal = toNumPrice(value);
+  if (rawSubtotal == null) return null;
+  const subtotal = Math.round((rawSubtotal + Number.EPSILON) * 100) / 100;
+  const vat = Math.round((subtotal * 0.15 + Number.EPSILON) * 100) / 100;
+  const grandTotal = Math.round((subtotal + vat + Number.EPSILON) * 100) / 100;
+  return { subtotal, vat, grandTotal };
+}
+
+function formatMoney(value: number, lang: Lang): string {
+  return value.toLocaleString(lang === 'ar' ? 'ar-EG' : 'en', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 function anyItemPriced(items?: RfqItem[]): boolean {
   return (items ?? []).some((it) => toNumPrice(it.unitPrice) != null || toNumPrice(it.totalPrice) != null);
 }
@@ -177,8 +190,13 @@ function itemsTable(t: T, items: RfqItem[], currency = 'SAR', lang?: Lang) {
       }</td>
       <td colspan="2" style="padding:6px 8px;border:1px solid #1e293b;background:#f1f5f9;text-align:center;font-weight:800;">${totalRolls(items)}</td>
     </tr>`;
-  const totalsRow = showPrices
-    ? `<tr><td colspan="${labelSpan}" style="padding:6px 8px;border:1px solid #1e293b;background:#f1f5f9;text-align:end;font-weight:700;">${t('rfq.totalAmount')}</td><td colspan="2" style="padding:6px 8px;border:1px solid #1e293b;background:#f1f5f9;text-align:center;font-weight:800;">${Number(rfqTotalAmount(items)).toLocaleString('en')} ${currency}</td></tr>`
+  const totals = rfqPriceBreakdown(rfqTotalAmount(items));
+  const totalsRow = showPrices && totals
+    ? [
+        [t('rfq.subtotal'), totals.subtotal],
+        [t('rfq.vat15'), totals.vat],
+        [t('rfq.grandTotal'), totals.grandTotal],
+      ].map(([label, amount], index) => `<tr><td colspan="${labelSpan}" style="padding:6px 8px;border:1px solid #1e293b;background:#f1f5f9;text-align:end;font-weight:${index === 2 ? 800 : 700};">${label}</td><td colspan="2" style="padding:6px 8px;border:1px solid #1e293b;background:#f1f5f9;text-align:center;font-weight:${index === 2 ? 800 : 600};">${Number(amount).toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}</td></tr>`).join('')
     : '';
   return `<table style="border-collapse:collapse;width:100%;font-size:12.5px;margin-top:6px;">
     <thead><tr style="background:#1e293b;color:#fff;">
@@ -391,10 +409,11 @@ function RfqImages({ rfqId, imageUrl, imageUrls, token, t }: { rfqId: string; im
 }
 
 function downloadRfqs(list: Rfq[], t: T, lang: Lang) {
-  const header = [t('rfq.serial'), t('rfq.clientName'), t('rfq.salesman'), t('rfq.contactName'), t('rfq.contactPhone'), t('rfq.desc'), t('rfq.qty'), t('rfq.finishType'), t('rfq.requiredWork'), t('rfq.workEnv'), t('rfq.requiredTime'), t('rfq.rollLocation'), t('rfq.workOrderDate'), t('rfq.paymentTerms'), t('rfq.price'), t('rfq.sentOn')].join(' | ');
+  const header = [t('rfq.serial'), t('rfq.clientName'), t('rfq.salesman'), t('rfq.contactName'), t('rfq.contactPhone'), t('rfq.desc'), t('rfq.qty'), t('rfq.finishType'), t('rfq.requiredWork'), t('rfq.workEnv'), t('rfq.requiredTime'), t('rfq.rollLocation'), t('rfq.workOrderDate'), t('rfq.paymentTerms'), t('rfq.grandTotal'), t('rfq.sentOn')].join(' | ');
   const lines: string[] = [];
   for (const r of list) {
     const items = (r.items ?? []).length ? r.items : [{ description: '—', quantity: '—', finishingType: '—', requiredWork: ['—'] as string[], workEnvironment: '—' }];
+    const priceBreakdown = rfqPriceBreakdown(r.totalAmount ?? r.price);
     for (const it of items) {
       const finish = optLabel(t, 'rfqFinish', it.finishingType);
       const finishOther = it.finishingType === 'OTHERS' && it.finishingTypeOther ? ` (${it.finishingTypeOther})` : '';
@@ -414,8 +433,8 @@ function downloadRfqs(list: Rfq[], t: T, lang: Lang) {
           optLabel(t, 'rfqLocation', it.rollLocation ?? r.rollLocation ?? 'NOT_SPECIFIED'),
           formatDate(r.workOrderDate, lang),
           optLabel(t, 'rfqPay', r.paymentTerms),
-          r.pricingStatus === 'APPROVED' || (r.pricingStatus === 'PRICED' && (r.totalAmount ?? r.price) != null && String(r.totalAmount ?? r.price ?? '') !== '')
-            ? `${Number(r.totalAmount ?? r.price).toLocaleString('en')} ${r.currency || 'SAR'} (${r.pricingStatus === 'APPROVED' ? t('rfq.approved') : t('rfq.priced')})`
+          (r.pricingStatus === 'APPROVED' || r.pricingStatus === 'PRICED') && priceBreakdown
+            ? `${formatMoney(priceBreakdown.grandTotal, lang)} ${r.currency || 'SAR'} (${r.pricingStatus === 'APPROVED' ? t('rfq.approved') : t('rfq.priced')})`
             : t('rfq.unpriced'),
           formatDateTime(r.createdAt, lang),
         ].join(' | '),
@@ -502,6 +521,13 @@ export function RFQs() {
   const [calcID, setCalcID] = useState('');
   const [calcLen, setCalcLen] = useState('');
   const [calcResult, setCalcResult] = useState<{ total: number; weightKg: number; materialCost: number; workmanshipCost: number } | null>(null);
+  const detailPriceBreakdown = detail ? rfqPriceBreakdown(detail.totalAmount ?? detail.price) : null;
+  const itemPricesSubtotal = itemUnitInputs.reduce((sum, raw, i) => {
+    const unit = Number((raw ?? '').replace(/[^\d.]/g, ''));
+    const qty = String(detail?.items?.[i]?.quantity ?? '').match(/\d+(\.\d+)?/);
+    return sum + (Number.isFinite(unit) && unit > 0 ? unit * (qty ? parseFloat(qty[0]) : 1) : 0);
+  }, 0);
+  const itemPricesBreakdown = rfqPriceBreakdown(itemPricesSubtotal);
 
   async function load() {
     if (!token) return;
@@ -893,8 +919,8 @@ export function RFQs() {
               <td style={tdStyle}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {pricingChip(r.pricingStatus, t)}
-                  {(r.pricingStatus === 'PRICED' || r.pricingStatus === 'APPROVED') && (r.totalAmount != null || r.price != null) && String(r.totalAmount ?? r.price ?? '') !== '' && (
-                    <span style={{ fontSize: 13, fontWeight: 600 }}>{Number(r.totalAmount ?? r.price).toLocaleString(lang === 'ar' ? 'ar-EG' : 'en')} {r.currency || 'SAR'}</span>
+                  {(r.pricingStatus === 'PRICED' || r.pricingStatus === 'APPROVED') && rfqPriceBreakdown(r.totalAmount ?? r.price) && (
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>{formatMoney(rfqPriceBreakdown(r.totalAmount ?? r.price)!.grandTotal, lang)} {r.currency || 'SAR'}</span>
                   )}
                   {isManager && r.pricingStatus === 'PRICED' && (
                     <button
@@ -946,7 +972,9 @@ export function RFQs() {
               [t('rfq.rep'), detail.user?.name ?? '—'],
               [t('rfq.itemsCount'), String(detail.items?.length ?? 0)],
               [t('rfq.totalRolls'), String(totalRolls(detail.items))],
-              [t('rfq.totalAmount'), `${fmtAmount(detail.totalAmount ?? detail.price, lang)}${toNumPrice(detail.totalAmount ?? detail.price) != null ? ` ${detail.currency || 'SAR'}` : ''}`],
+              [t('rfq.subtotal'), `${fmtAmount(detailPriceBreakdown?.subtotal, lang)}${detailPriceBreakdown ? ` ${detail.currency || 'SAR'}` : ''}`],
+              [t('rfq.vat15'), `${fmtAmount(detailPriceBreakdown?.vat, lang)}${detailPriceBreakdown ? ` ${detail.currency || 'SAR'}` : ''}`],
+              [t('rfq.grandTotal'), `${fmtAmount(detailPriceBreakdown?.grandTotal, lang)}${detailPriceBreakdown ? ` ${detail.currency || 'SAR'}` : ''}`],
               [t('rfq.contactName'), detail.contactName || '—'],
               [t('rfq.contactPhone'), detail.contactPhone || '—'],
               [t('rfq.requiredTime'), optLabel(t, 'rfqTime', detail.requiredTime)],
@@ -981,7 +1009,7 @@ export function RFQs() {
             )}
 
             <div style={{ padding: '8px 0', borderBottom: '1px solid #f3f4f6' }}>
-              <span style={{ color: '#6b7280', fontSize: 13, display: 'block' }}>{t('rfq.price')}</span>
+              <span style={{ color: '#6b7280', fontSize: 13, display: 'block' }}>{t('rfq.subtotal')}</span>
               <span style={{ fontSize: 15 }}>
                 {pricingChip(detail.pricingStatus, t)}{' '}
                 {(detail.pricingStatus === 'PRICED' || detail.pricingStatus === 'APPROVED') && detail.price != null && String(detail.price) !== '' ? (
@@ -1074,7 +1102,7 @@ export function RFQs() {
                     {detail.approvedBy ? ` (${t('rfq.approvedBy')}: ${detail.approvedBy})` : ''}
                   </div>
                 )}
-                <h4 style={{ margin: '0 0 10px' }}>{t('rfq.price')}</h4>
+                <h4 style={{ margin: '0 0 10px' }}>{t('rfq.subtotal')}</h4>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <input
                     type="number"
@@ -1082,7 +1110,7 @@ export function RFQs() {
                     step="any"
                     value={priceInput}
                     onChange={(e) => setPriceInput(e.target.value)}
-                    placeholder={t('rfq.price')}
+                    placeholder={t('rfq.subtotal')}
                     style={{ ...inputStyle, flex: 1, minWidth: 120 }}
                   />
                   <select value={currencyInput} onChange={(e) => setCurrencyInput(e.target.value)} style={inputStyle}>
@@ -1115,7 +1143,9 @@ export function RFQs() {
                           <span>{t('rfq.workmanshipCost') || 'المصنعية'}: <strong>{calcResult.workmanshipCost} SAR</strong></span>
                         </div>
                         <div style={{ marginTop: 4, fontSize: 15, fontWeight: 700, color: '#16a34a' }}>
-                          {t('rfq.totalPrice') || 'السعر الكلي'}: {calcResult.total.toLocaleString()} SAR
+                          {t('rfq.subtotal')}: {formatMoney(calcResult.total, lang)} SAR
+                          <div style={{ fontSize: 13, fontWeight: 500, color: '#64748b' }}>{t('rfq.vat15')}: {formatMoney(rfqPriceBreakdown(calcResult.total)?.vat ?? 0, lang)} SAR</div>
+                          <div>{t('rfq.grandTotal')}: {formatMoney(rfqPriceBreakdown(calcResult.total)?.grandTotal ?? calcResult.total, lang)} SAR</div>
                           <button
                             style={{ ...buttonStyle, background: '#16a34a', marginLeft: 12, padding: '2px 10px', fontSize: 12 }}
                             onClick={() => setPriceInput(String(calcResult.total))}
@@ -1178,17 +1208,9 @@ export function RFQs() {
                   </table>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, gap: 8, flexWrap: 'wrap' }}>
                     <span style={{ fontSize: 13, fontWeight: 700 }}>
-                      {t('rfq.totalAmount')}:{' '}
-                      <span style={{ color: '#16a34a' }}>
-                        {itemUnitInputs
-                          .reduce((sum, raw, i) => {
-                            const unit = Number((raw ?? '').replace(/[^\d.]/g, ''));
-                            const qty = String(detail.items?.[i]?.quantity ?? '').match(/\d+(\.\d+)?/);
-                            return sum + (Number.isFinite(unit) && unit > 0 ? unit * (qty ? parseFloat(qty[0]) : 1) : 0);
-                          }, 0)
-                          .toLocaleString(lang === 'ar' ? 'ar-EG' : 'en')}{' '}
-                        {currencyInput}
-                      </span>
+                      <span style={{ color: '#64748b' }}>{t('rfq.subtotal')}: {formatMoney(itemPricesBreakdown?.subtotal ?? 0, lang)} {currencyInput}</span>{' · '}
+                      <span style={{ color: '#64748b' }}>{t('rfq.vat15')}: {formatMoney(itemPricesBreakdown?.vat ?? 0, lang)} {currencyInput}</span>{' · '}
+                      <span style={{ color: '#16a34a' }}>{t('rfq.grandTotal')}: <strong>{formatMoney(itemPricesBreakdown?.grandTotal ?? 0, lang)} {currencyInput}</strong></span>
                     </span>
                     <button style={{ ...buttonStyle, background: '#16a34a' }} onClick={() => void saveItemPrices()} disabled={savingItemPrices}>
                       {savingItemPrices ? t('rfq.saving') : t('rfq.saveItemPrices')}

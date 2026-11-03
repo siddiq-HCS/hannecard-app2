@@ -87,6 +87,18 @@ function formatYmd(value: string | null | undefined): string {
   return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
 }
 
+function rfqPriceBreakdown(value: string | number | null | undefined) {
+  const subtotalValue = Number(value);
+  if (value == null || value === '' || !Number.isFinite(subtotalValue) || subtotalValue < 0) return null;
+  const subtotal = Math.round((subtotalValue + Number.EPSILON) * 100) / 100;
+  const vat = Math.round((subtotal * 0.15 + Number.EPSILON) * 100) / 100;
+  return { subtotal, vat, grandTotal: Math.round((subtotal + vat + Number.EPSILON) * 100) / 100 };
+}
+
+function formatRfqMoney(value: number): string {
+  return value.toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 interface Rfq {
   id: string;
   serialNumber?: string;
@@ -116,6 +128,7 @@ interface Rfq {
   imageUrls?: string[] | null;
   workOrderDate?: string;
   price?: string | null;
+  totalAmount?: string | null;
   currency?: string;
   pricingStatus?: string;
   approvedAt?: string | null;
@@ -877,6 +890,7 @@ export default function RfqScreen() {
           if (filtered.length === 0) return <Text style={styles.empty}>{t('rfq.empty')}</Text>;
           return filtered.map((r) => {
             const first = r.items?.[0];
+            const priceBreakdown = rfqPriceBreakdown(r.totalAmount ?? r.price);
           return (
             <Pressable key={r.id} style={styles.card} onPress={() => setDetailRfq(r)}>
               <View style={{ flex: 1 }}>
@@ -894,10 +908,10 @@ export default function RfqScreen() {
                 <Text style={styles.cardMeta}>{t('rfq.rollLocation')}: {t(`rollLocationOptions.${r.rollLocation ?? 'NOT_SPECIFIED'}`)}</Text>
                 <Text style={styles.cardMeta}>{t('rfq.items')}: {r.items?.length ?? 0} · {t('rfq.totalRolls')}: {totalRolls(r.items)} · {t(`paymentOptions.${r.paymentTerms}`)}</Text>
                 <Text style={styles.cardMeta}>{t('rfq.sentOn')}: {new Date(r.createdAt).toLocaleString('ar-EG')}</Text>
-                {r.pricingStatus === 'APPROVED' && r.price != null && String(r.price) !== '' ? (
+                {r.pricingStatus === 'APPROVED' && priceBreakdown ? (
                   <>
                     <Text style={styles.approvedChip}>
-                      {t('rfq.approved')}: {Number(r.price).toLocaleString('ar-EG')} {r.currency || 'SAR'}
+                      {t('rfq.approved')}: {formatRfqMoney(priceBreakdown.grandTotal)} {r.currency || 'SAR'}
                     </Text>
                     {r.approvedAt && (
                       <Text style={styles.cardMeta}>
@@ -906,9 +920,9 @@ export default function RfqScreen() {
                       </Text>
                     )}
                   </>
-                ) : r.pricingStatus === 'PRICED' && r.price != null && String(r.price) !== '' ? (
+                ) : r.pricingStatus === 'PRICED' && priceBreakdown ? (
                   <Text style={styles.pricedChip}>
-                    {t('rfq.priced')}: {Number(r.price).toLocaleString('ar-EG')} {r.currency || 'SAR'}
+                    {t('rfq.priced')}: {formatRfqMoney(priceBreakdown.grandTotal)} {r.currency || 'SAR'}
                   </Text>
                 ) : (
                   <Text style={styles.unpricedChip}>{t('rfq.unpriced')}</Text>
@@ -1026,16 +1040,14 @@ export default function RfqScreen() {
               <Text style={styles.detailLabel}>{t('rfq.paymentTerms')}</Text>
               <Text style={styles.detailValue}>{t(`paymentOptions.${detailRfq.paymentTerms}`)}</Text>
 
-              {detailRfq.pricingStatus === 'APPROVED' && detailRfq.price != null && String(detailRfq.price) !== '' && (
+              {(detailRfq.pricingStatus === 'APPROVED' || detailRfq.pricingStatus === 'PRICED') && rfqPriceBreakdown(detailRfq.totalAmount ?? detailRfq.price) && (
                 <>
-                  <Text style={styles.detailLabel}>{t('rfq.approved')}</Text>
-                  <Text style={styles.detailValue}>{Number(detailRfq.price).toLocaleString('ar-EG')} {detailRfq.currency || 'SAR'}</Text>
-                </>
-              )}
-              {detailRfq.pricingStatus === 'PRICED' && detailRfq.price != null && String(detailRfq.price) !== '' && (
-                <>
-                  <Text style={styles.detailLabel}>{t('rfq.priced')}</Text>
-                  <Text style={styles.detailValue}>{Number(detailRfq.price).toLocaleString('ar-EG')} {detailRfq.currency || 'SAR'}</Text>
+                  <Text style={styles.detailLabel}>المجموع الفرعي (الإجمالي قبل الضريبة)</Text>
+                  <Text style={styles.detailValue}>{formatRfqMoney(rfqPriceBreakdown(detailRfq.totalAmount ?? detailRfq.price)!.subtotal)} {detailRfq.currency || 'SAR'}</Text>
+                  <Text style={styles.detailLabel}>ضريبة القيمة المضافة 15%</Text>
+                  <Text style={styles.detailValue}>{formatRfqMoney(rfqPriceBreakdown(detailRfq.totalAmount ?? detailRfq.price)!.vat)} {detailRfq.currency || 'SAR'}</Text>
+                  <Text style={styles.detailLabel}>الإجمالي النهائي شاملاً الضريبة</Text>
+                  <Text style={styles.detailValue}>{formatRfqMoney(rfqPriceBreakdown(detailRfq.totalAmount ?? detailRfq.price)!.grandTotal)} {detailRfq.currency || 'SAR'}</Text>
                 </>
               )}
 
