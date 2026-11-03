@@ -674,7 +674,7 @@ export default function WeeklyPlansScreen() {
   }
 
   if (formOpen) {
-    const readOnly = planId != null && planStatus === 'APPROVED';
+    const readOnly = planId != null && planStatus !== 'DRAFT';
 
     // ربط كل يوم من أيام العمل الخمسة بتاريخه الفعلي في الأسبوع المحدد
     const weekStart = (() => {
@@ -948,9 +948,9 @@ export default function WeeklyPlansScreen() {
                 </Text>
                 {statusBadge(p.status)}
               </Pressable>
-              {p.status === 'SUBMITTED' && (
+              {p.status === 'DRAFT' && (
                 <Pressable style={styles.addVisitBtn} onPress={() => openPlan(p)}>
-                  <Text style={styles.addVisitText}>{t('weeklyPlans.editPlan')}</Text>
+                  <Text style={styles.addVisitText}>{t('weeklyPlans.editDraft')}</Text>
                 </Pressable>
               )}
             </View>
