@@ -10,10 +10,12 @@ interface RfqItem {
   quantity: string;
   finishingType: string;
   finishingTypeOther?: string;
+  finishDetails?: string;
   requiredWork: string[];
   requiredWorkOther?: string;
   workEnvironment: string;
   workEnvironmentOther?: string;
+  environmentDetails?: string;
   rollLocation?: string;
   location?: string;
   rollMaterialId?: string;
@@ -151,15 +153,17 @@ function itemsTable(t: T, items: RfqItem[], currency = 'SAR', lang?: Lang) {
   const rows = (items ?? [])
     .map((it, i) => {
       const finish = optLabel(t, 'rfqFinish', it.finishingType);
-      const finishOther = it.finishingType === 'OTHERS' && it.finishingTypeOther ? ` (${it.finishingTypeOther})` : '';
+      const finishDetails = it.finishingTypeOther || it.finishDetails;
+      const environment = envWithOther(t, it.workEnvironment, null) || '—';
+      const environmentDetails = it.workEnvironmentOther || it.environmentDetails;
       const locText = optLabel(t, 'rfqLocation', it.rollLocation ?? 'NOT_SPECIFIED');
       return `<tr>
           <td style="padding:5px 8px;border:1px solid #d3dae3;text-align:center;background:#f9fafb;width:34px;">${i + 1}</td>
           <td style="padding:5px 8px;border:1px solid #d3dae3;">${it.description || '—'}${showPrices && it.rollLocation && it.rollLocation !== 'NOT_SPECIFIED' ? ` <span style="font-size:10px;color:#555;">[${locText}]</span>` : ''}</td>
           <td style="padding:5px 8px;border:1px solid #d3dae3;text-align:center;">${it.quantity || '—'}</td>
-          <td style="padding:5px 8px;border:1px solid #d3dae3;">${finish}${finishOther}</td>
+          <td style="padding:5px 8px;border:1px solid #d3dae3;"><div>${finish}</div>${finishDetails ? `<small style="display:block;color:#6b7280;">(${finishDetails})</small>` : ''}</td>
           <td style="padding:5px 8px;border:1px solid #d3dae3;">${workWithOther(t, it.requiredWork, it.requiredWorkOther)}</td>
-          <td style="padding:5px 8px;border:1px solid #d3dae3;">${envWithOther(t, it.workEnvironment, it.workEnvironmentOther)}</td>
+          <td style="padding:5px 8px;border:1px solid #d3dae3;"><div>${environment}</div>${environmentDetails ? `<small style="display:block;color:#6b7280;">(${environmentDetails})</small>` : ''}</td>
           ${showPrices ? `<td style="padding:5px 8px;border:1px solid #d3dae3;text-align:center;">${toNumPrice(it.unitPrice) == null ? '—' : Number(it.unitPrice).toLocaleString('en')}</td>
           <td style="padding:5px 8px;border:1px solid #d3dae3;text-align:center;font-weight:600;">${itemLineTotal(it) > 0 ? Number(itemLineTotal(it)).toLocaleString('en') : '—'}</td>` : `<td style="padding:5px 8px;border:1px solid #d3dae3;text-align:center;">${locText}</td>`}
         </tr>`;
