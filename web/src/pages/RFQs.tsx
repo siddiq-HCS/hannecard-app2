@@ -3,7 +3,7 @@ import { api, authHeaders, apiErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useI18n, formatDate, formatDateTime, formatYmd, type Lang } from '../i18n';
 import { toast } from '../components/Toast';
-import { Download } from 'lucide-react';
+import { Download, Trash2 } from 'lucide-react';
 
 interface RfqItem {
   description: string;
@@ -502,6 +502,8 @@ export function RFQs() {
   const [sort, setSort] = useState('newest');
   const [searchQuery, setSearchQuery] = useState('');
   const [detail, setDetail] = useState<Rfq | null>(null);
+  const [rfqPendingDelete, setRfqPendingDelete] = useState<Rfq | null>(null);
+  const [deletingRfq, setDeletingRfq] = useState(false);
   const [priceInput, setPriceInput] = useState('');
   const [currencyInput, setCurrencyInput] = useState('SAR');
   const [notesInput, setNotesInput] = useState('');
@@ -591,8 +593,24 @@ export function RFQs() {
     }
   }
 
-  const isManager = typeof user?.role !== 'string' || user.role.toUpperCase() !== 'REPRESENTATIVE';
+  const isManager = ['SALES_MANAGER', 'DEPUTY_SALES_MANAGER', 'DEVELOPER'].includes(user?.role?.toUpperCase() ?? '');
   const canUseAutoCalc = (typeof user?.role === 'string' && user.role.toUpperCase() === 'DEVELOPER') || (Array.isArray(user?.permissions) && (user?.permissions as string[]).includes('AUTO_PRICING_ACCESS'));
+
+  async function deleteRfq() {
+    if (!token || !isManager || !rfqPendingDelete || deletingRfq) return;
+    setDeletingRfq(true);
+    try {
+      await api.delete(`/rfqs/${rfqPendingDelete.id}`, authHeaders(token));
+      setRfqs((previous) => previous.filter((rfq) => rfq.id !== rfqPendingDelete.id));
+      if (detail?.id === rfqPendingDelete.id) setDetail(null);
+      setRfqPendingDelete(null);
+      toast.success(t('rfq.deleteSuccess'));
+    } catch (error) {
+      toast.error(apiErrorMessage(error, t));
+    } finally {
+      setDeletingRfq(false);
+    }
+  }
 
   async function savePrice(clear: boolean) {
     if (!token || !detail || savingPrice) return;
@@ -950,6 +968,21 @@ export function RFQs() {
                       {doc.fileName}
                     </button>
                   ))}
+                  {isManager && (
+                    <button
+                      type="button"
+                      title={t('rfq.delete')}
+                      aria-label={`${t('rfq.delete')} ${r.serialNumber || r.clientName}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setRfqPendingDelete(r);
+                      }}
+                      style={{ ...buttonStyle, background: '#dc2626', padding: '5px 8px', display: 'inline-flex', alignItems: 'center', gap: 5, alignSelf: 'flex-start' }}
+                    >
+                      <Trash2 size={14} aria-hidden="true" />
+                      {t('rfq.delete')}
+                    </button>
+                  )}
                 </div>
               </td>
             </tr>
@@ -1293,6 +1326,43 @@ export function RFQs() {
 
             <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
               <button style={{ ...buttonStyle, background: '#1e293b', flex: 1 }} onClick={() => printRfq(detail, t, lang)}>{t('rfq.printDetails')}</button>
+              {isManager && (
+                <button
+                  type="button"
+                  style={{ ...buttonStyle, background: '#dc2626', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  onClick={() => setRfqPendingDelete(detail)}
+                  disabled={deletingRfq}
+                >
+                  <Trash2 size={14} aria-hidden="true" />
+                  {t('rfq.delete')}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {rfqPendingDelete && (
+        <div
+          role="presentation"
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 1400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          onClick={() => { if (!deletingRfq) setRfqPendingDelete(null); }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="rfq-delete-title"
+            style={{ background: '#1e293b', border: '1px solid rgba(148, 163, 184, 0.2)', borderRadius: 10, maxWidth: 440, width: '100%', padding: 24, color: '#e2e8f0' }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 id="rfq-delete-title" style={{ margin: '0 0 10px', fontSize: 18 }}>{t('rfq.confirmDeleteTitle')}</h3>
+            <p style={{ margin: '0 0 20px', color: '#cbd5e1', lineHeight: 1.6 }}>{t('rfq.confirmDeleteMessage')}</p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button type="button" style={{ ...buttonStyle, background: '#64748b' }} onClick={() => setRfqPendingDelete(null)} disabled={deletingRfq}>{t('rfq.close')}</button>
+              <button type="button" style={{ ...buttonStyle, background: '#dc2626', display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={() => void deleteRfq()} disabled={deletingRfq}>
+                <Trash2 size={14} aria-hidden="true" />
+                {deletingRfq ? t('rfq.deleting') : t('rfq.delete')}
+              </button>
             </div>
           </div>
         </div>

@@ -506,6 +506,11 @@ const ar = {
     saveComment: 'حفظ',
     cancelComment: 'إلغاء',
     deleteCommentConfirm: 'هل تريد حذف هذا التعليق؟',
+    delete: 'حذف طلب التسعير',
+    deleting: 'جارٍ الحذف...',
+    confirmDeleteTitle: 'تأكيد حذف طلب التسعير',
+    confirmDeleteMessage: 'هل أنت تأكد من رغبتك في حذف طلب التسعير هذا؟',
+    deleteSuccess: 'تم حذف طلب التسعير بنجاح',
     noComments: 'لا توجد تعليقات بعد',
   },
   rfqWork: {
@@ -1138,6 +1143,11 @@ pagePerms: {
     saveComment: 'Save',
     cancelComment: 'Cancel',
     deleteCommentConfirm: 'Delete this comment?',
+    delete: 'Delete RFQ',
+    deleting: 'Deleting...',
+    confirmDeleteTitle: 'Confirm RFQ deletion',
+    confirmDeleteMessage: 'Are you sure you want to delete this RFQ? This action cannot be undone.',
+    deleteSuccess: 'RFQ deleted successfully',
     noComments: 'No comments yet',
   },
   rfqWork: {
