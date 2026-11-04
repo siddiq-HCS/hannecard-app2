@@ -1135,24 +1135,6 @@ export function RFQs() {
                     {detail.approvedBy ? ` (${t('rfq.approvedBy')}: ${detail.approvedBy})` : ''}
                   </div>
                 )}
-                <h4 style={{ margin: '0 0 10px' }}>{t('rfq.subtotal')}</h4>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <input
-                    type="number"
-                    min="0"
-                    step="any"
-                    value={priceInput}
-                    onChange={(e) => setPriceInput(e.target.value)}
-                    placeholder={t('rfq.subtotal')}
-                    style={{ ...inputStyle, flex: 1, minWidth: 120 }}
-                  />
-                  <select value={currencyInput} onChange={(e) => setCurrencyInput(e.target.value)} style={inputStyle}>
-                    <option value="SAR">SAR</option>
-                    <option value="EGP">EGP</option>
-                    <option value="USD">USD</option>
-                    <option value="EUR">EUR</option>
-                  </select>
-                </div>
                 {rollMaterials.length > 0 && canUseAutoCalc && (
                   <div style={{ marginTop: 10, padding: 10, background: 'rgba(30, 41, 59, 0.5)', borderRadius: 8, border: '1px solid rgba(59, 130, 246, 0.2)' }}>
                     <div style={{ fontWeight: 600, fontSize: 13, color: '#1e40af', marginBottom: 6 }}>⚙ {t('rfq.autoCalc') || 'حساب آلي للسعر'}</div>
@@ -1249,6 +1231,24 @@ export function RFQs() {
                       {savingItemPrices ? t('rfq.saving') : t('rfq.saveItemPrices')}
                     </button>
                   </div>
+                </div>
+                <h4 style={{ margin: '12px 0 10px' }}>{t('rfq.subtotal')}</h4>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={priceInput}
+                    onChange={(e) => setPriceInput(e.target.value)}
+                    placeholder={t('rfq.subtotal')}
+                    style={{ ...inputStyle, flex: 1, minWidth: 120 }}
+                  />
+                  <select value={currencyInput} onChange={(e) => setCurrencyInput(e.target.value)} style={inputStyle}>
+                    <option value="SAR">SAR</option>
+                    <option value="EGP">EGP</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                  </select>
                 </div>
               </div>
             )}
