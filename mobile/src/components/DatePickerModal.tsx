@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Modal, View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { useI18n } from '../i18n';
 
 interface Props {
   visible: boolean;
@@ -9,15 +10,19 @@ interface Props {
   title: string;
 }
 
-const DAY_LETTERS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-const MONTH_NAMES = [
-  'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
-  'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
-];
+const DAY_LETTERS = {
+  ar: ['أحد', 'إثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'],
+  en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+};
+const MONTH_NAMES = {
+  ar: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'],
+  en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+};
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
 export function DatePickerModal({ visible, value, onSelect, onClose, title }: Props) {
+  const { lang, t } = useI18n();
   const now = new Date();
   const [view, setView] = useState({ y: now.getFullYear(), m: now.getMonth() });
 
@@ -57,14 +62,14 @@ export function DatePickerModal({ visible, value, onSelect, onClose, title }: Pr
             <Pressable style={styles.navBtn} onPress={() => move(-1)}>
               <Text style={styles.navText}>◀</Text>
             </Pressable>
-            <Text style={styles.monthLabel}>{MONTH_NAMES[view.m]} {view.y}</Text>
+            <Text style={styles.monthLabel}>{MONTH_NAMES[lang][view.m]} {view.y}</Text>
             <Pressable style={styles.navBtn} onPress={() => move(1)}>
               <Text style={styles.navText}>▶</Text>
             </Pressable>
           </View>
 
           <View style={styles.weekRow}>
-            {DAY_LETTERS.map((d, i) => (
+            {DAY_LETTERS[lang].map((d, i) => (
               <Text key={i} style={styles.weekCell}>{d}</Text>
             ))}
           </View>
@@ -90,10 +95,10 @@ export function DatePickerModal({ visible, value, onSelect, onClose, title }: Pr
           {/* أزرار ثابتة أسفل الشبكة — تظهر دائماً بصرف النظر عن عدد الأيام */}
           <View style={styles.btnRow}>
             <Pressable style={styles.cancelBtn} onPress={onClose}>
-              <Text style={styles.cancelText}>إلغاء</Text>
+              <Text style={styles.cancelText}>{t('common.cancel')}</Text>
             </Pressable>
             <Pressable style={styles.okBtn} onPress={onClose}>
-              <Text style={styles.okText}>تم</Text>
+              <Text style={styles.okText}>{t('common.done')}</Text>
             </Pressable>
           </View>
         </View>
