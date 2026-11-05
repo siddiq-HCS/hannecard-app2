@@ -491,7 +491,7 @@ function localDateValue(date: Date): string {
 }
 
 function RfqDatePicker({ value, onChange, lang, label, clearable = false }: { value: string; onChange: (value: string) => void; lang: Lang; label: string; clearable?: boolean }) {
-  const [open, setOpen] = useState(false);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [draftValue, setDraftValue] = useState(value);
   const [visibleMonth, setVisibleMonth] = useState(() => {
     const initial = parseLocalDate(value) ?? new Date();
@@ -505,11 +505,11 @@ function RfqDatePicker({ value, onChange, lang, label, clearable = false }: { va
     new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(new Date(2024, 0, index + 7)),
   );
 
-  function showPicker() {
+  function openCalendar() {
     const initial = parseLocalDate(value) ?? new Date();
     setDraftValue(value);
     setVisibleMonth(new Date(initial.getFullYear(), initial.getMonth(), 1));
-    setOpen(true);
+    setIsCalendarOpen(true);
   }
 
   function changeMonth(offset: number) {
@@ -521,7 +521,7 @@ function RfqDatePicker({ value, onChange, lang, label, clearable = false }: { va
       <div className="flex w-full min-w-[150px] gap-1">
         <button
           type="button"
-          onClick={showPicker}
+          onClick={openCalendar}
           aria-label={label}
           className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-lg border border-slate-600/60 bg-slate-900/70 px-3 py-2 text-start text-sm text-slate-200 transition hover:border-slate-500 hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
         >
@@ -534,11 +534,11 @@ function RfqDatePicker({ value, onChange, lang, label, clearable = false }: { va
           </button>
         )}
       </div>
-      {open && (
+      {isCalendarOpen && (
         <div
           role="presentation"
           className="fixed inset-0 z-[1600] flex items-center justify-center bg-slate-950/65 p-4 backdrop-blur-sm"
-          onClick={() => setOpen(false)}
+          onClick={() => setIsCalendarOpen(false)}
         >
           <div
             role="dialog"
@@ -588,10 +588,10 @@ function RfqDatePicker({ value, onChange, lang, label, clearable = false }: { va
               })}
             </div>
             <div className="mt-4 flex justify-end gap-2 border-t border-slate-700/70 pt-3">
-              <button type="button" onClick={() => setOpen(false)} className="min-w-[76px] rounded-lg bg-slate-700 px-3.5 py-2 text-[13px] font-semibold text-slate-200 transition hover:bg-slate-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400">
+              <button type="button" onClick={() => setIsCalendarOpen(false)} className="min-w-[76px] rounded-lg bg-slate-700 px-3.5 py-2 text-[13px] font-semibold text-slate-200 transition hover:bg-slate-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400">
                 {lang === 'ar' ? 'إلغاء' : 'Cancel'}
               </button>
-              <button type="button" onClick={() => { if (draftValue) onChange(draftValue); setOpen(false); }} disabled={!draftValue} className="min-w-[76px] rounded-lg bg-blue-600 px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300 disabled:cursor-not-allowed disabled:opacity-50">
+              <button type="button" onClick={() => { if (draftValue) onChange(draftValue); setIsCalendarOpen(false); }} disabled={!draftValue} className="min-w-[76px] rounded-lg bg-blue-600 px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300 disabled:cursor-not-allowed disabled:opacity-50">
                 {lang === 'ar' ? 'تم' : 'Done'}
               </button>
             </div>
