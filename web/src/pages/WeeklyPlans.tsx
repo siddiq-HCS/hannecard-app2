@@ -499,10 +499,14 @@ export function WeeklyPlans() {
   const totalVisits = (p: Plan) => (p.days ?? []).reduce((sum, d) => sum + (d.visits?.length ?? 0), 0);
 
   return (
-    <div>
+    <div className="weekly-plans-page">
       <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
         <h2 style={{ margin: 0 }}>{t('weeklyPlans.title')}</h2>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button type="button" title={t('weeklyPlans.print')} aria-label={t('weeklyPlans.print')} onClick={() => window.print()} style={{ ...buttonStyle, background: '#1e293b', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <Printer size={15} aria-hidden="true" />
+            {t('weeklyPlans.print')}
+          </button>
           <select value={repId} onChange={(e) => setRepId(e.target.value)} style={inputStyle}>
             <option value="">{t('weeklyPlans.allReps')}</option>
             {reps.map((r) => (
@@ -524,9 +528,10 @@ export function WeeklyPlans() {
         </div>
       </div>
 
+      <h1 className="weekly-plans-print-title">{t('weeklyPlans.title')}</h1>
       <div style={{ fontSize: 13, color: '#94a3b8', marginBottom: 10 }}>{t('weeklyPlans.count')}: {plans.length}</div>
 
-      <table style={{ width: '100%', borderCollapse: 'collapse', borderRadius: 10, overflow: 'hidden' }}>
+      <table className="weekly-plans-table" style={{ width: '100%', borderCollapse: 'collapse', borderRadius: 10, overflow: 'hidden' }}>
         <thead>
           <tr style={{ background: '#1e293b', color: '#fff', textAlign: 'start' }}>
             <th style={thStyle}>{t('weeklyPlans.rep')}</th>
@@ -534,7 +539,7 @@ export function WeeklyPlans() {
             <th style={thStyle}>{t('weeklyPlans.week')}</th>
             <th style={thStyle}>{t('weeklyPlans.visits')}</th>
             <th style={thStyle}>{t('weeklyPlans.status')}</th>
-            <th style={thStyle}>{t('weeklyPlans.actions')}</th>
+            <th className="weekly-plans-actions" style={thStyle}>{t('weeklyPlans.actions')}</th>
           </tr>
         </thead>
         <tbody>
@@ -545,7 +550,7 @@ export function WeeklyPlans() {
               <td style={tdStyle}><span dir="ltr" className="inline-block unicode-bidi-isolate">{formatPlanDate(p.startDate, lang)} → {formatPlanDate(p.endDate, lang)}</span></td>
               <td style={tdStyle}>{totalVisits(p)}</td>
               <td style={tdStyle}>{statusChip(t, p.status)}</td>
-              <td style={tdStyle}>
+              <td className="weekly-plans-actions" style={tdStyle}>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <button style={{ ...buttonStyle, background: '#2563eb' }} onClick={() => void openDetail(p)}>{t('weeklyPlans.view')}</button>
                   {p.status === 'SUBMITTED' && (
@@ -562,7 +567,7 @@ export function WeeklyPlans() {
       {!plans.length && <div style={{ color: '#64748b', textAlign: 'center', marginTop: 40 }}>{t('weeklyPlans.noPlans')}</div>}
 
       {detail && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setDetail(null)}>
+        <div className="no-print" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setDetail(null)}>
           <div style={{ background: 'rgba(30, 41, 59, 0.95)', backdropFilter: 'blur(16px)', border: '1px solid rgba(148, 163, 184, 0.1)', borderRadius: 12, maxWidth: 960, width: '100%', maxHeight: '92vh', overflow: 'auto', padding: 24, color: '#e2e8f0' }} onClick={(e) => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
               <h3 style={{ margin: 0 }}>{t('weeklyPlans.details')} — {detail.serialNumber}</h3>
@@ -655,7 +660,7 @@ export function WeeklyPlans() {
       )}
 
       {deletingId && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setDeletingId(null)}>
+        <div className="no-print" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setDeletingId(null)}>
           <div style={{ background: '#1e293b', border: '1px solid rgba(148, 163, 184, 0.2)', borderRadius: 12, maxWidth: 400, width: '100%', padding: 24, color: '#e2e8f0' }} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ margin: '0 0 12px', fontSize: 18 }}>{lang === 'ar' ? 'تأكيد الحذف' : 'Confirm Deletion'}</h3>
             <p style={{ margin: '0 0 20px', color: '#94a3b8', fontSize: 14 }}>

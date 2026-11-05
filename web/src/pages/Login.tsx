@@ -42,9 +42,9 @@ export function Login() {
         // حساب معطّل → رسالة عربية واضحة تشرح السبب
         setError(serverMsg ?? t('login.accountInactive'));
         setPassword('');
-      } else if (code === 'invalid_credentials' || axiosErr?.response?.status === 401) {
+      } else if (code === 'invalid_credentials' || axiosErr?.response?.status === 400 || axiosErr?.response?.status === 401) {
         // بيانات خاطئة (بريد غير موجود أو كلمة مرور غير صحيحة)
-        setError(serverMsg ?? t('login.error'));
+        setError(t('login.invalidCredentials'));
         setPassword('');
       } else {
         // خطأ عام آخر (شبكة/سيرفر) → رسالة واضحة دون تعليق الشاشة
@@ -80,7 +80,7 @@ export function Login() {
       <form onSubmit={(e) => void onSubmit(e)} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder={t('login.email')} style={inputStyle} />
         <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" placeholder={t('login.password')} style={inputStyle} />
-        {error && <p style={{ color: '#dc2626', margin: 0 }}>{error}</p>}
+        {error && <p role="alert" aria-live="assertive" style={{ color: '#dc2626', margin: 0 }}>{error}</p>}
         {repBlocked && (
           <button
             type="button"
