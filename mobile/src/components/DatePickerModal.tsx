@@ -9,7 +9,7 @@ interface Props {
   title: string;
 }
 
-const DAY_LETTERS = ['س', 'ح', 'ن', 'ث', 'ر', 'خ', 'ج']; // السبت → الجمعة
+const DAY_LETTERS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const MONTH_NAMES = [
   'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
   'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
@@ -31,7 +31,7 @@ export function DatePickerModal({ visible, value, onSelect, onClose, title }: Pr
     }
   }, [visible]);
 
-  const firstDayIndex = (new Date(view.y, view.m, 1).getDay() + 1) % 7; // السبت أولاً
+  const firstDayIndex = new Date(view.y, view.m, 1).getDay();
   const daysInMonth = new Date(view.y, view.m + 1, 0).getDate();
   const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 
@@ -69,14 +69,7 @@ export function DatePickerModal({ visible, value, onSelect, onClose, title }: Pr
             ))}
           </View>
 
-          {/* شبكة الأيام داخل تمرير بارتفاع محدود حتى تبقى الأزرار ظاهرة دائماً */}
-          <ScrollView
-            style={styles.gridScroll}
-            contentContainerStyle={styles.grid}
-            bounces={false}
-            showsVerticalScrollIndicator={true}
-            keyboardShouldPersistTaps="handled"
-          >
+          <View style={styles.grid}>
             {cells.map((d, i) => {
               if (d == null) return <View key={i} style={styles.dayCell} />;
               const iso = `${view.y}-${pad(view.m + 1)}-${pad(d)}`;
@@ -92,7 +85,7 @@ export function DatePickerModal({ visible, value, onSelect, onClose, title }: Pr
                 </Pressable>
               );
             })}
-          </ScrollView>
+          </View>
 
           {/* أزرار ثابتة أسفل الشبكة — تظهر دائماً بصرف النظر عن عدد الأيام */}
           <View style={styles.btnRow}>
@@ -112,19 +105,18 @@ export function DatePickerModal({ visible, value, onSelect, onClose, title }: Pr
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' },
   backdropContent: { flexGrow: 1, justifyContent: 'center', padding: 20 },
-  card: { backgroundColor: '#fff', borderRadius: 14, padding: 18, maxHeight: '95%', overflow: 'hidden' },
+  card: { width: 320, minWidth: 320, maxWidth: 320, alignSelf: 'center', backgroundColor: '#fff', borderRadius: 14, padding: 18, maxHeight: '95%', overflow: 'hidden' },
   title: { fontSize: 16, fontWeight: '700', textAlign: 'center', marginBottom: 12 },
   monthRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   navBtn: { paddingHorizontal: 14, paddingVertical: 6 },
   navText: { fontSize: 14, color: '#2563eb' },
   monthLabel: { fontSize: 15, fontWeight: '600' },
-  weekRow: { flexDirection: 'row', marginBottom: 2 },
-  weekCell: { flex: 1, textAlign: 'center', fontSize: 12, color: '#6b7280', paddingVertical: 6 },
-  gridScroll: { maxHeight: 280, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#e5e7eb' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', paddingVertical: 4 },
-  dayCell: { width: '14.28%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center' },
-  daySelected: { backgroundColor: '#2563eb', borderRadius: 8 },
-  dayToday: { borderWidth: 1, borderColor: '#2563eb', borderRadius: 8 },
+  weekRow: { width: 276, flexDirection: 'row', justifyContent: 'center', gap: 4, marginBottom: 2, alignSelf: 'center' },
+  weekCell: { width: 36, height: 36, minWidth: 36, minHeight: 36, flexShrink: 0, textAlign: 'center', textAlignVertical: 'center', fontSize: 12, color: '#6b7280', fontWeight: '700' },
+  grid: { width: 276, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 4, paddingVertical: 4, alignSelf: 'center' },
+  dayCell: { width: 36, height: 36, minWidth: 36, minHeight: 36, maxWidth: 36, maxHeight: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
+  daySelected: { backgroundColor: '#2563eb', borderRadius: 18 },
+  dayToday: { borderWidth: 1, borderColor: '#2563eb', borderRadius: 18 },
   dayText: { fontSize: 14, color: '#111827' },
   dayTextSelected: { color: '#fff', fontWeight: '700' },
   btnRow: {
