@@ -545,7 +545,7 @@ function RfqDatePicker({ value, onChange, lang, label, clearable = false }: { va
             aria-modal="true"
             aria-label={label}
             dir={lang === 'ar' ? 'rtl' : 'ltr'}
-            className="w-80 max-w-full rounded-xl border border-slate-700 bg-slate-900 p-4 text-slate-100 shadow-2xl shadow-black/40"
+            className="mx-auto w-[340px] max-w-[calc(100vw-2rem)] rounded-xl border border-slate-700 bg-slate-900 p-4 text-slate-100 shadow-2xl shadow-black/40"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="mb-3.5 flex items-center justify-between gap-2">
@@ -559,17 +559,17 @@ function RfqDatePicker({ value, onChange, lang, label, clearable = false }: { va
                 <ChevronRight size={18} aria-hidden="true" />
               </button>
             </div>
-            <div className="mb-1 grid grid-cols-7 justify-center gap-1">
+            <div className="mb-1 grid grid-cols-7 justify-items-center gap-1 p-2">
               {weekdays.map((weekday, index) => (
-                <span key={`${weekday}-${index}`} className="grid h-7 w-9 place-items-center text-[11px] font-semibold text-slate-400">
+                <span key={`${weekday}-${index}`} className="flex h-9 w-9 shrink-0 items-center justify-center text-xs font-bold text-gray-500">
                   {weekday}
                 </span>
               ))}
             </div>
-            <div className="grid grid-cols-7 justify-center gap-1">
+            <div className="grid grid-cols-7 justify-items-center gap-1 p-2">
               {Array.from({ length: 42 }, (_, index) => {
                 const day = index - firstWeekday + 1;
-                if (day < 1 || day > daysInMonth) return <span key={`empty-${index}`} className="size-9" />;
+                if (day < 1 || day > daysInMonth) return <span key={`empty-${index}`} aria-hidden="true" className="h-9 w-9 shrink-0" />;
                 const date = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), day);
                 const dateValue = localDateValue(date);
                 const isSelected = selectedDate ? dateValue === localDateValue(selectedDate) : false;
@@ -577,7 +577,7 @@ function RfqDatePicker({ value, onChange, lang, label, clearable = false }: { va
                   <button
                     key={dateValue}
                     type="button"
-                    className={`grid size-9 place-items-center rounded-lg border text-[13px] transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 ${isSelected ? 'border-blue-300 bg-blue-600 text-white shadow-[0_0_0_3px_rgba(96,165,250,0.2)]' : 'border-transparent bg-transparent text-slate-300 hover:bg-slate-700 hover:text-white'}`}
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 ${isSelected ? 'border-blue-300 bg-blue-600 text-white shadow-[0_0_0_3px_rgba(96,165,250,0.2)]' : 'border-transparent bg-transparent text-slate-300 hover:bg-slate-700 hover:text-white'}`}
                     aria-pressed={isSelected}
                     aria-label={new Intl.DateTimeFormat(locale, { dateStyle: 'full' }).format(date)}
                     onClick={() => setDraftValue(dateValue)}
