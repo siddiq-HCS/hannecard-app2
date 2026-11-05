@@ -505,12 +505,12 @@ function RfqDatePicker({ value, onChange, lang, label, clearable = false }: { va
     new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(new Date(2024, 0, index + 7)),
   );
 
-  function openCalendar() {
+  useEffect(() => {
+    if (!isCalendarOpen) return;
     const initial = parseLocalDate(value) ?? new Date();
     setDraftValue(value);
     setVisibleMonth(new Date(initial.getFullYear(), initial.getMonth(), 1));
-    setIsCalendarOpen(true);
-  }
+  }, [isCalendarOpen, value]);
 
   function changeMonth(offset: number) {
     setVisibleMonth((month) => new Date(month.getFullYear(), month.getMonth() + offset, 1));
@@ -521,7 +521,7 @@ function RfqDatePicker({ value, onChange, lang, label, clearable = false }: { va
       <div className="flex w-full min-w-[150px] gap-1">
         <button
           type="button"
-          onClick={openCalendar}
+          onClick={() => setIsCalendarOpen(true)}
           aria-label={label}
           className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-lg border border-slate-600/60 bg-slate-900/70 px-3 py-2 text-start text-sm text-slate-200 transition hover:border-slate-500 hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
         >
