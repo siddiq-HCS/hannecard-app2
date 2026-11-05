@@ -545,49 +545,51 @@ function RfqDatePicker({ value, onChange, lang, label, clearable = false }: { va
             aria-modal="true"
             aria-label={label}
             dir={lang === 'ar' ? 'rtl' : 'ltr'}
-            className="mx-auto w-[340px] max-w-[calc(100vw-2rem)] rounded-xl border border-slate-700 bg-slate-900 p-4 text-slate-100 shadow-2xl shadow-black/40"
-            style={{ maxWidth: '340px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}
+            className="mx-auto rounded-xl border border-slate-700 bg-slate-900 p-2 text-slate-100 shadow-2xl shadow-black/40"
+            style={{ maxWidth: '340px', margin: '0 auto', width: '340px', boxSizing: 'border-box' }}
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="mb-3.5 flex items-center justify-between gap-2">
-              <button type="button" title={lang === 'ar' ? 'الشهر السابق' : 'Previous month'} aria-label={lang === 'ar' ? 'الشهر السابق' : 'Previous month'} onClick={() => changeMonth(-1)} className="grid size-9 place-items-center rounded-lg border border-slate-700 bg-transparent text-slate-300 transition hover:border-slate-500 hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400">
-                <ChevronLeft size={18} aria-hidden="true" />
-              </button>
-              <strong className="text-center text-sm font-semibold">
-                {new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(visibleMonth)}
-              </strong>
-              <button type="button" title={lang === 'ar' ? 'الشهر التالي' : 'Next month'} aria-label={lang === 'ar' ? 'الشهر التالي' : 'Next month'} onClick={() => changeMonth(1)} className="grid size-9 place-items-center rounded-lg border border-slate-700 bg-transparent text-slate-300 transition hover:border-slate-500 hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400">
-                <ChevronRight size={18} aria-hidden="true" />
-              </button>
-            </div>
-            <div className="mb-1 p-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', justifyItems: 'center', gap: '4px' }}>
-              {weekdays.map((weekday, index) => (
-                <span key={`${weekday}-${index}`} className="text-xs font-bold text-gray-500" style={{ width: '36px', height: '36px', minWidth: '36px', minHeight: '36px', maxWidth: '36px', maxHeight: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxSizing: 'border-box' }}>
-                  {weekday}
-                </span>
-              ))}
-            </div>
-            <div className="p-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', justifyItems: 'center', gap: '4px' }}>
-              {Array.from({ length: 42 }, (_, index) => {
-                const day = index - firstWeekday + 1;
-                if (day < 1 || day > daysInMonth) return <span key={`empty-${index}`} aria-hidden="true" style={{ width: '36px', height: '36px', minWidth: '36px', minHeight: '36px', maxWidth: '36px', maxHeight: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxSizing: 'border-box' }} />;
-                const date = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), day);
-                const dateValue = localDateValue(date);
-                const isSelected = selectedDate ? dateValue === localDateValue(selectedDate) : false;
-                return (
-                  <button
-                    key={dateValue}
-                    type="button"
-                    className={`border text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 ${isSelected ? 'border-blue-300 bg-blue-600 text-white shadow-[0_0_0_3px_rgba(96,165,250,0.2)]' : 'border-transparent bg-transparent text-slate-300 hover:bg-slate-700 hover:text-white'}`}
-                    style={{ width: '36px', height: '36px', minWidth: '36px', minHeight: '36px', maxWidth: '36px', maxHeight: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxSizing: 'border-box' }}
-                    aria-pressed={isSelected}
-                    aria-label={new Intl.DateTimeFormat(locale, { dateStyle: 'full' }).format(date)}
-                    onClick={() => setDraftValue(dateValue)}
-                  >
-                    {new Intl.DateTimeFormat(locale, { day: 'numeric' }).format(date)}
-                  </button>
-                );
-              })}
+            <div style={{ width: '320px', maxWidth: '320px', minWidth: '320px', margin: '0 auto', boxSizing: 'border-box' }}>
+              <div className="mb-3.5 flex items-center justify-between gap-2">
+                <button type="button" title={lang === 'ar' ? 'الشهر السابق' : 'Previous month'} aria-label={lang === 'ar' ? 'الشهر السابق' : 'Previous month'} onClick={() => changeMonth(-1)} className="grid size-9 place-items-center rounded-lg border border-slate-700 bg-transparent text-slate-300 transition hover:border-slate-500 hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400">
+                  <ChevronLeft size={18} aria-hidden="true" />
+                </button>
+                <strong className="text-center text-sm font-semibold">
+                  {new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(visibleMonth)}
+                </strong>
+                <button type="button" title={lang === 'ar' ? 'الشهر التالي' : 'Next month'} aria-label={lang === 'ar' ? 'الشهر التالي' : 'Next month'} onClick={() => changeMonth(1)} className="grid size-9 place-items-center rounded-lg border border-slate-700 bg-transparent text-slate-300 transition hover:border-slate-500 hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400">
+                  <ChevronRight size={18} aria-hidden="true" />
+                </button>
+              </div>
+              <div className="mb-1" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 36px)', gap: '4px', justifyContent: 'center', width: '100%' }}>
+                {weekdays.map((weekday, index) => (
+                  <span key={`${weekday}-${index}`} className="text-xs font-bold text-gray-500" style={{ width: '36px', height: '36px', minWidth: '36px', minHeight: '36px', maxWidth: '36px', maxHeight: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, boxSizing: 'border-box' }}>
+                    {weekday}
+                  </span>
+                ))}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 36px)', gap: '4px', justifyContent: 'center', width: '100%' }}>
+                {Array.from({ length: 42 }, (_, index) => {
+                  const day = index - firstWeekday + 1;
+                  if (day < 1 || day > daysInMonth) return <span key={`empty-${index}`} aria-hidden="true" style={{ width: '36px', height: '36px', minWidth: '36px', minHeight: '36px', maxWidth: '36px', maxHeight: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }} />;
+                  const date = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), day);
+                  const dateValue = localDateValue(date);
+                  const isSelected = selectedDate ? dateValue === localDateValue(selectedDate) : false;
+                  return (
+                    <button
+                      key={dateValue}
+                      type="button"
+                      className={`border text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 ${isSelected ? 'border-blue-300 bg-blue-600 text-white shadow-[0_0_0_3px_rgba(96,165,250,0.2)]' : 'border-transparent bg-transparent text-slate-300 hover:bg-slate-700 hover:text-white'}`}
+                      style={{ width: '36px', height: '36px', minWidth: '36px', minHeight: '36px', maxWidth: '36px', maxHeight: '36px', borderRadius: '50%', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                      aria-pressed={isSelected}
+                      aria-label={new Intl.DateTimeFormat(locale, { dateStyle: 'full' }).format(date)}
+                      onClick={() => setDraftValue(dateValue)}
+                    >
+                      {new Intl.DateTimeFormat(locale, { day: 'numeric' }).format(date)}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
             <div className="mt-4 flex justify-end gap-2 border-t border-slate-700/70 pt-3">
               <button type="button" onClick={() => setIsCalendarOpen(false)} className="min-w-[76px] rounded-lg bg-slate-700 px-3.5 py-2 text-[13px] font-semibold text-slate-200 transition hover:bg-slate-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400">
