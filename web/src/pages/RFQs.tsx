@@ -3,7 +3,7 @@ import { api, authHeaders, apiErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useI18n, formatDate, formatDateTime, formatYmd, type Lang } from '../i18n';
 import { toast } from '../components/Toast';
-import { Download, Trash2 } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Download, Trash2 } from 'lucide-react';
 
 interface RfqItem {
   description: string;
@@ -474,6 +474,125 @@ function createInitialForm() {
     paymentTerms: 'CASH',
     items: [{ description: '', quantity: '', finishingType: 'NORMAL_CYLINDRICAL', requiredWork: ['NORMAL'], workEnvironment: 'NORMAL', rollLocation: 'NOT_SPECIFIED' }],
   };
+}
+
+function parseLocalDate(value: string): Date | null {
+  if (!isValidYmd(value)) return null;
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? date : null;
+}
+
+function localDateValue(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function RfqDatePicker({ value, onChange, lang, label }: { value: string; onChange: (value: string) => void; lang: Lang; label: string }) {
+  const [open, setOpen] = useState(false);
+  const [draftValue, setDraftValue] = useState(value);
+  const [visibleMonth, setVisibleMonth] = useState(() => {
+    const initial = parseLocalDate(value) ?? new Date();
+    return new Date(initial.getFullYear(), initial.getMonth(), 1);
+  });
+  const locale = lang === 'ar' ? 'ar-EG' : 'en';
+  const selectedDate = parseLocalDate(draftValue);
+  const firstWeekday = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), 1).getDay();
+  const daysInMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 0).getDate();
+  const weekdays = Array.from({ length: 7 }, (_, index) =>
+    new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(new Date(2024, 0, index + 7)),
+  );
+
+  function showPicker() {
+    const initial = parseLocalDate(value) ?? new Date();
+    setDraftValue(value);
+    setVisibleMonth(new Date(initial.getFullYear(), initial.getMonth(), 1));
+    setOpen(true);
+  }
+
+  function changeMonth(offset: number) {
+    setVisibleMonth((month) => new Date(month.getFullYear(), month.getMonth() + offset, 1));
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={showPicker}
+        aria-label={label}
+        style={{ ...inputStyle, width: '100%', boxSizing: 'border-box', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'start', color: value ? '#e2e8f0' : '#94a3b8', background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(148, 163, 184, 0.2)', cursor: 'pointer' }}
+      >
+        <span dir="ltr">{value ? formatDate(value, lang) : label}</span>
+        <CalendarDays size={17} aria-hidden="true" />
+      </button>
+      {open && (
+        <div
+          role="presentation"
+          style={{ position: 'fixed', inset: 0, zIndex: 1600, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, background: 'rgba(2, 6, 23, 0.62)' }}
+          onClick={() => setOpen(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={label}
+            dir={lang === 'ar' ? 'rtl' : 'ltr'}
+            style={{ width: 320, maxWidth: '100%', padding: 16, border: '1px solid rgba(148, 163, 184, 0.2)', borderRadius: 12, background: '#172033', color: '#e2e8f0', boxShadow: '0 24px 70px rgba(0, 0, 0, 0.4)' }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <style>{`.rfq-calendar-day{width:36px;height:36px;padding:0;border:1px solid transparent;border-radius:10px;background:transparent;color:#cbd5e1;font:inherit;font-size:13px;cursor:pointer;transition:background-color .15s ease,color .15s ease,border-color .15s ease}.rfq-calendar-day:hover:not([aria-pressed="true"]){background:rgba(148,163,184,.14);color:#fff}.rfq-calendar-day:focus-visible{outline:2px solid #60a5fa;outline-offset:2px}.rfq-calendar-day[aria-pressed="true"]{background:#2563eb;color:#fff;border-color:#93c5fd;box-shadow:0 0 0 3px rgba(96,165,250,.2)}.rfq-calendar-nav{transition:background-color .15s ease,border-color .15s ease}.rfq-calendar-nav:hover{background:rgba(148,163,184,.14)!important;border-color:rgba(148,163,184,.35)!important}.rfq-calendar-nav:focus-visible{outline:2px solid #60a5fa;outline-offset:2px}`}</style>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 14 }}>
+              <button type="button" className="rfq-calendar-nav" title={lang === 'ar' ? 'الشهر السابق' : 'Previous month'} aria-label={lang === 'ar' ? 'الشهر السابق' : 'Previous month'} onClick={() => changeMonth(-1)} style={calendarNavStyle}>
+                <ChevronLeft size={18} aria-hidden="true" />
+              </button>
+              <strong style={{ flex: 1, textAlign: 'center', fontSize: 15, fontWeight: 650 }}>
+                {new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(visibleMonth)}
+              </strong>
+              <button type="button" className="rfq-calendar-nav" title={lang === 'ar' ? 'الشهر التالي' : 'Next month'} aria-label={lang === 'ar' ? 'الشهر التالي' : 'Next month'} onClick={() => changeMonth(1)} style={calendarNavStyle}>
+                <ChevronRight size={18} aria-hidden="true" />
+              </button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 36px)', justifyContent: 'center', gap: 4, marginBottom: 4 }}>
+              {weekdays.map((weekday, index) => (
+                <span key={`${weekday}-${index}`} style={{ width: 36, height: 28, display: 'grid', placeItems: 'center', color: '#94a3b8', fontSize: 11, fontWeight: 600 }}>
+                  {weekday}
+                </span>
+              ))}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 36px)', justifyContent: 'center', gap: 4 }}>
+              {Array.from({ length: 42 }, (_, index) => {
+                const day = index - firstWeekday + 1;
+                if (day < 1 || day > daysInMonth) return <span key={`empty-${index}`} style={{ width: 36, height: 36 }} />;
+                const date = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), day);
+                const dateValue = localDateValue(date);
+                return (
+                  <button
+                    key={dateValue}
+                    type="button"
+                    className="rfq-calendar-day"
+                    aria-pressed={selectedDate ? dateValue === localDateValue(selectedDate) : false}
+                    aria-label={new Intl.DateTimeFormat(locale, { dateStyle: 'full' }).format(date)}
+                    onClick={() => setDraftValue(dateValue)}
+                  >
+                    {new Intl.DateTimeFormat(locale, { day: 'numeric' }).format(date)}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(148, 163, 184, 0.14)' }}>
+              <button type="button" onClick={() => setOpen(false)} style={{ ...calendarActionStyle, background: 'rgba(148, 163, 184, 0.14)', color: '#cbd5e1' }}>
+                {lang === 'ar' ? 'إلغاء' : 'Cancel'}
+              </button>
+              <button type="button" onClick={() => { if (draftValue) onChange(draftValue); setOpen(false); }} disabled={!draftValue} style={{ ...calendarActionStyle, background: '#2563eb', color: '#fff', opacity: draftValue ? 1 : 0.5 }}>
+                {lang === 'ar' ? 'تم' : 'Done'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
 
 export function RFQs() {
@@ -1399,7 +1518,12 @@ export function RFQs() {
                 <option value="IN_FACTORY">{t('rfqLocation.IN_FACTORY')}</option>
                 <option value="AT_CUSTOMER">{t('rfqLocation.AT_CUSTOMER')}</option>
               </select>
-              <input type="date" value={createForm.workOrderDate} onChange={(e) => setCreateForm((f) => ({ ...f, workOrderDate: e.target.value }))} style={inputStyle} placeholder="YYYY-MM-DD" dir="ltr" />
+              <RfqDatePicker
+                value={createForm.workOrderDate}
+                onChange={(workOrderDate) => setCreateForm((form) => ({ ...form, workOrderDate }))}
+                lang={lang}
+                label={t('rfq.workOrderDate')}
+              />
               <select value={createForm.paymentTerms} onChange={(e) => setCreateForm((f) => ({ ...f, paymentTerms: e.target.value }))} style={inputStyle}>
                 <option value="CASH">{t('rfqPay.CASH')}</option>
                 <option value="CREDIT">{t('rfqPay.CREDIT')}</option>
@@ -1452,6 +1576,8 @@ export function RFQs() {
 const inputStyle: React.CSSProperties = { padding: 8, borderRadius: 8 };
 const dateInputStyle: React.CSSProperties = { ...inputStyle, boxSizing: 'border-box', direction: 'ltr', minWidth: 0, maxWidth: '100%' };
 const buttonStyle: React.CSSProperties = { padding: '8px 12px', borderRadius: 8, border: 'none', color: '#fff', cursor: 'pointer' };
+const calendarNavStyle: React.CSSProperties = { width: 34, height: 34, display: 'grid', placeItems: 'center', border: '1px solid rgba(148, 163, 184, 0.18)', borderRadius: 8, background: 'transparent', color: '#cbd5e1', cursor: 'pointer' };
+const calendarActionStyle: React.CSSProperties = { minWidth: 76, padding: '8px 14px', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' };
 const thStyle: React.CSSProperties = { padding: '10px 12px', fontSize: 13, fontWeight: 600, textAlign: 'start' };
 const tdStyle: React.CSSProperties = { padding: '10px 12px', borderBottom: '1px solid #f1f5f9', fontSize: 14 };
 const rowStyle: React.CSSProperties = { cursor: 'pointer' };
