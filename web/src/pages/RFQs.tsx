@@ -501,9 +501,11 @@ function RfqDatePicker({ value, onChange, lang, label, clearable = false }: { va
   const selectedDate = parseLocalDate(draftValue);
   const firstWeekday = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), 1).getDay();
   const daysInMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 0).getDate();
-  const weekdays = Array.from({ length: 7 }, (_, index) =>
-    new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(new Date(2024, 0, index + 7)),
-  );
+  const weekdays = lang === 'ar'
+    ? ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
+    : Array.from({ length: 7 }, (_, index) =>
+        new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(new Date(2024, 0, index + 7)),
+      );
 
   useEffect(() => {
     if (!isCalendarOpen) return;
