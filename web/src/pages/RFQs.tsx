@@ -3,7 +3,7 @@ import { api, authHeaders, apiErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useI18n, formatDate, formatDateTime, formatYmd, type Lang } from '../i18n';
 import { toast } from '../components/Toast';
-import { CalendarDays, ChevronLeft, ChevronRight, Download, Trash2 } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Download, Trash2, X } from 'lucide-react';
 
 interface RfqItem {
   description: string;
@@ -490,7 +490,7 @@ function localDateValue(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-function RfqDatePicker({ value, onChange, lang, label }: { value: string; onChange: (value: string) => void; lang: Lang; label: string }) {
+function RfqDatePicker({ value, onChange, lang, label, clearable = false }: { value: string; onChange: (value: string) => void; lang: Lang; label: string; clearable?: boolean }) {
   const [open, setOpen] = useState(false);
   const [draftValue, setDraftValue] = useState(value);
   const [visibleMonth, setVisibleMonth] = useState(() => {
@@ -518,19 +518,26 @@ function RfqDatePicker({ value, onChange, lang, label }: { value: string; onChan
 
   return (
     <>
-      <button
-        type="button"
-        onClick={showPicker}
-        aria-label={label}
-        style={{ ...inputStyle, width: '100%', boxSizing: 'border-box', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'start', color: value ? '#e2e8f0' : '#94a3b8', background: 'rgba(30, 41, 59, 0.6)', border: '1px solid rgba(148, 163, 184, 0.2)', cursor: 'pointer' }}
-      >
-        <span dir="ltr">{value ? formatDate(value, lang) : label}</span>
-        <CalendarDays size={17} aria-hidden="true" />
-      </button>
+      <div className="flex w-full min-w-[150px] gap-1">
+        <button
+          type="button"
+          onClick={showPicker}
+          aria-label={label}
+          className="flex min-w-0 flex-1 items-center justify-between gap-2 rounded-lg border border-slate-600/60 bg-slate-900/70 px-3 py-2 text-start text-sm text-slate-200 transition hover:border-slate-500 hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400"
+        >
+          <span dir="ltr" className={value ? 'truncate text-slate-200' : 'truncate text-slate-400'}>{value ? formatDate(value, lang) : label}</span>
+          <CalendarDays size={17} className="shrink-0 text-slate-400" aria-hidden="true" />
+        </button>
+        {clearable && value && (
+          <button type="button" title={lang === 'ar' ? 'مسح التاريخ' : 'Clear date'} aria-label={lang === 'ar' ? 'مسح التاريخ' : 'Clear date'} onClick={() => onChange('')} className="grid size-10 shrink-0 place-items-center rounded-lg border border-slate-600/60 bg-slate-900/70 text-slate-400 transition hover:border-red-400/50 hover:bg-red-500/10 hover:text-red-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400">
+            <X size={16} aria-hidden="true" />
+          </button>
+        )}
+      </div>
       {open && (
         <div
           role="presentation"
-          style={{ position: 'fixed', inset: 0, zIndex: 1600, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, background: 'rgba(2, 6, 23, 0.62)' }}
+          className="fixed inset-0 z-[1600] flex items-center justify-center bg-slate-950/65 p-4 backdrop-blur-sm"
           onClick={() => setOpen(false)}
         >
           <div
@@ -538,40 +545,40 @@ function RfqDatePicker({ value, onChange, lang, label }: { value: string; onChan
             aria-modal="true"
             aria-label={label}
             dir={lang === 'ar' ? 'rtl' : 'ltr'}
-            style={{ width: 320, maxWidth: '100%', padding: 16, border: '1px solid rgba(148, 163, 184, 0.2)', borderRadius: 12, background: '#172033', color: '#e2e8f0', boxShadow: '0 24px 70px rgba(0, 0, 0, 0.4)' }}
+            className="w-80 max-w-full rounded-xl border border-slate-700 bg-slate-900 p-4 text-slate-100 shadow-2xl shadow-black/40"
             onClick={(event) => event.stopPropagation()}
           >
-            <style>{`.rfq-calendar-day{width:36px;height:36px;padding:0;border:1px solid transparent;border-radius:10px;background:transparent;color:#cbd5e1;font:inherit;font-size:13px;cursor:pointer;transition:background-color .15s ease,color .15s ease,border-color .15s ease}.rfq-calendar-day:hover:not([aria-pressed="true"]){background:rgba(148,163,184,.14);color:#fff}.rfq-calendar-day:focus-visible{outline:2px solid #60a5fa;outline-offset:2px}.rfq-calendar-day[aria-pressed="true"]{background:#2563eb;color:#fff;border-color:#93c5fd;box-shadow:0 0 0 3px rgba(96,165,250,.2)}.rfq-calendar-nav{transition:background-color .15s ease,border-color .15s ease}.rfq-calendar-nav:hover{background:rgba(148,163,184,.14)!important;border-color:rgba(148,163,184,.35)!important}.rfq-calendar-nav:focus-visible{outline:2px solid #60a5fa;outline-offset:2px}`}</style>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 14 }}>
-              <button type="button" className="rfq-calendar-nav" title={lang === 'ar' ? 'الشهر السابق' : 'Previous month'} aria-label={lang === 'ar' ? 'الشهر السابق' : 'Previous month'} onClick={() => changeMonth(-1)} style={calendarNavStyle}>
+            <div className="mb-3.5 flex items-center justify-between gap-2">
+              <button type="button" title={lang === 'ar' ? 'الشهر السابق' : 'Previous month'} aria-label={lang === 'ar' ? 'الشهر السابق' : 'Previous month'} onClick={() => changeMonth(-1)} className="grid size-9 place-items-center rounded-lg border border-slate-700 bg-transparent text-slate-300 transition hover:border-slate-500 hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400">
                 <ChevronLeft size={18} aria-hidden="true" />
               </button>
-              <strong style={{ flex: 1, textAlign: 'center', fontSize: 15, fontWeight: 650 }}>
+              <strong className="flex-1 text-center text-sm font-semibold">
                 {new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(visibleMonth)}
               </strong>
-              <button type="button" className="rfq-calendar-nav" title={lang === 'ar' ? 'الشهر التالي' : 'Next month'} aria-label={lang === 'ar' ? 'الشهر التالي' : 'Next month'} onClick={() => changeMonth(1)} style={calendarNavStyle}>
+              <button type="button" title={lang === 'ar' ? 'الشهر التالي' : 'Next month'} aria-label={lang === 'ar' ? 'الشهر التالي' : 'Next month'} onClick={() => changeMonth(1)} className="grid size-9 place-items-center rounded-lg border border-slate-700 bg-transparent text-slate-300 transition hover:border-slate-500 hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400">
                 <ChevronRight size={18} aria-hidden="true" />
               </button>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 36px)', justifyContent: 'center', gap: 4, marginBottom: 4 }}>
+            <div className="mb-1 grid grid-cols-7 justify-center gap-1">
               {weekdays.map((weekday, index) => (
-                <span key={`${weekday}-${index}`} style={{ width: 36, height: 28, display: 'grid', placeItems: 'center', color: '#94a3b8', fontSize: 11, fontWeight: 600 }}>
+                <span key={`${weekday}-${index}`} className="grid h-7 w-9 place-items-center text-[11px] font-semibold text-slate-400">
                   {weekday}
                 </span>
               ))}
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 36px)', justifyContent: 'center', gap: 4 }}>
+            <div className="grid grid-cols-7 justify-center gap-1">
               {Array.from({ length: 42 }, (_, index) => {
                 const day = index - firstWeekday + 1;
-                if (day < 1 || day > daysInMonth) return <span key={`empty-${index}`} style={{ width: 36, height: 36 }} />;
+                if (day < 1 || day > daysInMonth) return <span key={`empty-${index}`} className="size-9" />;
                 const date = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth(), day);
                 const dateValue = localDateValue(date);
+                const isSelected = selectedDate ? dateValue === localDateValue(selectedDate) : false;
                 return (
                   <button
                     key={dateValue}
                     type="button"
-                    className="rfq-calendar-day"
-                    aria-pressed={selectedDate ? dateValue === localDateValue(selectedDate) : false}
+                    className={`grid size-9 place-items-center rounded-lg border text-[13px] transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400 ${isSelected ? 'border-blue-300 bg-blue-600 text-white shadow-[0_0_0_3px_rgba(96,165,250,0.2)]' : 'border-transparent bg-transparent text-slate-300 hover:bg-slate-700 hover:text-white'}`}
+                    aria-pressed={isSelected}
                     aria-label={new Intl.DateTimeFormat(locale, { dateStyle: 'full' }).format(date)}
                     onClick={() => setDraftValue(dateValue)}
                   >
@@ -580,11 +587,11 @@ function RfqDatePicker({ value, onChange, lang, label }: { value: string; onChan
                 );
               })}
             </div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16, paddingTop: 12, borderTop: '1px solid rgba(148, 163, 184, 0.14)' }}>
-              <button type="button" onClick={() => setOpen(false)} style={{ ...calendarActionStyle, background: 'rgba(148, 163, 184, 0.14)', color: '#cbd5e1' }}>
+            <div className="mt-4 flex justify-end gap-2 border-t border-slate-700/70 pt-3">
+              <button type="button" onClick={() => setOpen(false)} className="min-w-[76px] rounded-lg bg-slate-700 px-3.5 py-2 text-[13px] font-semibold text-slate-200 transition hover:bg-slate-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-400">
                 {lang === 'ar' ? 'إلغاء' : 'Cancel'}
               </button>
-              <button type="button" onClick={() => { if (draftValue) onChange(draftValue); setOpen(false); }} disabled={!draftValue} style={{ ...calendarActionStyle, background: '#2563eb', color: '#fff', opacity: draftValue ? 1 : 0.5 }}>
+              <button type="button" onClick={() => { if (draftValue) onChange(draftValue); setOpen(false); }} disabled={!draftValue} className="min-w-[76px] rounded-lg bg-blue-600 px-3.5 py-2 text-[13px] font-semibold text-white transition hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-300 disabled:cursor-not-allowed disabled:opacity-50">
                 {lang === 'ar' ? 'تم' : 'Done'}
               </button>
             </div>
@@ -988,7 +995,7 @@ export function RFQs() {
             <option value="rep">{t('rfq.sortRep')}</option>
             <option value="client">{t('rfq.sortClient')}</option>
           </select>
-          <input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} style={dateInputStyle} title={t('rfq.filterDate') || 'Filter by date'} placeholder="YYYY-MM-DD" dir="ltr" />
+          <RfqDatePicker value={dateFilter} onChange={setDateFilter} lang={lang} label={t('rfq.filterDate') || 'Filter by date'} clearable />
           <button style={{ ...buttonStyle, background: '#7c3aed' }} onClick={() => downloadRfqs(sorted, t, lang)} disabled={!sorted.length}>
             {t('rfq.download')}
           </button>
@@ -1574,10 +1581,7 @@ export function RFQs() {
 }
 
 const inputStyle: React.CSSProperties = { padding: 8, borderRadius: 8 };
-const dateInputStyle: React.CSSProperties = { ...inputStyle, boxSizing: 'border-box', direction: 'ltr', minWidth: 0, maxWidth: '100%' };
 const buttonStyle: React.CSSProperties = { padding: '8px 12px', borderRadius: 8, border: 'none', color: '#fff', cursor: 'pointer' };
-const calendarNavStyle: React.CSSProperties = { width: 34, height: 34, display: 'grid', placeItems: 'center', border: '1px solid rgba(148, 163, 184, 0.18)', borderRadius: 8, background: 'transparent', color: '#cbd5e1', cursor: 'pointer' };
-const calendarActionStyle: React.CSSProperties = { minWidth: 76, padding: '8px 14px', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' };
 const thStyle: React.CSSProperties = { padding: '10px 12px', fontSize: 13, fontWeight: 600, textAlign: 'start' };
 const tdStyle: React.CSSProperties = { padding: '10px 12px', borderBottom: '1px solid #f1f5f9', fontSize: 14 };
 const rowStyle: React.CSSProperties = { cursor: 'pointer' };
