@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "npx prisma db push --skip-generate && node dist/index.js",
+    "start": "npx prisma db push && node dist/index.js",
     "backup": "node scripts/backup.js",
     "backup:daily": "node scripts/backup-scheduler.js",
     "postinstall": "prisma generate",
