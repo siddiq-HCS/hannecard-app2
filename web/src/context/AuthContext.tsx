@@ -16,7 +16,7 @@ interface AuthState {
   token: string | null;
   user: User | null;
   ready: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   logout: () => void;
   refresh: () => Promise<void>;
 }
@@ -167,6 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setReady(false);
     setToken(data.token);
     setUser(normalizedUser);
+    return normalizedUser;
   }, []);
 
   const logout = useCallback(() => {

@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { useAuth } from './context/AuthContext';
 import { LanguageSwitcher, useI18n } from './i18n';
 import { Login } from './pages/Login';
+import { CustomerRFQ } from './pages/CustomerRFQ';
 import { Dashboard } from './pages/Dashboard';
 import { Reps } from './pages/Reps';
 import { WeeklyPlans } from './pages/WeeklyPlans';
@@ -261,6 +262,7 @@ export function App() {
   const staffRoles = ['SALES_MANAGER', 'DEPUTY_SALES_MANAGER', 'DEVELOPER', 'ADMIN', 'SUPER_ADMIN', 'MANAGER', 'OWNER', 'GENERAL_MANAGER'];
   // مقارنة الأدوار غير حساسة لحالة الأحرف (Case-Insensitive) لمنع رفض الدخول
   const isStaff = !!token && !!user && staffRoles.includes(role);
+  const isCustomer = !!token && !!user && role === 'CUSTOMER';
   const isDev = role === 'DEVELOPER';
 
   return (
@@ -268,7 +270,8 @@ export function App() {
       <Toaster />
       <Routes>
         {/* صفحة الدخول: تظهر عند غياب جلسة صالحة (token غائب/تالف/منتهي) — بدون أي انهيار */}
-        <Route path="/login" element={<Login />} />
+        <Route path="/login" element={isCustomer ? <Navigate to="/customer/rfq" replace /> : <Login />} />
+        <Route path="/customer/rfq" element={isCustomer ? <CustomerRFQ /> : <Navigate to="/login" replace />} />
 
       {/* اللوحة الإدارية محمية: أي مسار بدون جلسة سارية يُوجَّه مباشرة لـ /login */}
       <Route path="/dashboard" element={isStaff && hasPermission(user, 'PAGE_DASHBOARD_ACCESS') ? <Shell><ErrorBoundary><Dashboard /></ErrorBoundary></Shell> : <Navigate to={isStaff ? firstAllowedHref(user) : '/login'} replace />} />
@@ -286,7 +289,7 @@ export function App() {
       <Route path="/admin/permissions" element={token && user && isSiddiq(user) ? <Shell><Permissions /></Shell> : <Navigate to="/login" replace />} />
       <Route path="/reports" element={<Navigate to="/weekly-plans" />} />
       {/* أي مسار مجهول → أول صفحة مسموحة للحساب إن كانت جلسة سارية، وإلا صفحة الدخول */}
-      <Route path="*" element={<Navigate to={isStaff ? firstAllowedHref(user) : '/login'} replace />} />
+      <Route path="*" element={<Navigate to={isCustomer ? '/customer/rfq' : isStaff ? firstAllowedHref(user) : '/login'} replace />} />
       </Routes>
     </>
   );

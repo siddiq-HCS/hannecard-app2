@@ -41,6 +41,10 @@ const itemSchema = z.object({
   outerDiameter: z.any().optional().nullable(),
   innerDiameter: z.any().optional().nullable(),
   rollLength: z.any().optional().nullable(),
+  faceLength: z.any().optional().nullable(),
+  totalLength: z.any().optional().nullable(),
+  hardnessShore: z.union([z.string().max(100), z.number()]).optional().nullable(),
+  notes: z.string().max(5000).optional().nullable(),
   calculatedPrice: z.number().optional().nullable(),
   // تسعير الرول (لكل بند على حدة)
   unitPrice: z.number().nonnegative().optional().nullable(),
@@ -115,7 +119,7 @@ async function nextRfqSerial() {
 // نافذة منع التكرار: تجاهل طلباً مطابقاً تماماً لنفس المستخدم خلال آخر 30 ثانية
 const DUPLICATE_WINDOW_MS = 30 * 1000;
 
-function normalizeItemList(its: { description: string; quantity?: string | number | null; finishingType: string; finishingTypeOther?: string | null; requiredWork: string | string[]; requiredWorkOther?: string | null; workEnvironment: string; workEnvironmentOther?: string | null; rollLocation?: string }[]) {
+function normalizeItemList(its: { description: string; quantity?: string | number | null; finishingType: string; finishingTypeOther?: string | null; requiredWork: string | string[]; requiredWorkOther?: string | null; workEnvironment: string; workEnvironmentOther?: string | null; rollLocation?: string; innerDiameter?: unknown; outerDiameter?: unknown; rollLength?: unknown; faceLength?: unknown; hardnessShore?: unknown; totalLength?: unknown; notes?: string | null }[]) {
   return JSON.stringify(
     (its ?? []).map((i) => [
       i.description.trim(),
@@ -127,6 +131,13 @@ function normalizeItemList(its: { description: string; quantity?: string | numbe
       i.workEnvironment,
       (i.workEnvironmentOther ?? '').trim(),
       (i.rollLocation ?? '').trim(),
+      i.innerDiameter ?? null,
+      i.outerDiameter ?? null,
+      i.rollLength ?? null,
+      i.faceLength ?? null,
+      i.hardnessShore ?? null,
+      i.totalLength ?? null,
+      (i.notes ?? '').trim(),
     ]),
   );
 }
@@ -136,7 +147,7 @@ function rfqFingerprint(r: { clientName: string; contactName: string; contactPho
     r.clientName.trim(),
     r.contactName.trim(),
     r.contactPhone.trim(),
-    normalizeItemList(r.items as { description: string; quantity?: string | number | null; finishingType: string; finishingTypeOther?: string | null; requiredWork: string | string[]; requiredWorkOther?: string | null; workEnvironment: string; workEnvironmentOther?: string | null; rollLocation?: string }[]),
+    normalizeItemList(r.items as { description: string; quantity?: string | number | null; finishingType: string; finishingTypeOther?: string | null; requiredWork: string | string[]; requiredWorkOther?: string | null; workEnvironment: string; workEnvironmentOther?: string | null; rollLocation?: string; innerDiameter?: unknown; outerDiameter?: unknown; rollLength?: unknown; faceLength?: unknown; hardnessShore?: unknown; totalLength?: unknown; notes?: string | null }[]),
     r.requiredTime,
     (r.requiredTimeOther ?? '').trim(),
     r.rollLocation ?? 'NOT_SPECIFIED',
@@ -219,7 +230,7 @@ router.get(
 router.post(
   '/',
   authenticate,
-  requireRole('SALES_MANAGER', 'DEPUTY_SALES_MANAGER', 'REPRESENTATIVE'),
+  requireRole('SALES_MANAGER', 'DEPUTY_SALES_MANAGER', 'REPRESENTATIVE', 'CUSTOMER'),
   captureLocation('GENERIC_ACTION'),
   async (req, res) => {
     const parsed = rfqSchema.safeParse(req.body);
@@ -272,8 +283,24 @@ router.post(
 
     const serialNumber = await nextRfqSerial();
 
-    const isManager = req.user.role !== 'REPRESENTATIVE';
-    const resolved = await resolveOwnerId(parsed.data.userId, isManager, req.user.id);
+    const isCustomer = req.user.role === 'CUSTOMER';
+    let resolved: Awaited<ReturnType<typeof resolveOwnerId>>;
+    if (isCustomer) {
+      const customer = await prisma.user.findUnique({
+        where: { id: req.user.id },
+        select: { assignedSalespersonId: true },
+      });
+      const assigned = customer?.assignedSalespersonId
+        ? await prisma.user.findUnique({ where: { id: customer.assignedSalespersonId }, select: { id: true, role: true } })
+        : null;
+      if (!assigned || assigned.role !== 'REPRESENTATIVE') {
+        return res.status(400).json({ error: 'salesperson_not_assigned', message: 'لا يوجد مندوب مبيعات مختص مرتبط بهذا الحساب' });
+      }
+      resolved = { ownerId: assigned.id };
+    } else {
+      const isManager = req.user.role !== 'REPRESENTATIVE';
+      resolved = await resolveOwnerId(parsed.data.userId, isManager, req.user.id);
+    }
     if (resolved.error) {
       return res.status(resolved.error.status).json(resolved.error.json);
     }
@@ -282,9 +309,9 @@ router.post(
       data: {
         serialNumber,
         userId: resolved.ownerId,
-        clientName: parsed.data.clientName,
-        contactName: parsed.data.contactName,
-        contactPhone: parsed.data.contactPhone,
+        clientName: isCustomer ? req.user.name : parsed.data.clientName,
+        contactName: isCustomer ? req.user.name : parsed.data.contactName,
+        contactPhone: isCustomer ? (await prisma.user.findUnique({ where: { id: req.user.id }, select: { phone: true } }))?.phone ?? '' : parsed.data.contactPhone,
         items: parsed.data.items.map((i) => ({
           description: i.description,
           quantity: i.quantity == null ? '' : String(i.quantity),
@@ -295,7 +322,14 @@ router.post(
           workEnvironment: i.workEnvironment,
           workEnvironmentOther: i.workEnvironmentOther ?? '',
           rollLocation: i.rollLocation ?? 'NOT_SPECIFIED',
-          ...(i.rollMaterialId ? { rollMaterialId: i.rollMaterialId, outerDiameter: i.outerDiameter, innerDiameter: i.innerDiameter, rollLength: i.rollLength, calculatedPrice: i.calculatedPrice } : {}),
+          ...(i.rollMaterialId ? { rollMaterialId: i.rollMaterialId, calculatedPrice: i.calculatedPrice } : {}),
+          ...(i.outerDiameter != null ? { outerDiameter: i.outerDiameter } : {}),
+          ...(i.innerDiameter != null ? { innerDiameter: i.innerDiameter } : {}),
+          ...(i.rollLength != null ? { rollLength: i.rollLength } : {}),
+          ...(i.faceLength != null ? { faceLength: i.faceLength } : {}),
+          ...(i.totalLength != null ? { totalLength: i.totalLength } : {}),
+          ...(i.hardnessShore != null ? { hardnessShore: i.hardnessShore } : {}),
+          ...(i.notes != null ? { notes: i.notes } : {}),
           ...(i.unitPrice != null || i.totalPrice != null ? { unitPrice: i.unitPrice, totalPrice: i.totalPrice } : {}),
         })),
         requiredTime: parsed.data.requiredTime,

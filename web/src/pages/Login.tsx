@@ -23,7 +23,11 @@ export function Login() {
     setError('');
     setRepBlocked(false);
     try {
-      await login(e, pw);
+      const loggedInUser = await login(e, pw);
+      if (loggedInUser.role.toUpperCase() === 'CUSTOMER') {
+        window.location.replace('/customer/rfq');
+        return;
+      }
       const params = new URLSearchParams(window.location.search);
       const redirect = params.get('redirect') || '/dashboard';
       window.location.replace(redirect);

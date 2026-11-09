@@ -17,6 +17,7 @@ enum Role {
   DEPUTY_SALES_MANAGER
   REPRESENTATIVE
   DEVELOPER
+  CUSTOMER
 }
 
 enum Permission {
@@ -52,6 +53,7 @@ model User {
   passwordHash String
   plainPassword String? // كلمة المرور النصية (ظاهرة للمدراء فقط في لوحة التحكم)
   role         Role     @default(REPRESENTATIVE)
+  assignedSalespersonId String?
   isActive     Boolean  @default(true)
   fcmToken     String? // Expo push token
   lastLoginAt  DateTime?
@@ -75,6 +77,8 @@ model User {
   messagesSent            Message[]
   attendances             LegacyAttendance[]
   rfqComments             RfqComment[]
+  assignedSalesperson    User?    @relation("CustomerSalesperson", fields: [assignedSalespersonId], references: [id], onDelete: SetNull)
+  assignedCustomers      User[]   @relation("CustomerSalesperson")
 
   @@map("users")
 }

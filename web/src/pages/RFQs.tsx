@@ -22,6 +22,10 @@ interface RfqItem {
   outerDiameter?: number;
   innerDiameter?: number;
   rollLength?: number;
+  faceLength?: number;
+  totalLength?: number;
+  hardnessShore?: number | string;
+  notes?: string;
   calculatedPrice?: number;
   unitPrice?: number | string | null;
   totalPrice?: number | string | null;
@@ -1396,11 +1400,11 @@ export function RFQs() {
                   <th style={tdStyle}>{t('rfq.requiredWork')}</th>
                   <th style={tdStyle}>{t('rfq.workEnv')}</th>
                   <th style={tdStyle}>{t('rfq.rollLocation')}</th>
+                  {detail.items?.some((it) => it.rollMaterialId || it.outerDiameter != null || it.innerDiameter != null || it.rollLength != null || it.faceLength != null) && (
+                    <th style={tdStyle}>{t('rfq.rollDimensions') || 'أبعاد الرول'}</th>
+                  )}
                   {detail.items?.some((it) => it.rollMaterialId) && (
-                    <>
-                      <th style={tdStyle}>{t('rfq.rollDimensions') || 'أبعاد الرول'}</th>
-                      <th style={tdStyle}>{t('rfq.calculatedPriceLabel') || 'السعر المحسوب'}</th>
-                    </>
+                    <th style={tdStyle}>{t('rfq.calculatedPriceLabel') || 'السعر المحسوب'}</th>
                   )}
                   {anyItemPriced(detail.items) && (
                     <>
@@ -1414,7 +1418,11 @@ export function RFQs() {
                 {(detail.items ?? []).map((it, i) => (
                   <tr key={i}>
                     <td style={{ ...tdStyle, textAlign: 'center' }}>{i + 1}</td>
-                    <td style={tdStyle}>{it.description || '—'}</td>
+                    <td style={tdStyle}>
+                      <div>{it.description || '—'}</div>
+                      {it.hardnessShore != null && <small style={{ display: 'block', marginTop: 4, color: '#64748b' }}>{t('customerRfq.hardness')}: {it.hardnessShore} Shore A</small>}
+                      {it.notes && <small style={{ display: 'block', marginTop: 3, color: '#64748b' }}>{t('customerRfq.notes')}: {it.notes}</small>}
+                    </td>
                     <td style={tdStyle}>{it.quantity || '—'}</td>
                     <td style={tdStyle}>
                       <div>{optLabel(t, 'rfqFinish', it.finishingType)}</div>
@@ -1430,19 +1438,19 @@ export function RFQs() {
                       )}
                     </td>
                     <td style={tdStyle}>{locationChip(it.rollLocation || it.location || detail.rollLocation || detail.location || 'NOT_SPECIFIED', t)}</td>
+                    {detail.items?.some((item) => item.rollMaterialId || item.outerDiameter != null || item.innerDiameter != null || item.rollLength != null || item.faceLength != null) && (
+                      <td style={tdStyle}>
+                        {it.outerDiameter != null || it.innerDiameter != null || it.rollLength != null || it.faceLength != null
+                          ? `OD:${it.outerDiameter ?? '—'} × ID:${it.innerDiameter ?? '—'} × Face:${it.faceLength ?? it.rollLength ?? '—'} mm`
+                          : '—'}
+                      </td>
+                    )}
                     {detail.items?.some((item) => item.rollMaterialId) && (
-                      <>
-                        <td style={tdStyle}>
-                          {it.outerDiameter && it.innerDiameter && it.rollLength
-                            ? `D:${it.outerDiameter} × d:${it.innerDiameter} × L:${it.rollLength} mm`
-                            : '—'}
-                        </td>
-                        <td style={tdStyle}>
-                          {it.calculatedPrice != null
-                            ? <strong style={{ color: '#16a34a' }}>{Number(it.calculatedPrice).toLocaleString()} SAR</strong>
-                            : '—'}
-                        </td>
-                      </>
+                      <td style={tdStyle}>
+                        {it.calculatedPrice != null
+                          ? <strong style={{ color: '#16a34a' }}>{Number(it.calculatedPrice).toLocaleString()} SAR</strong>
+                          : '—'}
+                      </td>
                     )}
                     {anyItemPriced(detail.items) && (
                       <>
