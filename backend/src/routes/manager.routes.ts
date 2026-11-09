@@ -44,6 +44,90 @@ router.get('/reps', requirePageAccess('PAGE_REPS_ACCESS'), async (_req, res) => 
   res.json(reps);
 });
 
+const createCustomerSchema = z.object({
+  companyName: z.string().trim().min(1).max(200),
+  contactPerson: z.string().trim().min(1).max(120),
+  email: z.string().email().trim().transform((value) => value.toLowerCase()),
+  phone: z.string().trim().min(6).max(30),
+  password: z.string().min(6),
+  assignedSalespersonId: z.string().min(1),
+});
+
+router.get('/customers', requirePageAccess('PAGE_MANAGERS_ACCESS'), async (_req, res) => {
+  const customers = await prisma.user.findMany({
+    where: { role: 'CUSTOMER' },
+    select: {
+      id: true,
+      name: true,
+      companyName: true,
+      contactPerson: true,
+      email: true,
+      phone: true,
+      isActive: true,
+      createdAt: true,
+      assignedSalesperson: { select: { id: true, name: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+  res.json(customers);
+});
+
+router.get('/customers/salespeople', requirePageAccess('PAGE_MANAGERS_ACCESS'), async (_req, res) => {
+  const salespeople = await prisma.user.findMany({
+    where: { role: 'REPRESENTATIVE', isActive: true },
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' },
+  });
+  res.json(salespeople);
+});
+
+router.post('/customers', requirePageAccess('PAGE_MANAGERS_ACCESS'), async (req, res) => {
+  const parsed = createCustomerSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input', details: parsed.error.flatten() });
+
+  const salesperson = await prisma.user.findUnique({
+    where: { id: parsed.data.assignedSalespersonId },
+    select: { id: true, role: true, isActive: true },
+  });
+  if (!salesperson || salesperson.role !== 'REPRESENTATIVE' || !salesperson.isActive) {
+    return res.status(400).json({ error: 'invalid_assignee', message: 'اختر مندوب مبيعات نشطاً' });
+  }
+
+  try {
+    const customer = await prisma.user.create({
+      data: {
+        name: parsed.data.contactPerson,
+        companyName: parsed.data.companyName,
+        contactPerson: parsed.data.contactPerson,
+        email: parsed.data.email,
+        phone: parsed.data.phone,
+        passwordHash: await hashPassword(parsed.data.password),
+        plainPassword: parsed.data.password,
+        role: 'CUSTOMER',
+        assignedSalespersonId: salesperson.id,
+      },
+      select: {
+        id: true,
+        name: true,
+        companyName: true,
+        contactPerson: true,
+        email: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        assignedSalesperson: { select: { id: true, name: true } },
+      },
+    });
+    await logActivity(req.user.id, 'customer.create', { customerId: customer.id, companyName: customer.companyName }, req.user.name);
+    res.status(201).json(customer);
+  } catch (error) {
+    if ((error as { code?: string })?.code === 'P2002') return res.status(409).json({ error: 'phone_or_email_exists' });
+    console.error('[manager] customer creation failed', error);
+    return res.status(500).json({ error: 'internal_error' });
+  }
+});
+
 router.post('/reps', async (req, res) => {
   const parsed = createRepSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input', details: parsed.error.flatten() });

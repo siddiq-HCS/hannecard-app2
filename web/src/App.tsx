@@ -10,6 +10,7 @@ import { WeeklyPlans } from './pages/WeeklyPlans';
 import { MapView } from './pages/MapView';
 import { Chat } from './pages/Chat';
 import { Managers } from './pages/Managers';
+import { Customers } from './pages/Customers';
 import { RFQs } from './pages/RFQs';
 import { Analytics } from './pages/Analytics';
 import { Attendance } from './pages/Attendance';
@@ -86,6 +87,7 @@ const pageOrder = [
   { href: '/reps', permission: 'PAGE_REPS_ACCESS' },
   { href: '/analytics', permission: 'PAGE_ANALYTICS_ACCESS' },
   { href: '/managers', permission: 'PAGE_MANAGERS_ACCESS' },
+    { href: '/customers', permission: 'PAGE_MANAGERS_ACCESS' },
   { href: '/chat', permission: 'PAGE_CHAT_ACCESS' },
   { href: '/roll-materials', permission: 'PAGE_ROLL_MATERIALS_ACCESS' },
   { href: '/quotations', permission: 'PAGE_QUOTATIONS_ACCESS' },
@@ -111,6 +113,7 @@ const navItems = [
 
 const adminItems = [
   { href: '/managers', label: 'nav.managers', icon: Settings, permission: 'PAGE_MANAGERS_ACCESS' },
+  { href: '/customers', label: 'nav.customers', icon: Users, permission: 'PAGE_MANAGERS_ACCESS' },
   { href: '/roll-materials', label: 'rollMat.title', icon: Layers, permission: 'PAGE_ROLL_MATERIALS_ACCESS' },
   { href: '/quotations', label: 'nav.quotations', icon: FileText, permission: 'PAGE_QUOTATIONS_ACCESS' },
 ];
@@ -280,6 +283,7 @@ export function App() {
       <Route path="/rfqs" element={isStaff && hasPermission(user, 'PAGE_RFQS_ACCESS') ? <Shell><RFQs /></Shell> : <Navigate to="/login" replace />} />
       <Route path="/analytics" element={isStaff && hasPermission(user, 'PAGE_ANALYTICS_ACCESS') ? <Shell><Analytics /></Shell> : <Navigate to="/login" replace />} />
       <Route path="/managers" element={isStaff && hasPermission(user, 'PAGE_MANAGERS_ACCESS') ? <Shell><Managers /></Shell> : <Navigate to="/login" replace />} />
+      <Route path="/customers" element={isStaff && hasPermission(user, 'PAGE_MANAGERS_ACCESS') ? <Shell><Customers /></Shell> : <Navigate to="/login" replace />} />
       <Route path="/chat" element={isStaff && hasPermission(user, 'PAGE_CHAT_ACCESS') ? <Shell><Chat /></Shell> : <Navigate to="/login" replace />} />
       <Route path="/weekly-plans" element={isStaff && hasPermission(user, 'PAGE_WEEKLY_PLANS_ACCESS') ? <Shell><WeeklyPlans /></Shell> : <Navigate to="/login" replace />} />
       <Route path="/attendance" element={isStaff && hasPermission(user, 'PAGE_ATTENDANCE_ACCESS') ? <Shell><Attendance /></Shell> : <Navigate to="/login" replace />} />

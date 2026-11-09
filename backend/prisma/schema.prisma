@@ -48,6 +48,8 @@ enum Permission {
 model User {
   id           String   @id @default(cuid())
   name         String
+  companyName  String?
+  contactPerson String?
   phone        String   @unique
   email        String?  @unique
   passwordHash String
