@@ -273,8 +273,10 @@ export function App() {
       <Toaster />
       <Routes>
         {/* صفحة الدخول: تظهر عند غياب جلسة صالحة (token غائب/تالف/منتهي) — بدون أي انهيار */}
-        <Route path="/login" element={isCustomer ? <Navigate to="/customer/rfq" replace /> : <Login />} />
-        <Route path="/customer/rfq" element={isCustomer ? <CustomerRFQ /> : <Navigate to="/login" replace />} />
+        <Route path="/login" element={isCustomer ? <Navigate to="/rfq" replace /> : <Login />} />
+        <Route path="/rfq" element={isCustomer ? <CustomerRFQ /> : <Navigate to="/login" replace />} />
+        <Route path="/rfq/new" element={<Navigate to="/rfq" replace />} />
+        <Route path="/customer/rfq" element={<Navigate to="/rfq" replace />} />
 
       {/* اللوحة الإدارية محمية: أي مسار بدون جلسة سارية يُوجَّه مباشرة لـ /login */}
       <Route path="/dashboard" element={isStaff && hasPermission(user, 'PAGE_DASHBOARD_ACCESS') ? <Shell><ErrorBoundary><Dashboard /></ErrorBoundary></Shell> : <Navigate to={isStaff ? firstAllowedHref(user) : '/login'} replace />} />
@@ -293,7 +295,7 @@ export function App() {
       <Route path="/admin/permissions" element={token && user && isSiddiq(user) ? <Shell><Permissions /></Shell> : <Navigate to="/login" replace />} />
       <Route path="/reports" element={<Navigate to="/weekly-plans" />} />
       {/* أي مسار مجهول → أول صفحة مسموحة للحساب إن كانت جلسة سارية، وإلا صفحة الدخول */}
-      <Route path="*" element={<Navigate to={isCustomer ? '/customer/rfq' : isStaff ? firstAllowedHref(user) : '/login'} replace />} />
+      <Route path="*" element={<Navigate to={isCustomer ? '/rfq' : isStaff ? firstAllowedHref(user) : '/login'} replace />} />
       </Routes>
     </>
   );

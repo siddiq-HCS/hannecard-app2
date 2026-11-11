@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LanguageSwitcher, useI18n } from '../i18n';
 import { Logo } from '../components/Logo';
@@ -11,6 +12,7 @@ interface LoginErrorData {
 
 export function Login() {
   const { login } = useAuth();
+  const navigate = useNavigate();
   const { t } = useI18n();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -25,12 +27,12 @@ export function Login() {
     try {
       const loggedInUser = await login(e, pw);
       if (loggedInUser.role.toUpperCase() === 'CUSTOMER') {
-        window.location.replace('/customer/rfq');
+        navigate('/rfq', { replace: true });
         return;
       }
       const params = new URLSearchParams(window.location.search);
       const redirect = params.get('redirect') || '/dashboard';
-      window.location.replace(redirect);
+      navigate(redirect, { replace: true });
     } catch (err) {
       const axiosErr = err as AxiosError<LoginErrorData>;
       // سجل تشخيصي مؤقت لعرض رمز الحالة وسبب الرفض من الخادم على لوحة التحكم (Console)
