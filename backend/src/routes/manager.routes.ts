@@ -128,6 +128,29 @@ router.post('/customers', requirePageAccess('PAGE_MANAGERS_ACCESS'), async (req,
   }
 });
 
+const updateCustomerPasswordSchema = z.object({ password: z.string().min(6).max(200) });
+
+router.patch('/customers/:id/password', requirePageAccess('PAGE_MANAGERS_ACCESS'), async (req, res) => {
+  const parsed = updateCustomerPasswordSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: 'invalid_input', details: parsed.error.flatten() });
+
+  const target = await prisma.user.findUnique({
+    where: { id: String(req.params.id) },
+    select: { id: true, name: true, role: true },
+  });
+  if (!target || target.role !== 'CUSTOMER') return res.status(404).json({ error: 'customer_not_found' });
+
+  await prisma.user.update({
+    where: { id: target.id },
+    data: {
+      passwordHash: await hashPassword(parsed.data.password),
+      plainPassword: parsed.data.password,
+    },
+  });
+  await logActivity(req.user.id, 'customer.password_update', { customerId: target.id }, req.user.name);
+  res.json({ ok: true });
+});
+
 router.post('/reps', async (req, res) => {
   const parsed = createRepSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: 'invalid_input', details: parsed.error.flatten() });

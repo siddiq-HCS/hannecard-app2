@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Building2, Plus, Search, Users, X } from 'lucide-react';
+import { Building2, KeyRound, Plus, Search, Users, X } from 'lucide-react';
 import { api, authHeaders, apiErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n';
@@ -30,6 +30,9 @@ export function Customers() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [passwordCustomer, setPasswordCustomer] = useState<Customer | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [companyName, setCompanyName] = useState('');
   const [contactPerson, setContactPerson] = useState('');
   const [email, setEmail] = useState('');
@@ -98,6 +101,32 @@ export function Customers() {
     }
   }
 
+  async function updateCustomerPassword(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!token || !passwordCustomer || saving) return;
+    if (newPassword.length < 6) {
+      toast.error(t('customers.passwordTooShort'));
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error(t('customers.passwordMismatch'));
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await api.patch(`/manager/customers/${encodeURIComponent(passwordCustomer.id)}/password`, { password: newPassword }, authHeaders(token));
+      setPasswordCustomer(null);
+      setNewPassword('');
+      setConfirmPassword('');
+      toast.success(t('customers.passwordUpdated'));
+    } catch (error) {
+      toast.error(apiErrorMessage(error, t));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-4">
@@ -140,13 +169,14 @@ export function Customers() {
                 <th className="px-4 py-3 font-semibold">{t('customers.phone')}</th>
                 <th className="px-4 py-3 font-semibold">{t('customers.assigned')}</th>
                 <th className="px-4 py-3 font-semibold">{t('customers.status')}</th>
+                <th className="px-4 py-3 text-end font-semibold">{t('customers.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
               {loading ? (
-                <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-400">{t('customers.loading')}</td></tr>
+                <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-400">{t('customers.loading')}</td></tr>
               ) : filteredCustomers.length === 0 ? (
-                <tr><td colSpan={5} className="px-4 py-12 text-center text-slate-400">{t('customers.empty')}</td></tr>
+                <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-400">{t('customers.empty')}</td></tr>
               ) : filteredCustomers.map((customer) => (
                 <tr key={customer.id} className="text-slate-200 hover:bg-slate-800/40">
                   <td className="px-4 py-3">
@@ -165,6 +195,22 @@ export function Customers() {
                     <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${customer.isActive ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-700 text-slate-400'}`}>
                       {customer.isActive ? t('customers.active') : t('customers.inactive')}
                     </span>
+                  </td>
+                  <td className="px-4 py-3 text-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPasswordCustomer(customer);
+                        setNewPassword('');
+                        setConfirmPassword('');
+                      }}
+                      title={t('customers.changePassword')}
+                      aria-label={`${t('customers.changePassword')}: ${customer.companyName}`}
+                      className="inline-flex items-center gap-2 rounded-md border border-slate-700 px-2.5 py-1.5 text-xs text-slate-300 hover:border-amber-500 hover:text-amber-300"
+                    >
+                      <KeyRound size={14} />
+                      <span className="hidden sm:inline">{t('customers.changePassword')}</span>
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -209,6 +255,34 @@ export function Customers() {
               <div className="flex justify-end gap-2 border-t border-slate-800 pt-4">
                 <button type="button" onClick={() => setShowCreate(false)} disabled={saving} className="rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-50">{t('customers.cancel')}</button>
                 <button type="submit" disabled={saving || salespeople.length === 0} className="rounded-md bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50">{t('customers.save')}</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {passwordCustomer && (
+        <div className="fixed inset-0 z-[80] grid place-items-center overflow-y-auto bg-slate-950/75 p-4" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) setPasswordCustomer(null); }}>
+          <section className="my-auto w-full max-w-md rounded-lg border border-slate-700 bg-slate-900 shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="customer-password-title" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+            <div className="flex items-center justify-between border-b border-slate-700 px-5 py-4">
+              <div>
+                <h2 id="customer-password-title" className="text-lg font-semibold text-white">{t('customers.changePassword')}</h2>
+                <p className="mt-1 text-sm text-slate-400">{passwordCustomer.companyName}</p>
+              </div>
+              <button type="button" className="rounded p-1 text-slate-400 hover:bg-slate-800 hover:text-white" onClick={() => setPasswordCustomer(null)} aria-label={t('customers.close')} disabled={saving}>
+                <X size={19} />
+              </button>
+            </div>
+            <form onSubmit={(event) => void updateCustomerPassword(event)} className="space-y-4 p-5">
+              <Field label={t('customers.newPassword')}>
+                <input type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} minLength={6} maxLength={200} required autoFocus autoComplete="new-password" className={fieldClass} />
+              </Field>
+              <Field label={t('customers.confirmPassword')}>
+                <input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} minLength={6} maxLength={200} required autoComplete="new-password" className={fieldClass} />
+              </Field>
+              <div className="flex justify-end gap-2 border-t border-slate-800 pt-4">
+                <button type="button" onClick={() => setPasswordCustomer(null)} disabled={saving} className="rounded-md border border-slate-700 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-50">{t('customers.cancel')}</button>
+                <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-md bg-amber-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-50"><KeyRound size={15} />{t('customers.updatePassword')}</button>
               </div>
             </form>
           </section>
