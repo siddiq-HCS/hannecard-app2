@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Check, LogOut, Ruler, Send } from 'lucide-react';
+import { Check, LogOut, Send } from 'lucide-react';
 import { api } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { LanguageSwitcher, useI18n } from '../i18n';
@@ -121,9 +121,9 @@ export function CustomerRFQ() {
         .crfq-page{min-height:100vh;background:#f4f7fb;color:#172033;font-family:inherit}
         .crfq-header{background:#102a43;color:#fff;border-bottom:4px solid #e8a23a}
         .crfq-header-inner,.crfq-main{width:min(1120px,calc(100% - 32px));margin:0 auto}
-        .crfq-header-inner{min-height:76px;display:flex;align-items:center;justify-content:space-between;gap:16px}
-        .crfq-brand{display:flex;align-items:center;gap:12px;min-width:0}
-        .crfq-brand-mark{width:38px;height:38px;display:grid;place-items:center;background:#e8a23a;color:#102a43;border-radius:8px;flex:none}
+        .crfq-header-inner{min-height:76px;display:flex;align-items:center;justify-content:space-between;gap:16px;direction:ltr}
+        .crfq-brand{display:flex;align-items:center;gap:14px;min-width:0;direction:ltr}
+        .crfq-brand-logo{display:block;width:min(220px,32vw);height:52px;box-sizing:border-box;padding:4px;background:#fff;border-radius:5px;object-fit:contain;object-position:left center;flex:none}
         .crfq-brand h1{font-size:18px;line-height:1.35;margin:0;font-weight:700}
         .crfq-header-actions{display:flex;align-items:center;gap:14px}
         .crfq-user{font-size:14px;color:#d9e3ec;white-space:nowrap}
@@ -163,8 +163,8 @@ export function CustomerRFQ() {
       <header className="crfq-header">
         <div className="crfq-header-inner">
           <div className="crfq-brand">
-            <span className="crfq-brand-mark"><Ruler size={21} /></span>
-            <h1>{t('customerRfq.title')}</h1>
+            <img className="crfq-brand-logo" src="/logo-transparent.png" alt="Hannecard Saudi" />
+            <h1 dir={lang === 'ar' ? 'rtl' : 'ltr'}>{t('customerRfq.title')}</h1>
           </div>
           <div className="crfq-header-actions">
             <span className="crfq-user">{user?.name}</span>
@@ -208,15 +208,15 @@ export function CustomerRFQ() {
               </div>
               <div className="crfq-field">
                 <label htmlFor="core-id">{t('customerRfq.coreId')}</label>
-                <input id="core-id" type="number" min="0.01" step="any" value={coreId} onChange={(event) => setCoreId(event.target.value)} required />
+                <input id="core-id" type="number" min="0.01" step="1" placeholder="0.00" value={coreId} onChange={(event) => setCoreId(event.target.value)} required />
               </div>
               <div className="crfq-field">
                 <label htmlFor="finished-od">{t('customerRfq.finishedOd')}</label>
-                <input id="finished-od" type="number" min="0.01" step="any" value={finishedOd} onChange={(event) => setFinishedOd(event.target.value)} required />
+                <input id="finished-od" type="number" min="0.01" step="1" placeholder="0.00" value={finishedOd} onChange={(event) => setFinishedOd(event.target.value)} required />
               </div>
               <div className="crfq-field">
                 <label htmlFor="face-length">{t('customerRfq.faceLength')}</label>
-                <input id="face-length" type="number" min="0.01" step="any" value={faceLength} onChange={(event) => setFaceLength(event.target.value)} required />
+                <input id="face-length" type="number" min="0.01" step="1" placeholder="0.00" value={faceLength} onChange={(event) => setFaceLength(event.target.value)} required />
               </div>
               <div className="crfq-field">
                 <label htmlFor="hardness">{t('customerRfq.hardness')}</label>

@@ -80,7 +80,7 @@ const ar = {
     coreId: 'قطر القلب الداخلي (ملم)',
     finishedOd: 'القطر الخارجي النهائي (ملم)',
     faceLength: 'طول الفيس (ملم)',
-    hardness: 'الصلادة (Shore A)',
+    hardness: 'الصلابة (Shore A)',
     quantity: 'الكمية',
     notes: 'ملاحظات إضافية',
     notesPlaceholder: 'ظروف التشغيل أو متطلبات خاصة',

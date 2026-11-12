@@ -284,11 +284,12 @@ router.post(
     const serialNumber = await nextRfqSerial();
 
     const isCustomer = req.user.role === 'CUSTOMER';
+    let customer: { assignedSalespersonId: string | null; name: string; companyName: string | null; contactPerson: string | null; phone: string } | null = null;
     let resolved: Awaited<ReturnType<typeof resolveOwnerId>>;
     if (isCustomer) {
-      const customer = await prisma.user.findUnique({
+      customer = await prisma.user.findUnique({
         where: { id: req.user.id },
-        select: { assignedSalespersonId: true },
+        select: { assignedSalespersonId: true, name: true, companyName: true, contactPerson: true, phone: true },
       });
       const assigned = customer?.assignedSalespersonId
         ? await prisma.user.findUnique({ where: { id: customer.assignedSalespersonId }, select: { id: true, role: true } })
@@ -309,9 +310,9 @@ router.post(
       data: {
         serialNumber,
         userId: resolved.ownerId,
-        clientName: isCustomer ? req.user.name : parsed.data.clientName,
-        contactName: isCustomer ? req.user.name : parsed.data.contactName,
-        contactPhone: isCustomer ? (await prisma.user.findUnique({ where: { id: req.user.id }, select: { phone: true } }))?.phone ?? '' : parsed.data.contactPhone,
+        clientName: isCustomer ? customer?.companyName || customer?.name || req.user.name : parsed.data.clientName,
+        contactName: isCustomer ? customer?.contactPerson || customer?.name || req.user.name : parsed.data.contactName,
+        contactPhone: isCustomer ? customer?.phone ?? '' : parsed.data.contactPhone,
         items: parsed.data.items.map((i) => ({
           description: i.description,
           quantity: i.quantity == null ? '' : String(i.quantity),
