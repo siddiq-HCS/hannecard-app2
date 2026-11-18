@@ -111,49 +111,10 @@ async function resolveOwnerId(userId: string | undefined, isManager: boolean, fa
 }
 
 async function nextRfqSerial() {
+  await prisma.$executeRaw`CREATE SEQUENCE IF NOT EXISTS rfq_number_seq START WITH 1`;
   const rows = await prisma.$queryRaw<{ n: number }[]>`SELECT nextval('rfq_number_seq') AS n`;
   const n = rows[0]?.n ?? 1;
   return `RFQ-${String(n).padStart(4, '0')}`;
-}
-
-// نافذة منع التكرار: تجاهل طلباً مطابقاً تماماً لنفس المستخدم خلال آخر 30 ثانية
-const DUPLICATE_WINDOW_MS = 30 * 1000;
-
-function normalizeItemList(its: { description: string; quantity?: string | number | null; finishingType: string; finishingTypeOther?: string | null; requiredWork: string | string[]; requiredWorkOther?: string | null; workEnvironment: string; workEnvironmentOther?: string | null; rollLocation?: string; innerDiameter?: unknown; outerDiameter?: unknown; rollLength?: unknown; faceLength?: unknown; hardnessShore?: unknown; totalLength?: unknown; notes?: string | null }[]) {
-  return JSON.stringify(
-    (its ?? []).map((i) => [
-      i.description.trim(),
-      String(i.quantity ?? '').trim(),
-      i.finishingType,
-      (i.finishingTypeOther ?? '').trim(),
-      Array.isArray(i.requiredWork) ? i.requiredWork.join(',') : i.requiredWork,
-      (i.requiredWorkOther ?? '').trim(),
-      i.workEnvironment,
-      (i.workEnvironmentOther ?? '').trim(),
-      (i.rollLocation ?? '').trim(),
-      i.innerDiameter ?? null,
-      i.outerDiameter ?? null,
-      i.rollLength ?? null,
-      i.faceLength ?? null,
-      i.hardnessShore ?? null,
-      i.totalLength ?? null,
-      (i.notes ?? '').trim(),
-    ]),
-  );
-}
-
-function rfqFingerprint(r: { clientName: string; contactName: string; contactPhone: string; items: unknown; requiredTime: string; requiredTimeOther: string | null; rollLocation?: string | null; workOrderDate: Date; paymentTerms: string }) {
-  return JSON.stringify([
-    r.clientName.trim(),
-    r.contactName.trim(),
-    r.contactPhone.trim(),
-    normalizeItemList(r.items as { description: string; quantity?: string | number | null; finishingType: string; finishingTypeOther?: string | null; requiredWork: string | string[]; requiredWorkOther?: string | null; workEnvironment: string; workEnvironmentOther?: string | null; rollLocation?: string; innerDiameter?: unknown; outerDiameter?: unknown; rollLength?: unknown; faceLength?: unknown; hardnessShore?: unknown; totalLength?: unknown; notes?: string | null }[]),
-    r.requiredTime,
-    (r.requiredTimeOther ?? '').trim(),
-    r.rollLocation ?? 'NOT_SPECIFIED',
-    r.workOrderDate.toISOString(),
-    r.paymentTerms,
-  ]);
 }
 
 /** تطبيع backward compat: تحويل requiredWork من نص قديم إلى مصفوفة */
@@ -247,42 +208,6 @@ router.post(
       });
     }
 
-    // منع التكرار: طلب مطابق تماماً من نفس المستخدم خلال آخر 30 ثانية
-    const cutoff = new Date(Date.now() - DUPLICATE_WINDOW_MS);
-    const recent = await prisma.rfq.findMany({
-      where: { userId: req.user.id, createdAt: { gte: cutoff } },
-      select: {
-        id: true,
-        clientName: true,
-        contactName: true,
-        contactPhone: true,
-        items: true,
-        requiredTime: true,
-        requiredTimeOther: true,
-        rollLocation: true,
-        workOrderDate: true,
-        paymentTerms: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-    const candidate = rfqFingerprint({
-      clientName: parsed.data.clientName,
-      contactName: parsed.data.contactName,
-      contactPhone: parsed.data.contactPhone,
-      items: parsed.data.items,
-      requiredTime: parsed.data.requiredTime,
-      requiredTimeOther: parsed.data.requiredTimeOther ?? null,
-      rollLocation: parsed.data.rollLocation ?? 'NOT_SPECIFIED',
-      workOrderDate: toDate(parsed.data.workOrderDate),
-      paymentTerms: parsed.data.paymentTerms,
-    });
-    const duplicate = recent.find((r) => rfqFingerprint(r as Parameters<typeof rfqFingerprint>[0]) === candidate);
-    if (duplicate) {
-      return res.status(409).json({ error: 'duplicate_rfq', message: 'يوجد طلب تسعير مطابق أُنشئ خلال آخر 30 ثانية — لا داعي للتكرار', rfqId: duplicate.id });
-    }
-
-    const serialNumber = await nextRfqSerial();
-
     const isCustomer = req.user.role === 'CUSTOMER';
     let customer: { assignedSalespersonId: string | null; name: string; companyName: string | null; contactPerson: string | null; phone: string } | null = null;
     let resolved: Awaited<ReturnType<typeof resolveOwnerId>>;
@@ -306,9 +231,13 @@ router.post(
       return res.status(resolved.error.status).json(resolved.error.json);
     }
 
-    const rfq = await prisma.rfq.create({
-      data: {
-        serialNumber,
+    let rfq: Awaited<ReturnType<typeof prisma.rfq.create>> | null = null;
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const serialNumber = await nextRfqSerial();
+      try {
+        rfq = await prisma.rfq.create({
+          data: {
+            serialNumber,
         userId: resolved.ownerId,
         clientName: isCustomer ? customer?.companyName || customer?.name || req.user.name : parsed.data.clientName,
         contactName: isCustomer ? customer?.contactPerson || customer?.name || req.user.name : parsed.data.contactName,
@@ -337,10 +266,23 @@ router.post(
         requiredTimeOther: parsed.data.requiredTimeOther ?? null,
         rollLocation: normalizeRollLocation(parsed.data.rollLocation ?? 'NOT_SPECIFIED'),
         workOrderDate: toDate(parsed.data.workOrderDate),
-        paymentTerms: parsed.data.paymentTerms,
-      },
-      include: rfqInclude,
-    });
+            paymentTerms: parsed.data.paymentTerms,
+          },
+          include: rfqInclude,
+        });
+        break;
+      } catch (error) {
+        const prismaError = error as { code?: string; meta?: { target?: unknown } };
+        const target = String(prismaError.meta?.target ?? '');
+        const serialCollision = prismaError.code === 'P2002' && (!target || target.includes('serialNumber'));
+        if (serialCollision && attempt < 4) continue;
+        if (serialCollision) {
+          return res.status(503).json({ error: 'serial_number_conflict', message: 'تعذر إنشاء رقم طلب فريد، يرجى المحاولة مرة أخرى' });
+        }
+        throw error;
+      }
+    }
+    if (!rfq) return res.status(503).json({ error: 'serial_number_conflict', message: 'تعذر إنشاء رقم طلب فريد، يرجى المحاولة مرة أخرى' });
 
     await logActivity(req.user.id, 'rfq.create', { rfqId: rfq.id, clientName: rfq.clientName }, req.user.name);
     res.status(201).json(rfq);
