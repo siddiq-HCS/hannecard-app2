@@ -62,7 +62,7 @@ export function CustomerRFQ() {
 
   function handleLogout() {
     logout();
-    window.location.replace('/login');
+    window.location.replace('/customer/login');
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {

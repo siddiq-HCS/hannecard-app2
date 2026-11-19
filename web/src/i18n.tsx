@@ -755,7 +755,7 @@ const en: typeof ar = {
     sessionExpired: 'Session expired or invalid, please log in again',
   },
   login: {
-    subtitle: 'Sales Management Panel',
+    subtitle: 'Sales Management Dashboard',
     email: 'Email',
     password: 'Password',
     error: 'Invalid credentials',

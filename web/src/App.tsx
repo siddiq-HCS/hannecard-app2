@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { useAuth } from './context/AuthContext';
 import { LanguageSwitcher, useI18n } from './i18n';
 import { Login } from './pages/Login';
+import { CustomerLogin } from './pages/CustomerLogin';
 import { CustomerRFQ } from './pages/CustomerRFQ';
 import { Dashboard } from './pages/Dashboard';
 import { Reps } from './pages/Reps';
@@ -274,9 +275,10 @@ export function App() {
       <Routes>
         {/* صفحة الدخول: تظهر عند غياب جلسة صالحة (token غائب/تالف/منتهي) — بدون أي انهيار */}
         <Route path="/login" element={isCustomer ? <Navigate to="/rfq" replace /> : <Login />} />
-        <Route path="/rfq" element={isCustomer ? <CustomerRFQ /> : <Navigate to="/login" replace />} />
-        <Route path="/rfq/new" element={<Navigate to="/rfq" replace />} />
-        <Route path="/customer/rfq" element={<Navigate to="/rfq" replace />} />
+        <Route path="/customer/login" element={isCustomer ? <Navigate to="/rfq" replace /> : isStaff ? <Navigate to="/" replace /> : <CustomerLogin />} />
+        <Route path="/rfq" element={isCustomer ? <CustomerRFQ /> : <Navigate to="/customer/login" replace />} />
+        <Route path="/rfq/new" element={<Navigate to={isCustomer ? '/rfq' : '/customer/login'} replace />} />
+        <Route path="/customer/rfq" element={<Navigate to={isCustomer ? '/rfq' : '/customer/login'} replace />} />
 
       {/* اللوحة الإدارية محمية: أي مسار بدون جلسة سارية يُوجَّه مباشرة لـ /login */}
       <Route path="/dashboard" element={isStaff && hasPermission(user, 'PAGE_DASHBOARD_ACCESS') ? <Shell><ErrorBoundary><Dashboard /></ErrorBoundary></Shell> : <Navigate to={isStaff ? firstAllowedHref(user) : '/login'} replace />} />
