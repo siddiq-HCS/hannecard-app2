@@ -38,7 +38,7 @@ interface Rfq {
   clientName: string;
   contactName: string;
   contactPhone: string;
-  items: RfqItem[];
+  items?: RfqItem[];
   requiredTime: string;
   requiredTimeOther?: string | null;
   rollLocation?: string;
@@ -677,6 +677,28 @@ export function RFQs() {
     setRfqs(res.data);
   }
 
+  async function openRfq(id: string) {
+    if (!token) return;
+    try {
+      const res = await api.get(`/rfqs/${id}`, authHeaders(token));
+      setDetail(res.data);
+    } catch (error) {
+      toast.error(apiErrorMessage(error, t));
+    }
+  }
+
+  async function exportRfqs() {
+    if (!token) return;
+    try {
+      const detailed = await Promise.all(
+        sorted.map(async (rfq) => (await api.get(`/rfqs/${rfq.id}`, authHeaders(token))).data as Rfq),
+      );
+      downloadRfqs(detailed, t, lang);
+    } catch (error) {
+      toast.error(apiErrorMessage(error, t));
+    }
+  }
+
   useEffect(() => {
     if (!token) return;
     api.get('/manager/reps', authHeaders(token)).then((r) => setReps(r.data));
@@ -688,7 +710,9 @@ export function RFQs() {
 
   useEffect(() => {
     if (!token) return;
-    const id = setInterval(() => { void load(); }, 5_000);
+    const id = setInterval(() => {
+      if (!document.hidden) void load();
+    }, 120_000);
     return () => clearInterval(id);
   }, [token, repId, status, dateFilter]);
 
@@ -1006,7 +1030,7 @@ export function RFQs() {
             <option value="client">{t('rfq.sortClient')}</option>
           </select>
           <RfqDatePicker value={dateFilter} onChange={setDateFilter} lang={lang} label={t('rfq.filterDate') || 'Filter by date'} clearable />
-          <button style={{ ...buttonStyle, background: '#7c3aed' }} onClick={() => downloadRfqs(sorted, t, lang)} disabled={!sorted.length}>
+          <button style={{ ...buttonStyle, background: '#7c3aed' }} onClick={() => void exportRfqs()} disabled={!sorted.length}>
             {t('rfq.download')}
           </button>
           <button style={{ ...buttonStyle, background: '#1e293b' }} onClick={() => window.print()} disabled={!sorted.length}>
@@ -1046,10 +1070,6 @@ export function RFQs() {
             <th style={thStyle}>{t('rfq.sentOn')}</th>
             <th style={thStyle}>{t('rfq.clientName')}</th>
             <th style={thStyle}>{t('rfq.rep')}</th>
-            <th style={thStyle}>{t('rfq.requiredWork')}</th>
-            <th style={thStyle}>{t('rfq.workEnv')}</th>
-            <th style={thStyle}>{t('rfq.itemsCount')}</th>
-            <th style={thStyle}>{t('rfq.totalRolls')}</th>
             <th style={thStyle}>{t('rfq.rollLocation')}</th>
             <th style={thStyle}>{t('rfq.requiredTime')}</th>
             <th style={thStyle}>{t('rfq.paymentTerms')}</th>
@@ -1058,15 +1078,11 @@ export function RFQs() {
         </thead>
         <tbody>
           {sorted.map((r) => (
-            <tr key={r.id} onClick={() => setDetail(r)} style={rowStyle}>
+            <tr key={r.id} onClick={() => void openRfq(r.id)} style={rowStyle}>
               <td style={tdStyle}><strong>{r.serialNumber || '—'}</strong></td>
               <td style={tdStyle}><span dir="ltr">{formatDate(r.createdAt, lang)}</span></td>
               <td style={tdStyle}>{r.clientName}</td>
               <td style={tdStyle}>{r.user?.name ?? '—'}</td>
-              <td style={tdStyle}>{distinctLabels(t, r.items, 'rfqWork', (i) => i.requiredWork)}</td>
-              <td style={tdStyle}>{distinctLabels(t, r.items, 'rfqEnv', (i) => i.workEnvironment)}</td>
-              <td style={tdStyle}>{r.items?.length ?? 0}</td>
-              <td style={tdStyle}><strong>{totalRolls(r.items)}</strong></td>
               <td style={tdStyle}>{locationChip(r.rollLocation, t)}</td>
               <td style={tdStyle}><span style={timeChip}>{optLabel(t, 'rfqTime', r.requiredTime)}</span></td>
               <td style={tdStyle}>{optLabel(t, 'rfqPay', r.paymentTerms)}</td>

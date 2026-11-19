@@ -26,26 +26,29 @@ interface CreatedBy {
   name: string;
 }
 
-interface Quotation {
+interface QuotationRow {
   id: string;
   quotationNumber: string;
   qNumber: string | null;
-  rollLocation: string;
   client: QuotationClient;
+  status: string;
+  grandTotal: number;
+  createdAt: string;
+}
+
+interface Quotation extends QuotationRow {
+  rollLocation: string;
   rollerSpec: RollerSpec;
   createdBy: CreatedBy;
-  status: string;
   baseMaterialCost: number;
   laborMachiningCost: number;
   subtotal: number;
   discountPercentage: number;
   discountAmount: number;
   vatAmount: number;
-  grandTotal: number;
   terms: string | null;
   qrCodeUrl: string | null;
   pdfUrl: string | null;
-  createdAt: string;
 }
 
 const inputStyle: React.CSSProperties = {
@@ -108,7 +111,7 @@ export function Quotations() {
   const roleName = typeof user?.role === 'string' ? user.role.toUpperCase() : '';
   const isManager = roleName !== 'REPRESENTATIVE';
 
-  const [list, setList] = useState<Quotation[]>([]);
+  const [list, setList] = useState<QuotationRow[]>([]);
   const [clients, setClients] = useState<QuotationClient[]>([]);
   const [rolls, setRolls] = useState<RollerSpec[]>([]);
   const [search, setSearch] = useState('');
@@ -133,6 +136,16 @@ export function Quotations() {
     try {
       const res = await api.get('/quotations', authHeaders(token));
       setList(res.data);
+    } catch (e) {
+      toast.error(apiErrorMessage(e, t));
+    }
+  };
+
+  const openQuotation = async (id: string) => {
+    if (!token) return;
+    try {
+      const res = await api.get(`/quotations/${id}`, authHeaders(token));
+      setDetail(res.data as Quotation);
     } catch (e) {
       toast.error(apiErrorMessage(e, t));
     }
@@ -365,7 +378,7 @@ export function Quotations() {
           </thead>
           <tbody>
             {filtered.map((r) => (
-              <tr key={r.id} onClick={() => setDetail(r)} style={{ cursor: 'pointer' }}>
+              <tr key={r.id} onClick={() => void openQuotation(r.id)} style={{ cursor: 'pointer' }}>
                 <td style={tdStyle}>
                   <strong>{r.quotationNumber}</strong>
                 </td>

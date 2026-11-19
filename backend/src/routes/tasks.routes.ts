@@ -59,7 +59,22 @@ router.get(
 
     const tasks = await prisma.task.findMany({
       where,
-      include: { attachments: true, user: { select: { id: true, name: true } } },
+      select: {
+        id: true,
+        userId: true,
+        type: true,
+        category: true,
+        title: true,
+        description: true,
+        status: true,
+        dueDate: true,
+        dueTime: true,
+        completedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        attachments: { select: { id: true } },
+        user: { select: { id: true, name: true } },
+      },
       orderBy: [{ dueDate: 'asc' }, { createdAt: 'asc' }],
     });
     res.json(tasks);

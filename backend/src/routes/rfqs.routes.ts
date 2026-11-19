@@ -162,28 +162,36 @@ router.get(
       where.createdAt = { gte: day, lt: next };
     }
 
-    let rfqs: Awaited<ReturnType<typeof prisma.rfq.findMany>> = [];
+    let rfqs;
     try {
       rfqs = await prisma.rfq.findMany({
         where,
-        include: rfqInclude,
+        select: {
+          id: true,
+          serialNumber: true,
+          userId: true,
+          clientName: true,
+          contactName: true,
+          contactPhone: true,
+          requiredTime: true,
+          requiredTimeOther: true,
+          rollLocation: true,
+          workOrderDate: true,
+          paymentTerms: true,
+          price: true,
+          totalAmount: true,
+          currency: true,
+          pricingStatus: true,
+          createdAt: true,
+          user: { select: { id: true, name: true, phone: true } },
+        },
         orderBy: { createdAt: 'desc' },
       });
     } catch (error) {
       console.error('[rfq] findMany failed while listing RFQs; returning empty list to keep API alive.', { error, where });
-      rfqs = [];
+      return res.json([]);
     }
-    // backward compat: normalize requiredWork from old string to array
-    const normalized = rfqs.map((r) => ({
-      ...r,
-      items: Array.isArray(r.items)
-        ? (r.items as Record<string, unknown>[]).map((it) => ({
-            ...it,
-            requiredWork: normalizeRequiredWork(it.requiredWork),
-          }))
-        : r.items,
-    }));
-    res.json(normalized);
+    res.json(rfqs);
   },
 );
 

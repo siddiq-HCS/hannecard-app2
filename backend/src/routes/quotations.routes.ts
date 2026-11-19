@@ -45,10 +45,14 @@ router.get('/', authenticate, requireRole('SALES_MANAGER', 'REPRESENTATIVE'), as
 
   const quotations = await prisma.quotation.findMany({
     where,
-    include: {
+    select: {
+      id: true,
+      quotationNumber: true,
+      qNumber: true,
+      status: true,
+      grandTotal: true,
+      createdAt: true,
       client: { select: { id: true, companyName: true } },
-      rollerSpec: true,
-      createdBy: { select: { id: true, name: true } },
     },
     orderBy: { createdAt: 'desc' },
   });

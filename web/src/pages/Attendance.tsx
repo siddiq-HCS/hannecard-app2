@@ -70,6 +70,7 @@ export function Attendance() {
   useEffect(() => {
     if (!token) return;
     const id = setInterval(() => {
+      if (document.hidden) return;
       const params = new URLSearchParams();
       if (date) params.set('date', date);
       if (repId) params.set('repId', repId);
@@ -77,7 +78,7 @@ export function Attendance() {
         .get(`/attendance/manage?${params.toString()}`, authHeaders(token))
         .then((res) => setRecords(toRecords(res.data)))
         .catch(() => {});
-    }, 5_000);
+    }, 60_000);
     return () => clearInterval(id);
   }, [token, date, repId]);
 

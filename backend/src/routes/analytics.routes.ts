@@ -34,9 +34,10 @@ router.get('/', async (req, res) => {
   const [plans, rfqs, reps] = await Promise.all([
     prisma.weeklyPlan.findMany({
       where: planWhere,
-      include: {
+      select: {
+        status: true,
         user: { select: { id: true, name: true } },
-        days: { include: { visits: { select: { companyCategory: true } } } },
+        days: { select: { visits: { select: { companyCategory: true } } } },
       },
     }),
     prisma.rfq.findMany({

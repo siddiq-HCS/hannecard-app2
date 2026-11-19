@@ -36,7 +36,9 @@ export function MapView() {
 
   useEffect(() => {
     void load();
-    const interval = setInterval(() => void load(), 30000);
+    const interval = setInterval(() => {
+      if (!document.hidden) void load();
+    }, 120_000);
     return () => clearInterval(interval);
   }, []);
 

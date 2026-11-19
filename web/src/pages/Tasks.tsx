@@ -18,7 +18,7 @@ interface Task {
   dueTime: string | null;
   completedAt: string | null;
   createdAt: string;
-  attachments: { id: string; filePath: string }[];
+  attachments: { id: string }[];
 }
 
 interface Rep {

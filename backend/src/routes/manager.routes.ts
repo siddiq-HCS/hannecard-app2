@@ -308,7 +308,13 @@ router.get('/live', requirePageAccess('PAGE_DASHBOARD_ACCESS'), async (req, res)
   const logs = await prisma.activityLog.findMany({
     take: limit,
     orderBy: { createdAt: 'desc' },
-    include: { user: { select: { name: true } } },
+    select: {
+      id: true,
+      userId: true,
+      type: true,
+      createdAt: true,
+      user: { select: { name: true } },
+    },
   });
   res.json(logs.map((l) => ({ ...l, userName: l.user.name })));
 });
@@ -336,7 +342,11 @@ router.get('/attachments', async (req, res) => {
   if (req.query.repId) where.userId = req.query.repId;
   const attachments = await prisma.visitAttachment.findMany({
     where,
-    include: {
+    select: {
+      id: true,
+      type: true,
+      size: true,
+      createdAt: true,
       visit: { select: { clientName: true, purpose: true, visitedAt: true, userId: true, user: { select: { name: true } } } },
     },
     orderBy: { createdAt: 'desc' },
@@ -351,7 +361,17 @@ router.get('/daily-summaries', async (req, res) => {
   const where = date ? { summaryDate: new Date(`${date}T00:00:00Z`) } : {};
   const summaries = await prisma.dailySummary.findMany({
     where,
-    include: { user: { select: { name: true } } },
+    select: {
+      id: true,
+      userId: true,
+      summaryDate: true,
+      totalVisits: true,
+      totalCollected: true,
+      tasksCompleted: true,
+      reportSubmitted: true,
+      generatedAt: true,
+      user: { select: { name: true } },
+    },
     orderBy: { summaryDate: 'desc' },
   });
   res.json(summaries);
@@ -363,7 +383,15 @@ router.get('/reports', async (req, res) => {
   if (date) where.reportDate = new Date(`${date}T00:00:00Z`);
   const reports = await prisma.report.findMany({
     where,
-    include: { user: { select: { name: true } } },
+    select: {
+      id: true,
+      userId: true,
+      reportDate: true,
+      content: true,
+      submittedAt: true,
+      createdAt: true,
+      user: { select: { name: true } },
+    },
     orderBy: { reportDate: 'desc' },
   });
   res.json(reports);
