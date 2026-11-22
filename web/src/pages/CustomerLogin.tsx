@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowUpRight, CheckCircle2, Eye, EyeOff, Factory, Gauge, Headset, LockKeyhole, Mail, Ruler, ShieldCheck } from 'lucide-react';
+import { ArrowUpRight, CheckCircle2, Eye, EyeOff, Gauge, Headset, LockKeyhole, Mail, Ruler, ShieldCheck } from 'lucide-react';
 import type { AxiosError } from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n';
@@ -50,7 +50,6 @@ export function CustomerLogin() {
 
   const copy = isArabic
     ? {
-        eyebrow: 'HANNECARD SAUDI',
         brandTitle: 'دعوا العجلة تدور',
         brandCopy: 'حلول متخصصة لتجديد وتصنيع أسطوانات الصناعة، بدعم مباشر من فريقنا الفني في المملكة.',
         benefits: ['طلبات تسعير سريعة للأسطوانات', 'دليل تفاعلي لقياس الأسطوانة', 'دعم مباشر من مهندس المبيعات'],
@@ -69,7 +68,6 @@ export function CustomerLogin() {
         welcome: 'مرحباً بكم في',
       }
     : {
-        eyebrow: 'HANNECARD SAUDI',
         brandTitle: 'Keep Rolling',
         brandCopy: 'Specialist roller manufacturing and refurbishment, backed by direct technical support from our Saudi team.',
         benefits: ['Fast roller quotation requests', 'Interactive measurement guide', 'Direct sales engineer support'],
@@ -96,16 +94,16 @@ export function CustomerLogin() {
         .cl-brand:after{content:"";position:absolute;z-index:-1;width:420px;height:420px;border:1px solid rgba(15,23,42,.2);border-radius:50%;inset-inline-end:-180px;bottom:-205px;box-shadow:0 0 0 28px rgba(15,23,42,.035),0 0 0 58px rgba(15,23,42,.03),0 0 0 92px rgba(15,23,42,.025)}
         .cl-brand-top{display:flex;align-items:center;gap:12px;color:#15231a;font-size:12px;font-weight:800;letter-spacing:1.2px}
         .cl-brand-mark{width:9px;height:9px;border-radius:50%;background:#fff;box-shadow:0 0 0 4px rgba(15,23,42,.12)}
-        .cl-brand-content{max-width:680px;margin:55px 0}
-        .cl-logo-frame{width:min(100%,520px);padding:17px 20px;background:#fff;border-radius:7px;box-shadow:0 18px 48px rgba(0,0,0,.2)}
-        .cl-logo{display:block;width:100%;height:auto;max-height:150px;object-fit:contain;object-position:center}
+        .cl-brand-content{width:100%;max-width:680px;margin:36px 0}
+        .cl-logo-frame{box-sizing:border-box;width:100%;padding:14px 22px;background:#fff;border-radius:7px;box-shadow:0 18px 48px rgba(0,0,0,.2)}
+        .cl-logo{display:block;width:100%;height:auto;max-height:120px;object-fit:contain;object-position:center}
         .cl-brand-heading{font-size:clamp(30px,3.8vw,52px);line-height:1.13;font-weight:700;margin:34px 0 14px;max-width:620px}
         .cl-brand-copy{max-width:550px;margin:0;color:#203522;font-size:16px;line-height:1.8}
         .cl-highlights{display:grid;gap:16px;margin:34px 0 0;padding:0;list-style:none}
         .cl-highlight{display:flex;align-items:center;gap:12px;color:#14251a;font-size:14px;font-weight:600}
         .cl-highlight-icon{display:grid;place-items:center;flex:none;width:31px;height:31px;border:1px solid rgba(15,23,42,.28);border-radius:6px;color:#0f172a;background:rgba(255,255,255,.22)}
-        .cl-brand-footer{display:flex;flex-direction:column;align-items:flex-start;gap:12px;color:#172a1c;font-size:12px;font-weight:700}
-        .cl-group-brand{display:flex;align-items:center;gap:13px;padding:10px 14px;background:#fff;border-radius:8px;box-shadow:0 4px 14px rgba(15,23,42,.16)}
+        .cl-brand-footer{display:flex;flex-direction:column;align-items:flex-start;color:#172a1c;font-size:12px;font-weight:700}
+        .cl-group-brand{display:flex;flex-direction:row;align-items:center;gap:13px;padding:10px 14px;background:#fff;border-radius:8px;box-shadow:0 4px 14px rgba(15,23,42,.16);direction:ltr;white-space:nowrap}
         .cl-group-label{font-size:11px;font-weight:800;letter-spacing:1px;color:#172a1c;white-space:nowrap}
         .cl-group-logo{display:block;width:176px;height:48px;object-fit:contain}
         .cl-roller-art{position:absolute;inset-inline-end:11%;bottom:18%;display:flex;align-items:center;gap:5px;opacity:.14;transform:rotate(-18deg);pointer-events:none}
@@ -139,12 +137,12 @@ export function CustomerLogin() {
         .cl-security{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:30px;color:#849095;font-size:11px}
         .cl-security svg{color:#398f46}
         @media(max-width:900px){.customer-login{grid-template-columns:minmax(0,1fr) minmax(390px,.9fr)}.cl-brand{padding:36px}.cl-form-side{padding:30px}.cl-brand-heading{font-size:36px}}
-        @media(max-width:700px){.customer-login{display:flex;flex-direction:column;min-height:100vh}.cl-brand{min-height:auto;padding:20px 22px 24px}.cl-brand-top{display:none}.cl-brand-content{margin:0}.cl-logo-frame{width:210px;padding:9px 12px}.cl-logo{max-height:68px}.cl-brand-heading{font-size:25px;margin:18px 0 7px}.cl-brand-copy{font-size:13px;line-height:1.6}.cl-highlights{grid-template-columns:1fr;gap:8px;margin:16px 0 0}.cl-highlight{font-size:12px;gap:9px}.cl-highlight-icon{width:25px;height:25px}.cl-highlight-icon svg{width:14px;height:14px}.cl-roller-art{inset-inline-end:8%;bottom:10%;opacity:.08}.cl-roller-art span{height:80px;width:17px}.cl-roller-art span:nth-child(2){height:100px}.cl-roller-art span:nth-child(3){height:85px}.cl-brand-footer{display:flex;gap:9px;margin-top:22px}.cl-group-brand{flex-wrap:wrap;gap:8px;padding:9px 11px}.cl-group-logo{width:150px;height:42px}.cl-form-side{flex:1;display:block;padding:24px 22px 32px}.cl-form-wrap{margin:0 auto}.cl-form-top{margin-bottom:28px}.cl-mobile-brand{display:flex}.cl-form-heading{font-size:24px}.cl-form-copy{margin:8px 0 23px}}
+        @media(min-width:900px){.customer-login{height:100dvh;min-height:0;overflow:hidden}.cl-brand{min-height:0;padding:20px 36px}.cl-brand-content{margin:24px 0}.cl-form-side{padding:20px 36px}.cl-form-top{margin-bottom:24px}.cl-security{margin-top:20px}}
+        @media(max-width:700px){.customer-login{display:flex;flex-direction:column;min-height:100vh}.cl-brand{min-height:auto;padding:20px 22px 24px}.cl-brand-top{display:none}.cl-brand-content{margin:0}.cl-logo-frame{width:210px;padding:9px 12px}.cl-logo{max-height:68px}.cl-brand-heading{font-size:25px;margin:18px 0 7px}.cl-brand-copy{font-size:13px;line-height:1.6}.cl-highlights{grid-template-columns:1fr;gap:8px;margin:16px 0 0}.cl-highlight{font-size:12px;gap:9px}.cl-highlight-icon{width:25px;height:25px}.cl-highlight-icon svg{width:14px;height:14px}.cl-roller-art{inset-inline-end:8%;bottom:10%;opacity:.08}.cl-roller-art span{height:80px;width:17px}.cl-roller-art span:nth-child(2){height:100px}.cl-roller-art span:nth-child(3){height:85px}.cl-brand-footer{display:flex;margin-top:22px}.cl-group-brand{gap:8px;padding:9px 11px}.cl-group-label{font-size:9px;letter-spacing:.6px}.cl-group-logo{width:120px;height:36px}.cl-form-side{flex:1;display:block;padding:24px 22px 32px}.cl-form-wrap{margin:0 auto}.cl-form-top{margin-bottom:28px}.cl-mobile-brand{display:flex}.cl-form-heading{font-size:24px}.cl-form-copy{margin:8px 0 23px}}
         @media(prefers-reduced-motion:reduce){.cl-spinner{animation-duration:1.8s}.cl-submit{transition:none}}
       `}</style>
 
       <section className="cl-brand" aria-label={isArabic ? 'عن هانيكارد السعودية' : 'About Hannecard Saudi'}>
-        <div className="cl-brand-top"><span className="cl-brand-mark" />{copy.eyebrow}<span>·</span>{isArabic ? 'خبير الأسطوانات' : 'YOUR ROLLER EXPERT'}</div>
         <div className="cl-brand-content">
           <div className="cl-logo-frame"><img className="cl-logo" src="/logo.png" alt="هانيكارد السعودية | Hannecard Saudi - Your Roller Expert" /></div>
           <h1 className="cl-brand-heading">{copy.brandTitle}</h1>
@@ -159,11 +157,10 @@ export function CustomerLogin() {
         </div>
         <div className="cl-roller-art" aria-hidden="true"><span /><span /><span /></div>
         <div className="cl-brand-footer">
-          <div className="cl-group-brand">
-            <span className="cl-group-label">PART OF HANNECARD GROUP</span>
+          <div className="cl-group-brand" dir="ltr">
             <img className="cl-group-logo" src="/hannecard-group-logo.jpg" alt="Hannecard France" />
+            <span className="cl-group-label">PART OF HANNECARD GROUP</span>
           </div>
-          <span><Factory size={14} style={{ verticalAlign: 'middle', marginInlineEnd: 7 }} />{isArabic ? 'هانيكارد السعودية · Your Roller Expert' : 'Hannecard Saudi · Your Roller Expert'}</span>
         </div>
       </section>
 
