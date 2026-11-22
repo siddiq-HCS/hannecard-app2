@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowUpRight, CheckCircle2, Eye, EyeOff, Gauge, Headset, LockKeyhole, Mail, Ruler, ShieldCheck } from 'lucide-react';
+import { ArrowUpRight, CheckCircle2, Eye, EyeOff, Headset, LockKeyhole, Mail, Ruler, ShieldCheck } from 'lucide-react';
 import type { AxiosError } from 'axios';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n';
@@ -52,7 +52,7 @@ export function CustomerLogin() {
     ? {
         brandTitle: 'دعوا العجلة تدور',
         brandCopy: 'حلول متخصصة لتجديد وتصنيع أسطوانات الصناعة، بدعم مباشر من فريقنا الفني في المملكة.',
-        benefits: ['طلبات تسعير سريعة للأسطوانات', 'دليل تفاعلي لقياس الأسطوانة', 'دعم مباشر من مهندس المبيعات'],
+        benefits: ['طلبات تسعير سريعة للأسطوانات', 'دعم مباشر من مهندس المبيعات'],
         formTitle: 'بوابة عملاء هانيكارد السعودية',
         formCopy: 'سجّل الدخول لمتابعة احتياجاتك وإرسال طلب تسعير جديد.',
         email: 'البريد الإلكتروني',
@@ -70,7 +70,7 @@ export function CustomerLogin() {
     : {
         brandTitle: 'Keep Rolling',
         brandCopy: 'Specialist roller manufacturing and refurbishment, backed by direct technical support from our Saudi team.',
-        benefits: ['Fast roller quotation requests', 'Interactive measurement guide', 'Direct sales engineer support'],
+        benefits: ['Fast roller quotation requests', 'Direct sales engineer support'],
         formTitle: 'Hannecard Saudi Customer Portal',
         formCopy: 'Sign in to manage your requirements and submit a new quotation request.',
         email: 'Email address',
@@ -85,6 +85,12 @@ export function CustomerLogin() {
         secure: 'Secure customer portal access',
       };
 
+  const partnerLogos = [
+    'Gulf LPack.png', 'MEP.png', 'SAPIN.png', 'SPG.png', 'التصنيع.png',
+    'الدار العربية.png', 'السعودية لطباعة الورق.png', 'العبيكان.png', 'الوطنية.png',
+    'سابك.png', 'مجمع الملك فهد.png', 'معادن.png', 'نابكو الوطنية.png', 'ورق.png', 'يونيكويل.png',
+  ];
+
   return (
     <main className="customer-login" dir={isArabic ? 'rtl' : 'ltr'}>
       <style>{`
@@ -95,9 +101,9 @@ export function CustomerLogin() {
         .cl-brand-top{display:flex;align-items:center;gap:12px;color:#15231a;font-size:12px;font-weight:800;letter-spacing:1.2px}
         .cl-brand-mark{width:9px;height:9px;border-radius:50%;background:#fff;box-shadow:0 0 0 4px rgba(15,23,42,.12)}
         .cl-brand-content{width:100%;max-width:680px;margin:36px 0}
-        .cl-logo-frame{box-sizing:border-box;width:100%;padding:14px 22px;background:#fff;border-radius:7px;box-shadow:0 18px 48px rgba(0,0,0,.2)}
-        .cl-logo{display:block;width:100%;height:auto;max-height:120px;object-fit:contain;object-position:center}
-        .cl-brand-heading{font-size:clamp(30px,3.8vw,52px);line-height:1.13;font-weight:700;margin:34px 0 14px;max-width:620px}
+        .cl-logo-frame{box-sizing:border-box;width:min(100%,340px);padding:11px 18px;background:#fff;border-radius:7px;box-shadow:0 18px 48px rgba(0,0,0,.2)}
+        .cl-logo{display:block;width:100%;height:auto;max-height:82px;object-fit:contain;object-position:center}
+        .cl-brand-heading{font-size:clamp(30px,3.8vw,52px);line-height:1.13;font-weight:700;margin:38px 0 16px;max-width:620px}
         .cl-brand-copy{max-width:550px;margin:0;color:#203522;font-size:16px;line-height:1.8}
         .cl-highlights{display:grid;gap:16px;margin:34px 0 0;padding:0;list-style:none}
         .cl-highlight{display:flex;align-items:center;gap:12px;color:#14251a;font-size:14px;font-weight:600}
@@ -106,6 +112,11 @@ export function CustomerLogin() {
         .cl-group-brand{display:flex;flex-direction:row;align-items:center;gap:13px;padding:10px 14px;background:#fff;border-radius:8px;box-shadow:0 4px 14px rgba(15,23,42,.16);direction:ltr;white-space:nowrap}
         .cl-group-label{font-size:11px;font-weight:800;letter-spacing:1px;color:#172a1c;white-space:nowrap}
         .cl-group-logo{display:block;width:176px;height:48px;object-fit:contain}
+        .cl-partners{grid-column:1/-1;grid-row:2;display:flex;align-items:center;height:64px;overflow:hidden;background:#fff;border-top:1px solid #e4e9e9}
+        .cl-partners-track{display:flex;width:max-content;align-items:center;gap:40px;padding:0 20px;animation:cl-partners-scroll 36s linear infinite;direction:ltr}
+        .cl-partners:hover .cl-partners-track{animation-play-state:paused}
+        .cl-partners img{display:block;flex:none;width:auto;max-width:160px;height:42px;object-fit:contain}
+        @keyframes cl-partners-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
         .cl-roller-art{position:absolute;inset-inline-end:11%;bottom:18%;display:flex;align-items:center;gap:5px;opacity:.14;transform:rotate(-18deg);pointer-events:none}
         .cl-roller-art span{display:block;width:30px;height:140px;border:2px solid #0f172a;border-radius:15px;background:linear-gradient(90deg,transparent 25%,rgba(15,23,42,.24) 50%,transparent 75%)}
         .cl-roller-art span:nth-child(2){height:174px}.cl-roller-art span:nth-child(3){height:150px}
@@ -137,8 +148,8 @@ export function CustomerLogin() {
         .cl-security{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:30px;color:#849095;font-size:11px}
         .cl-security svg{color:#398f46}
         @media(max-width:900px){.customer-login{grid-template-columns:minmax(0,1fr) minmax(390px,.9fr)}.cl-brand{padding:36px}.cl-form-side{padding:30px}.cl-brand-heading{font-size:36px}}
-        @media(min-width:900px){.customer-login{height:100dvh;min-height:0;overflow:hidden}.cl-brand{min-height:0;padding:20px 36px}.cl-brand-content{margin:24px 0}.cl-form-side{padding:20px 36px}.cl-form-top{margin-bottom:24px}.cl-security{margin-top:20px}}
-        @media(max-width:700px){.customer-login{display:flex;flex-direction:column;min-height:100vh}.cl-brand{min-height:auto;padding:20px 22px 24px}.cl-brand-top{display:none}.cl-brand-content{margin:0}.cl-logo-frame{width:210px;padding:9px 12px}.cl-logo{max-height:68px}.cl-brand-heading{font-size:25px;margin:18px 0 7px}.cl-brand-copy{font-size:13px;line-height:1.6}.cl-highlights{grid-template-columns:1fr;gap:8px;margin:16px 0 0}.cl-highlight{font-size:12px;gap:9px}.cl-highlight-icon{width:25px;height:25px}.cl-highlight-icon svg{width:14px;height:14px}.cl-roller-art{inset-inline-end:8%;bottom:10%;opacity:.08}.cl-roller-art span{height:80px;width:17px}.cl-roller-art span:nth-child(2){height:100px}.cl-roller-art span:nth-child(3){height:85px}.cl-brand-footer{display:flex;margin-top:22px}.cl-group-brand{gap:8px;padding:9px 11px}.cl-group-label{font-size:9px;letter-spacing:.6px}.cl-group-logo{width:120px;height:36px}.cl-form-side{flex:1;display:block;padding:24px 22px 32px}.cl-form-wrap{margin:0 auto}.cl-form-top{margin-bottom:28px}.cl-mobile-brand{display:flex}.cl-form-heading{font-size:24px}.cl-form-copy{margin:8px 0 23px}}
+        @media(min-width:900px){.customer-login{height:100dvh;min-height:0;overflow:hidden;grid-template-rows:minmax(0,1fr) 64px}.cl-brand,.cl-form-side{grid-row:1;min-height:0}.cl-brand{padding:20px 36px}.cl-brand-content{margin:20px 0}.cl-form-side{padding:20px 36px}.cl-form-top{margin-bottom:24px}.cl-security{margin-top:20px}}
+        @media(max-width:700px){.customer-login{display:flex;flex-direction:column;min-height:100vh}.cl-brand{min-height:auto;padding:20px 22px 24px}.cl-brand-top{display:none}.cl-brand-content{margin:0}.cl-logo-frame{width:min(100%,340px);padding:9px 12px}.cl-logo{max-height:68px}.cl-brand-heading{font-size:25px;margin:18px 0 7px}.cl-brand-copy{font-size:13px;line-height:1.6}.cl-highlights{grid-template-columns:1fr;gap:8px;margin:16px 0 0}.cl-highlight{font-size:12px;gap:9px}.cl-highlight-icon{width:25px;height:25px}.cl-highlight-icon svg{width:14px;height:14px}.cl-roller-art{inset-inline-end:8%;bottom:10%;opacity:.08}.cl-roller-art span{height:80px;width:17px}.cl-roller-art span:nth-child(2){height:100px}.cl-roller-art span:nth-child(3){height:85px}.cl-brand-footer{display:flex;margin-top:22px}.cl-group-brand{gap:8px;padding:9px 11px}.cl-group-label{font-size:9px;letter-spacing:.6px}.cl-group-logo{width:120px;height:36px}.cl-partners{height:64px;min-height:64px}.cl-partners-track{gap:24px}.cl-partners img{max-width:130px;height:38px}.cl-form-side{flex:1;display:block;padding:24px 22px 32px}.cl-form-wrap{margin:0 auto}.cl-form-top{margin-bottom:28px}.cl-mobile-brand{display:flex}.cl-form-heading{font-size:24px}.cl-form-copy{margin:8px 0 23px}}
         @media(prefers-reduced-motion:reduce){.cl-spinner{animation-duration:1.8s}.cl-submit{transition:none}}
       `}</style>
 
@@ -148,7 +159,7 @@ export function CustomerLogin() {
           <h1 className="cl-brand-heading">{copy.brandTitle}</h1>
           <p className="cl-brand-copy">{copy.brandCopy}</p>
           <ul className="cl-highlights">
-            {[Ruler, Gauge, Headset].map((Icon, index) => (
+            {[Ruler, Headset].map((Icon, index) => (
               <li className="cl-highlight" key={copy.benefits[index]}>
                 <span className="cl-highlight-icon"><Icon size={17} /></span>{copy.benefits[index]}
               </li>
@@ -158,11 +169,18 @@ export function CustomerLogin() {
         <div className="cl-roller-art" aria-hidden="true"><span /><span /><span /></div>
         <div className="cl-brand-footer">
           <div className="cl-group-brand" dir="ltr">
-            <img className="cl-group-logo" src="/hannecard-group-logo.jpg" alt="Hannecard France" />
             <span className="cl-group-label">PART OF HANNECARD GROUP</span>
+            <img className="cl-group-logo" src="/hannecard-group-logo.jpg" alt="Hannecard France" />
           </div>
         </div>
       </section>
+
+      <div className="cl-partners" aria-label={isArabic ? 'شركاؤنا' : 'Our partners'}>
+        <div className="cl-partners-track">
+          {partnerLogos.map((logo) => <img key={`first-${logo}`} src={`/partners/${logo}`} alt="" />)}
+          {partnerLogos.map((logo) => <img key={`second-${logo}`} src={`/partners/${logo}`} alt="" />)}
+        </div>
+      </div>
 
       <section className="cl-form-side">
         <div className="cl-form-wrap">
