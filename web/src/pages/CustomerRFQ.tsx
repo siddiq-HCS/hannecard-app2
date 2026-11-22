@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Check, LogOut, Send } from 'lucide-react';
-import { api } from '../api/client';
+import { api, apiErrorMessage, extractApiError } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { LanguageSwitcher, useI18n } from '../i18n';
 
@@ -108,8 +108,19 @@ export function CustomerRFQ() {
         paymentTerms: 'CASH',
       });
       setSubmitted(true);
-    } catch {
-      setError(t('customerRfq.submitError'));
+    } catch (submitError) {
+      const { status, code, message } = extractApiError(submitError);
+      if (code === 'salesperson_not_assigned') {
+        setError(t('customerRfq.salespersonRequired'));
+      } else if (code === 'database_schema_outdated') {
+        setError(t('customerRfq.schemaOutdated'));
+      } else if (code === 'invalid_input') {
+        setError(message || t('customerRfq.submitError'));
+      } else if (status === null) {
+        setError(t('customerRfq.submitError'));
+      } else {
+        setError(message || apiErrorMessage(submitError, t));
+      }
     } finally {
       setBusy(false);
     }

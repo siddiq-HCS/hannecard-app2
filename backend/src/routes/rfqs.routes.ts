@@ -111,8 +111,7 @@ async function resolveOwnerId(userId: string | undefined, isManager: boolean, fa
 }
 
 async function nextRfqSerial() {
-  await prisma.$executeRaw`CREATE SEQUENCE IF NOT EXISTS rfq_number_seq START WITH 1`;
-  const rows = await prisma.$queryRaw<{ n: number }[]>`SELECT nextval('rfq_number_seq') AS n`;
+  const rows = await prisma.$queryRaw<{ n: number }[]>`SELECT nextval('public.rfq_number_seq') AS n`;
   const n = rows[0]?.n ?? 1;
   return `RFQ-${String(n).padStart(4, '0')}`;
 }
@@ -163,6 +162,7 @@ router.get(
     }
 
     let rfqs;
+    let rfq: Awaited<ReturnType<typeof prisma.rfq.create>> | null = null;
     try {
       rfqs = await prisma.rfq.findMany({
         where,
@@ -216,6 +216,8 @@ router.post(
       });
     }
 
+    let rfq: Awaited<ReturnType<typeof prisma.rfq.create>> | null = null;
+    try {
     const isCustomer = req.user.role === 'CUSTOMER';
     let customer: { assignedSalespersonId: string | null; name: string; companyName: string | null; contactPerson: string | null; phone: string } | null = null;
     let resolved: Awaited<ReturnType<typeof resolveOwnerId>>;
@@ -239,7 +241,6 @@ router.post(
       return res.status(resolved.error.status).json(resolved.error.json);
     }
 
-    let rfq: Awaited<ReturnType<typeof prisma.rfq.create>> | null = null;
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const serialNumber = await nextRfqSerial();
       try {
@@ -291,8 +292,23 @@ router.post(
       }
     }
     if (!rfq) return res.status(503).json({ error: 'serial_number_conflict', message: 'تعذر إنشاء رقم طلب فريد، يرجى المحاولة مرة أخرى' });
+    } catch (error) {
+      const prismaError = error as { code?: string };
+      const schemaOutdated = prismaError.code === 'P2021' || prismaError.code === 'P2022';
+      console.error('[rfq] submission failed:', error);
+      return res.status(503).json({
+        error: schemaOutdated ? 'database_schema_outdated' : 'rfq_submission_failed',
+        message: schemaOutdated
+          ? 'قاعدة البيانات تحتاج إلى تحديث. يرجى التواصل مع الدعم.'
+          : 'تعذر حفظ طلب التسعير حالياً. يرجى المحاولة مرة أخرى أو التواصل مع الدعم.',
+      });
+    }
 
-    await logActivity(req.user.id, 'rfq.create', { rfqId: rfq.id, clientName: rfq.clientName }, req.user.name);
+    try {
+      await logActivity(req.user.id, 'rfq.create', { rfqId: rfq.id, clientName: rfq.clientName }, req.user.name);
+    } catch (error) {
+      console.warn('[rfq] submitted but activity logging failed:', error);
+    }
     res.status(201).json(rfq);
   },
 );
