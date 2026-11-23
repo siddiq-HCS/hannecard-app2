@@ -160,6 +160,10 @@ function anyItemPriced(items?: RfqItem[]): boolean {
   return (items ?? []).some((it) => toNumPrice(it.unitPrice) != null || toNumPrice(it.totalPrice) != null);
 }
 
+function normalizeRfq(rfq: Rfq): Rfq {
+  return { ...rfq, items: Array.isArray(rfq.items) ? rfq.items : [] };
+}
+
 function fmtAmount(v: string | number | null | undefined, lang: Lang): string {
   const n = toNumPrice(v);
   return n != null ? n.toLocaleString(lang === 'ar' ? 'ar-EG' : 'en') : '—';
@@ -278,7 +282,7 @@ function printRfq(r: Rfq, t: T, lang: Lang) {
   </div>
 
   <h2 class="section">${t('rfq.itemsTitle')}</h2>
-  ${itemsTable(t, r.items, r.currency || 'SAR', lang)}
+  ${itemsTable(t, Array.isArray(r.items) ? r.items : [], r.currency || 'SAR', lang)}
   <h2 class="section">${t('rfq.details')}</h2>
   <table style="margin-top:2px;">${body}</table>
   <div class="timestamp">${t('rfq.printDetails')} · ${printTimestamp}</div>
@@ -681,7 +685,7 @@ export function RFQs() {
     if (!token) return;
     try {
       const res = await api.get(`/rfqs/${id}`, authHeaders(token));
-      setDetail(res.data);
+      setDetail(normalizeRfq(res.data as Rfq));
     } catch (error) {
       toast.error(apiErrorMessage(error, t));
     }
