@@ -31,7 +31,8 @@ export default function ConversationScreen() {
   const loadTitle = useCallback(async () => {
     if (!token) return;
     const res = await api.get('/conversations', { headers: { Authorization: `Bearer ${token}` } });
-    const found = (res.data as { id: string; other: { name: string } | null }[]).find((c) => c.id === id);
+    const conversations = Array.isArray(res.data) ? res.data : [];
+    const found = (conversations as { id: string; other: { name: string } | null }[]).find((c) => c.id === id);
     if (found?.other) setTitle(found.other.name);
   }, [token, id]);
 
@@ -41,7 +42,7 @@ export default function ConversationScreen() {
       params: { limit: 200 },
       headers: { Authorization: `Bearer ${token}` },
     });
-    setMessages((res.data as ChatMessage[]).slice().reverse());
+    setMessages((Array.isArray(res.data) ? res.data as ChatMessage[] : []).slice().reverse());
   }, [token, id]);
 
   useEffect(() => {

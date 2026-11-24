@@ -43,7 +43,7 @@ export default function MessagesScreen() {
   const load = useCallback(async () => {
     if (!token) return;
     const res = await api.get('/conversations', { headers: { Authorization: `Bearer ${token}` } });
-    setConversations(res.data);
+    setConversations(Array.isArray(res.data) ? res.data : []);
   }, [token]);
 
   useFocusEffect(
@@ -69,7 +69,7 @@ export default function MessagesScreen() {
     setLoading(true);
     try {
       const res = await api.get('/conversations/contacts', { headers: { Authorization: `Bearer ${token}` } });
-      setContacts(res.data);
+      setContacts(Array.isArray(res.data) ? res.data : []);
       setShowContacts(true);
     } finally {
       setLoading(false);

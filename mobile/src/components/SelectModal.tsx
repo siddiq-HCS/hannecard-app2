@@ -14,12 +14,13 @@ interface Props {
 }
 
 export function SelectModal({ visible, title, options, onSelect, onClose }: Props) {
+  const safeOptions = Array.isArray(options) ? options : [];
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <View style={styles.card}>
           <Text style={styles.title}>{title}</Text>
-          {options.map((o) => (
+          {safeOptions.map((o) => (
             <Pressable
               key={o.value}
               style={styles.option}

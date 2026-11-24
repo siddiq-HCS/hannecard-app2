@@ -47,7 +47,7 @@ export default function AttendanceScreen() {
         api.get('/attendance/history?limit=10', { headers: { Authorization: `Bearer ${token}` } }),
       ]);
       setRecord((st.data as { attendance: AttendanceRecord | null }).attendance);
-      setHistory((hs.data as AttendanceRecord[]) ?? []);
+      setHistory(Array.isArray(hs.data) ? hs.data as AttendanceRecord[] : []);
     } catch {
       // تُترك الحالة الحالية
     } finally {

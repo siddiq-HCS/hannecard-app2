@@ -154,6 +154,30 @@ interface Item {
   calculatedPrice?: number;
 }
 
+function safeArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? value as T[] : [];
+}
+
+function normalizeRfq(value: unknown): Rfq | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const wrapped = (value as { data?: unknown }).data;
+  const raw = wrapped && typeof wrapped === 'object' && !Array.isArray(wrapped)
+    ? wrapped as Partial<Rfq>
+    : value as Partial<Rfq>;
+  return {
+    ...raw,
+    items: safeArray<Rfq['items'][number]>(raw.items).map((item) => ({
+      ...item,
+      requiredWork: Array.isArray(item.requiredWork)
+        ? item.requiredWork
+        : typeof item.requiredWork === 'string' ? [item.requiredWork] : ['NORMAL'],
+    })),
+    comments: safeArray<RfqComment>(raw.comments),
+    documents: safeArray<RfqDocument>(raw.documents),
+    imageUrls: safeArray<string>(raw.imageUrls),
+  } as Rfq;
+}
+
 const newItem = (): Item => ({
   description: '',
   quantity: '',
@@ -214,7 +238,20 @@ export default function RfqScreen() {
   async function load() {
     if (!token) return;
     const res = await api.get('/rfqs', { headers: { Authorization: `Bearer ${token}` } });
-    setRequests(res.data);
+    const data = res.data;
+    const rows = Array.isArray(data) ? data : data && typeof data === 'object' ? (data as { data?: unknown }).data : undefined;
+    setRequests(safeArray<unknown>(rows).map(normalizeRfq).filter((rfq): rfq is Rfq => rfq !== null));
+  }
+
+  async function openRfq(id: string) {
+    if (!token) return;
+    try {
+      const res = await api.get(`/rfqs/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      const rfq = normalizeRfq(res.data);
+      if (rfq) setDetailRfq(rfq);
+    } catch {
+      Alert.alert(t('login.alertTitle'), t('rfq.fail'));
+    }
   }
 
   // تحديث فوري لوحة المندوب عند تسعير/اعتماد الطلب من الإدارة
@@ -249,7 +286,7 @@ export default function RfqScreen() {
     setRollLocation(editingRfq.rollLocation ?? 'NOT_SPECIFIED');
     setWorkOrderDate(formatYmd(editingRfq.workOrderDate));
     setPaymentTerms(editingRfq.paymentTerms);
-    setItems(editingRfq.items.map((it) => ({
+    setItems(safeArray<Rfq['items'][number]>(editingRfq.items).map((it) => ({
       description: it.description ?? '',
       quantity: it.quantity ?? '',
       finishingType: it.finishingType ?? 'NORMAL_CYLINDRICAL',
@@ -271,7 +308,7 @@ export default function RfqScreen() {
   useEffect(() => {
     if (!token) return;
     api.get('/roll-materials?active=true', { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => setRollMaterials(r.data))
+      .then((r) => setRollMaterials(safeArray<{ id: string; name: string }>(r.data)))
       .catch(() => {});
   }, [token]);
 
@@ -350,7 +387,7 @@ export default function RfqScreen() {
   async function launchGallery() {
     const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: true, quality: 0.7 });
     if (!res.canceled) {
-      const newImages = res.assets.map((a) => ({ uri: a.uri, mimeType: a.mimeType }));
+      const newImages = safeArray(res.assets).map((a) => ({ uri: a.uri, mimeType: a.mimeType }));
       setImages((prev) => [...prev, ...newImages]);
     }
   }
@@ -384,7 +421,7 @@ export default function RfqScreen() {
       copyToCacheDirectory: true,
     });
     if (res.canceled) return;
-    const newDocs = res.assets
+    const newDocs = safeArray(res.assets)
       .map((a) => ({
         uri: a.uri,
         name: a.name ?? 'file.pdf',
@@ -888,18 +925,18 @@ export default function RfqScreen() {
               )
             : requests;
           if (filtered.length === 0) return <Text style={styles.empty}>{t('rfq.empty')}</Text>;
-          return filtered.map((r) => {
+          return safeArray<Rfq>(filtered).map((r) => {
             const first = r.items?.[0];
             const priceBreakdown = rfqPriceBreakdown(r.totalAmount ?? r.price);
           return (
-            <Pressable key={r.id} style={styles.card} onPress={() => setDetailRfq(r)}>
+            <Pressable key={r.id} style={styles.card} onPress={() => void openRfq(r.id)}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.cardTitle}>{r.serialNumber || r.clientName}</Text>
                 {r.serialNumber && <Text style={styles.cardMeta}>{r.clientName}</Text>}
                 {first && ((first.requiredWork?.length && !(first.requiredWork.length === 1 && first.requiredWork[0] === 'NORMAL')) || first.workEnvironment !== 'NORMAL') && (
                   <Text style={styles.cardMeta}>
                     {first.requiredWork?.length && !(first.requiredWork.length === 1 && first.requiredWork[0] === 'NORMAL')
-                      ? first.requiredWork.map((w) => t(`requiredWorkOptions.${w}`)).join(', ')
+                      ? safeArray<string>(first.requiredWork).map((w) => t(`requiredWorkOptions.${w}`)).join(', ')
                       : ''}
                     {first.requiredWork?.length && !(first.requiredWork.length === 1 && first.requiredWork[0] === 'NORMAL') && first.workEnvironment !== 'NORMAL' ? ' · ' : ''}
                     {first.workEnvironment !== 'NORMAL' ? t(`workEnvironmentOptions.${first.workEnvironment}`) : ''}
@@ -1070,8 +1107,8 @@ export default function RfqScreen() {
                   <Text style={styles.detailItemText}>{t('rfq.description')}: {it.description || '—'}</Text>
                   <Text style={styles.detailItemText}>{t('rfq.quantity')}: {it.quantity || '—'}</Text>
                   <Text style={styles.detailItemText}>{t('rfq.selectFinishing')}: {t(`finishingOptions.${it.finishingType}`)}{it.finishingType === 'OTHERS' && it.finishingTypeOther ? ` (${it.finishingTypeOther})` : ''}</Text>
-                  {it.requiredWork && it.requiredWork.length > 0 && !(it.requiredWork.length === 1 && it.requiredWork[0] === 'NORMAL') && (
-                    <Text style={styles.detailItemText}>{t('rfq.requiredWork')}: {it.requiredWork.map((w) => t(`requiredWorkOptions.${w}`)).join(', ')}</Text>
+                  {safeArray<string>(it.requiredWork).length > 0 && !(safeArray<string>(it.requiredWork).length === 1 && safeArray<string>(it.requiredWork)[0] === 'NORMAL') && (
+                    <Text style={styles.detailItemText}>{t('rfq.requiredWork')}: {safeArray<string>(it.requiredWork).map((w) => t(`requiredWorkOptions.${w}`)).join(', ')}</Text>
                   )}
                   {it.workEnvironment !== 'NORMAL' && (
                     <Text style={styles.detailItemText}>{t('rfq.workEnvironment')}: {t(`workEnvironmentOptions.${it.workEnvironment}`)}{it.workEnvironment === 'OTHERS' && it.workEnvironmentOther ? ` (${it.workEnvironmentOther})` : ''}</Text>
@@ -1087,7 +1124,7 @@ export default function RfqScreen() {
 
               {detailRfq.imageUrls && detailRfq.imageUrls.length > 0 && (
                 <View style={styles.detailImageGrid}>
-                  {detailRfq.imageUrls.map((url, i) => (
+                  {safeArray<string>(detailRfq.imageUrls).map((url, i) => (
                     <Image key={i} source={{ uri: `${API_URL}/rfqs/${detailRfq.id}/image/${i}`, headers: token ? { Authorization: `Bearer ${token}` } : undefined }} style={styles.detailImageItem} />
                   ))}
                 </View>
@@ -1099,7 +1136,7 @@ export default function RfqScreen() {
               {detailRfq.documents && detailRfq.documents.length > 0 && (
                 <>
                   <Text style={[styles.detailLabel, { marginTop: 12 }]}>{t('common.documents')}</Text>
-                  {detailRfq.documents.map((d) => (
+                  {safeArray<RfqDocument>(detailRfq.documents).map((d) => (
                     <View key={d.id} style={[styles.detailItemCard, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}>
                       <Text style={[styles.detailItemText, { flex: 1 }]} numberOfLines={1}>📄 {d.fileName}</Text>
                       <View style={{ flexDirection: 'row', gap: 14 }}>

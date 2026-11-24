@@ -63,6 +63,30 @@ interface Plan {
   days: { id: string; dayName: string; date?: string; visits: (Omit<Visit, 'pendingImage'>)[] }[];
 }
 
+function safeArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? value as T[] : [];
+}
+
+function normalizePlans(value: unknown): Plan[] {
+  const rows = Array.isArray(value)
+    ? value
+    : value && typeof value === 'object' && Array.isArray((value as { data?: unknown }).data)
+      ? (value as { data: unknown[] }).data
+      : [];
+  return rows
+    .filter((plan) => !!plan && typeof plan === 'object')
+    .map((value) => {
+      const plan = value as Partial<Plan>;
+      const days = safeArray<unknown>(plan.days)
+        .filter((day) => !!day && typeof day === 'object')
+        .map((value) => {
+          const day = value as { id?: string; dayName?: string; date?: string; visits?: unknown };
+          return { ...day, visits: safeArray(day.visits) };
+        });
+      return { ...plan, days } as Plan;
+    });
+}
+
 const newVisit = (): Visit => ({
   companyName: '',
   contactPerson: '',
@@ -277,7 +301,7 @@ export default function WeeklyPlansScreen() {
     const res = await api.get(`/weekly-plans?t=${Date.now()}`, {
       headers: { ...auth(), 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
     });
-    setPlans(res.data);
+    setPlans(normalizePlans(res.data));
   }
 
   useEffect(() => {
