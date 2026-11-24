@@ -1,6 +1,7 @@
 import axios from 'axios';
 import Constants from 'expo-constants';
-import { Platform } from 'react-native';
+import { DeviceEventEmitter, Platform } from 'react-native';
+import { authStorage } from '@/services/authStorage';
 
 // واجهة REST تتوفر في هذا المشروع تحت الجذر /api/v1
 // على الويب: نفس المنشأ (same-origin) حتى تعمل بدون CORS في الإنتاج على Render.
@@ -20,6 +21,35 @@ export const api = axios.create({
   baseURL: API_URL,
   timeout: DEFAULT_REQUEST_TIMEOUT,
 });
+
+let sessionExpiryHandled = false;
+
+export function resetSessionExpiryGuard(): void {
+  sessionExpiryHandled = false;
+}
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error: unknown) => {
+    const axiosError = error as {
+      response?: { status?: number };
+      config?: { url?: string; baseURL?: string };
+    };
+    const status = axiosError.response?.status;
+    const requestUrl = axiosError.config?.url ?? '';
+    if (status === 401 && !/\/auth\/login(?:[/?#]|$)/i.test(requestUrl) && !sessionExpiryHandled) {
+      sessionExpiryHandled = true;
+      try {
+        await authStorage.clear();
+      } catch {
+        // The in-memory auth state must still reset if secure storage is unavailable.
+      } finally {
+        DeviceEventEmitter.emit('auth:session-expired');
+      }
+    }
+    return Promise.reject(error);
+  },
+);
 
 // دالة لرفع الاستهلاك الفردي من المهلة الافتراضية عند الحاجة (مثلاً رفع ملفات أكبر).
 export const apiWithTimeout = (timeoutMs: number) =>

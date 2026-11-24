@@ -1,56 +1,16 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Platform, AppState, View } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
-import { api } from '@/api/client';
+import { Alert, AppState, DeviceEventEmitter, Platform, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { api, resetSessionExpiryGuard } from '@/api/client';
+import { authStorage as storage } from '@/services/authStorage';
 import { getCurrentPosition } from '@/services/location';
 import { closeSocket } from '@/services/socket';
 import { registerForPushNotifications } from '@/services/notifications';
 
 const isWeb = Platform.OS === 'web';
 
-// على الويب تمتد اللوحة الإدارية وتطبيق المناديب على نفس النطاق (same-origin)
-// لذا نستخدم مفاتيح مستقلة تماماً (Namespaced) لتجنّب تعارض التوكن بين الواجهتين.
-const WEB_TOKEN_KEY = 'mobile_token';
-const WEB_USER_KEY = 'mobile_user';
-
 // مدة الخمول قبل تسجيل الخروج التلقائي: 60 دقيقة
 const INACTIVITY_TIMEOUT = 60 * 60 * 1000;
-
-const storage = {
-  async getItem(key: string): Promise<string | null> {
-    if (isWeb) {
-      const mapped = key === 'token' ? WEB_TOKEN_KEY : key === 'user' ? WEB_USER_KEY : key;
-      return globalThis.localStorage?.getItem(mapped) ?? null;
-    }
-    return SecureStore.getItemAsync(key);
-  },
-  async setItem(key: string, value: string): Promise<void> {
-    if (isWeb) {
-      // على الويب قد يمنع Safari (خاصة الوضع الخاص) الكتابة في localStorage:
-      // أي فشل تخزين لا يجب أن يُسقط تسجيل الدخول — نكمل بالجلسة في الذاكرة.
-      const mapped = key === 'token' ? WEB_TOKEN_KEY : key === 'user' ? WEB_USER_KEY : key;
-      try {
-        globalThis.localStorage?.setItem(mapped, value);
-      } catch {
-        /* تجاهل: الجلسة تبقى تعمل في الذاكرة لهذه الجلسة فقط */
-      }
-      return;
-    }
-    await SecureStore.setItemAsync(key, value);
-  },
-  async deleteItem(key: string): Promise<void> {
-    if (isWeb) {
-      const mapped = key === 'token' ? WEB_TOKEN_KEY : key === 'user' ? WEB_USER_KEY : key;
-      try {
-        globalThis.localStorage?.removeItem(mapped);
-      } catch {
-        /* ignore */
-      }
-      return;
-    }
-    await SecureStore.deleteItemAsync(key);
-  },
-};
 
 interface User {
   id: string;
@@ -71,11 +31,23 @@ interface AuthState {
 const AuthContext = createContext<AuthState>(null as unknown as AuthState);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
 
   const lastActivityRef = useRef<number>(Date.now());
+
+  useEffect(() => {
+    const subscription = DeviceEventEmitter.addListener('auth:session-expired', () => {
+      closeSocket();
+      setToken(null);
+      setUser(null);
+      router.replace('/login');
+      Alert.alert('Session expired', 'Your session has expired. Please sign in again.');
+    });
+    return () => subscription.remove();
+  }, [router]);
 
   useEffect(() => {
     let cancelled = false;
@@ -109,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     await storage.setItem('token', t);
     await storage.setItem('user', JSON.stringify(u));
+    resetSessionExpiryGuard();
     setToken(t);
     setUser(u);
     lastActivityRef.current = Date.now();
