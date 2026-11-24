@@ -151,8 +151,8 @@ export class ErrorBoundary extends Component<Props, State> {
                   // eslint-disable-next-line no-console
                   console.error('[ErrorBoundary] storage clear failed', e);
                 }
-                // التوجيه لصفحة الدخول مباشرة بدل الجذر لضمان تجاوز الجلسة المكسورة
-                window.location.replace('/login');
+                const loginPath = window.location.pathname.startsWith('/customer') ? '/customer/login' : '/login';
+                window.location.replace(loginPath);
               }}
               style={{
                 padding: '10px 18px',

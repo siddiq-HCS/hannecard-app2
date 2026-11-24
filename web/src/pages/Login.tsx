@@ -100,6 +100,12 @@ export function Login() {
         )}
         <button type="submit" disabled={busy} style={{ ...buttonStyle, opacity: busy ? 0.6 : 1 }}>{t('login.submit')}</button>
       </form>
+      <a
+        href="/customer/login"
+        style={{ display: 'inline-block', marginTop: 18, color: '#94a3b8', fontSize: 13, textDecoration: 'underline', textUnderlineOffset: 3 }}
+      >
+        بوابة العملاء / Customer Portal
+      </a>
     </div>
   );
 }
