@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, authHeaders, apiErrorMessage } from '../api/client';
+import { api, arrayData, authHeaders, apiErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n';
 import { toast } from '../components/Toast';
@@ -38,7 +38,7 @@ export function PagePermissions() {
     if (!token) return;
     try {
       const res = await api.get('/manager/managers-with-perms', authHeaders(token));
-      setManagers(res.data);
+      setManagers(arrayData<ManagerRow>(res.data));
     } catch (err) {
       toast.error(apiErrorMessage(err, t));
     }

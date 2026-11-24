@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { api, authHeaders, apiErrorMessage } from '../api/client';
+import { api, arrayData, authHeaders, apiErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n';
 import { toast } from '../components/Toast';
@@ -135,7 +135,7 @@ export function Quotations() {
     if (!token) return;
     try {
       const res = await api.get('/quotations', authHeaders(token));
-      setList(res.data);
+      setList(arrayData<QuotationRow>(res.data));
     } catch (e) {
       toast.error(apiErrorMessage(e, t));
     }
@@ -155,7 +155,7 @@ export function Quotations() {
     if (!token) return;
     try {
       const res = await api.get('/clients', authHeaders(token));
-      setClients(res.data);
+      setClients(arrayData<QuotationClient>(res.data));
     } catch {
       toast.error(t('quotations.saveFailed'));
     }
@@ -165,7 +165,7 @@ export function Quotations() {
     if (!token) return;
     try {
       const res = await api.get(cid ? `/rollers?clientId=${encodeURIComponent(cid)}` : '/rollers', authHeaders(token));
-      setRolls(res.data);
+      setRolls(arrayData<RollerSpec>(res.data));
     } catch {
       setRolls([]);
     }

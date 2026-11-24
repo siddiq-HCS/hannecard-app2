@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { api, authHeaders, apiErrorMessage } from '../api/client';
+import { api, arrayData, authHeaders, apiErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n';
 import { toast } from '../components/Toast';
@@ -110,13 +110,13 @@ export function RollMaterials() {
   const load = async () => {
     if (!token) return;
     const res = await api.get('/roll-materials', authHeaders(token));
-    setMaterials(res.data);
+    setMaterials(arrayData<RollMaterial>(res.data));
   };
 
   const loadRolls = async () => {
     if (!token) return;
     const res = await api.get('/roll-materials/rolls', authHeaders(token));
-    setRolls(res.data);
+    setRolls(arrayData<Roll>(res.data));
   };
 
   useEffect(() => {

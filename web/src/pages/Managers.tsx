@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { api, authHeaders, apiErrorMessage } from '../api/client';
+import { api, arrayData, authHeaders, apiErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -48,9 +48,10 @@ export function Managers() {
     if (!token) return;
     try {
       const res = await api.get('/manager/managers', authHeaders(token));
-      setManagers(res.data);
+      const managerRows = arrayData<Manager>(res.data);
+      setManagers(managerRows);
       const permMap: Record<string, string[]> = {};
-      for (const m of res.data as Manager[]) {
+      for (const m of managerRows) {
         const p = await api.get(`/manager/reps/${m.id}/permissions`, authHeaders(token));
         permMap[m.id] = p.data;
       }

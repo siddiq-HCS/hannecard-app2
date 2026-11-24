@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, authHeaders, apiErrorMessage } from '../api/client';
+import { api, arrayData, objectData, authHeaders, apiErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useI18n, formatDate, formatDateTime, formatYmd, type Lang } from '../i18n';
 import { toast } from '../components/Toast';
@@ -160,8 +160,15 @@ function anyItemPriced(items?: RfqItem[]): boolean {
   return (items ?? []).some((it) => toNumPrice(it.unitPrice) != null || toNumPrice(it.totalPrice) != null);
 }
 
-function normalizeRfq(rfq: Rfq): Rfq {
-  return { ...rfq, items: Array.isArray(rfq.items) ? rfq.items : [] };
+function normalizeRfq(value: unknown): Rfq {
+  const rfq = objectData(value) as unknown as Rfq;
+  return {
+    ...rfq,
+    items: arrayData<RfqItem>(rfq.items),
+    comments: arrayData<RfqComment>(rfq.comments),
+    documents: arrayData<RfqDocument>(rfq.documents),
+    imageUrls: arrayData<string>(rfq.imageUrls),
+  };
 }
 
 function fmtAmount(v: string | number | null | undefined, lang: Lang): string {
@@ -339,7 +346,8 @@ function RfqImages({ rfqId, imageUrl, imageUrls, token, t }: { rfqId: string; im
   const [zoom, setZoom] = useState<string | null>(null);
 
   const imageList = (() => {
-    if (imageUrls && imageUrls.length > 0) return imageUrls;
+    const safeImageUrls = arrayData<string>(imageUrls);
+    if (safeImageUrls.length > 0) return safeImageUrls;
     if (imageUrl) return [imageUrl];
     return [];
   })();
@@ -678,14 +686,14 @@ export function RFQs() {
     if (status) params.set('pricingStatus', status);
     if (isValidYmd(dateFilter)) params.set('date', dateFilter.trim());
     const res = await api.get(`/rfqs?${params.toString()}`, authHeaders(token));
-    setRfqs(res.data);
+    setRfqs(arrayData<Rfq>(res.data));
   }
 
   async function openRfq(id: string) {
     if (!token) return;
     try {
       const res = await api.get(`/rfqs/${id}`, authHeaders(token));
-      setDetail(normalizeRfq(res.data as Rfq));
+      setDetail(normalizeRfq(res.data));
     } catch (error) {
       toast.error(apiErrorMessage(error, t));
     }
@@ -705,7 +713,7 @@ export function RFQs() {
 
   useEffect(() => {
     if (!token) return;
-    api.get('/manager/reps', authHeaders(token)).then((r) => setReps(r.data));
+    api.get('/manager/reps', authHeaders(token)).then((r) => setReps(arrayData<Rep>(r.data)));
   }, [token]);
 
   useEffect(() => {
@@ -737,7 +745,7 @@ export function RFQs() {
 
   useEffect(() => {
     if (token) {
-      api.get('/roll-materials?active=true', authHeaders(token)).then((r) => setRollMaterials(r.data)).catch(() => {});
+      api.get('/roll-materials?active=true', authHeaders(token)).then((r) => setRollMaterials(arrayData(r.data))).catch(() => {});
     }
   }, [token]);
 
@@ -1108,7 +1116,7 @@ export function RFQs() {
                       {approving ? t('rfq.approving') : `✓ ${t('rfq.approve')}`}
                     </button>
                   )}
-                  {(r.pricingStatus === 'PRICED' || r.pricingStatus === 'APPROVED' || r.pricingStatus === 'UNPRICED') && r.documents?.map((doc) => (
+                  {(r.pricingStatus === 'PRICED' || r.pricingStatus === 'APPROVED' || r.pricingStatus === 'UNPRICED') && arrayData<RfqDocument>(r.documents).map((doc) => (
                     <button
                       key={doc.id}
                       type="button"

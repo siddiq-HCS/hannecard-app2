@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { io } from 'socket.io-client';
 import { useI18n, formatDateTime } from '../i18n';
-import { SOCKET_URL } from '../api/client';
+import { arrayData, objectData, SOCKET_URL } from '../api/client';
 import { storageGet } from '../lib/safeStorage';
 
 interface RepLocation {
@@ -29,8 +29,9 @@ export function MapView() {
     const res = await fetch('/api/manager/locations', {
       headers: { Authorization: `Bearer ${token}` },
     });
-    const data = (await res.json()) as RepLocation[];
-    setLocations(data);
+    const data: unknown = await res.json();
+    const payload = objectData(data);
+    setLocations(arrayData<RepLocation>(Array.isArray(data) ? data : payload.locations));
     setLastUpdated(new Date());
   }
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Building2, KeyRound, Plus, Search, Users, X } from 'lucide-react';
-import { api, authHeaders, apiErrorMessage } from '../api/client';
+import { api, arrayData, authHeaders, apiErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n';
 import { toast } from '../components/Toast';
@@ -48,8 +48,8 @@ export function Customers() {
         api.get('/manager/customers', authHeaders(token)),
         api.get('/manager/customers/salespeople', authHeaders(token)),
       ]);
-      setCustomers(customerResponse.data as Customer[]);
-      setSalespeople(salespersonResponse.data as Salesperson[]);
+      setCustomers(arrayData<Customer>(customerResponse.data));
+      setSalespeople(arrayData<Salesperson>(salespersonResponse.data));
     } catch (error) {
       toast.error(apiErrorMessage(error, t));
     } finally {

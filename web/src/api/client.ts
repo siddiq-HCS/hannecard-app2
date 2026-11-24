@@ -14,6 +14,24 @@ export function authHeaders(token: string | null | undefined) {
   return { headers: { Authorization: token ? `Bearer ${token}` : undefined } };
 }
 
+export function arrayData<T = unknown>(value: unknown): T[] {
+  if (Array.isArray(value)) return value as T[];
+  if (typeof value === 'object' && value !== null && 'data' in value) {
+    const nested = (value as { data?: unknown }).data;
+    if (Array.isArray(nested)) return nested as T[];
+  }
+  return [];
+}
+
+export function objectData(value: unknown): Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return {};
+  const record = value as Record<string, unknown>;
+  const nested = record.data;
+  return typeof nested === 'object' && nested !== null && !Array.isArray(nested)
+    ? nested as Record<string, unknown>
+    : record;
+}
+
 // ===== ملحق مركزي: يرفق توكن الجلسة تلقائياً لكل طلب =====
 // يضمن وصول Authorization صحيح حتى لو نسي أي استدعاء تمريره يدوياً
 // (ويغطي حالات التوكن الفارغ/المنقضي بعد تحديث الصفحة).

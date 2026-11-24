@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, authHeaders } from '../api/client';
+import { api, arrayData, objectData, authHeaders } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useI18n, formatDate, formatDateTime } from '../i18n';
 
@@ -59,7 +59,7 @@ export function Reports() {
   async function load(d: string) {
     if (!token) return;
     const res = await api.get(`/manager/daily-summaries?date=${d}`, authHeaders(token));
-    setSummaries(res.data);
+    setSummaries(arrayData<Summary>(res.data));
   }
 
   useEffect(() => {
@@ -68,7 +68,7 @@ export function Reports() {
 
   useEffect(() => {
     if (!token) return;
-    api.get('/manager/reps', authHeaders(token)).then((r) => setReps(r.data));
+    api.get('/manager/reps', authHeaders(token)).then((r) => setReps(arrayData<Rep>(r.data)));
   }, [token]);
 
   async function printReport() {
@@ -84,7 +84,12 @@ export function Reports() {
       if (fromDate) params.set('from', fromDate);
       if (toDate) params.set('to', toDate);
       const res = await api.get(`/manager/rep-report?${params.toString()}`, authHeaders(token));
-      setPrintData(res.data as RepReport);
+      const report = objectData(res.data) as unknown as RepReport;
+      setPrintData({
+        ...report,
+        visits: arrayData<RepReport['visits'][number]>(report?.visits),
+        reports: arrayData<RepReport['reports'][number]>(report?.reports),
+      });
       setTimeout(() => window.print(), 200);
     } catch {
       setPrintError(t('reports.loadError'));

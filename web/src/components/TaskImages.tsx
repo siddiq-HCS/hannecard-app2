@@ -6,8 +6,11 @@ interface Attachment {
   filePath: string;
 }
 
+const EMPTY_ATTACHMENTS: Attachment[] = [];
+
 // يعرض صور المهمة كمعاينات قابلة للتكبير عند الضغط، عبر جلب الصورة بترويسة المصادقة
-export function TaskImages({ attachments, token }: { attachments: Attachment[]; token: string | null }) {
+export function TaskImages({ attachments: inputAttachments, token }: { attachments?: Attachment[] | null; token: string | null }) {
+  const attachments = Array.isArray(inputAttachments) ? inputAttachments : EMPTY_ATTACHMENTS;
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [failed, setFailed] = useState<Record<string, boolean>>({});
   const [zoom, setZoom] = useState<string | null>(null);

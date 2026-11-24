@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, authHeaders, apiErrorMessage } from '../api/client';
+import { api, arrayData, objectData, authHeaders, apiErrorMessage } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n';
 import { toast } from '../components/Toast';
@@ -22,6 +22,22 @@ interface AnalyticsData {
   reps: Rep[];
 }
 
+function normalizeAnalytics(value: unknown): AnalyticsData | null {
+  const raw = objectData(value);
+  if (Object.keys(raw).length === 0) return null;
+  const plans = objectData(raw.plans);
+  const visits = objectData(raw.visits);
+  const rfqs = objectData(raw.rfqs);
+  const range = objectData(raw.range);
+  return {
+    range: { from: typeof range.from === 'string' ? range.from : null, to: typeof range.to === 'string' ? range.to : null },
+    plans: { total: 0, DRAFT: 0, SUBMITTED: 0, APPROVED: 0, ...plans } as AnalyticsData['plans'],
+    visits: { total: 0, ...visits, byRep: arrayData(visits.byRep), byCategory: arrayData(visits.byCategory) } as AnalyticsData['visits'],
+    rfqs: { total: 0, ...rfqs, byMonth: arrayData(rfqs.byMonth) } as AnalyticsData['rfqs'],
+    reps: arrayData<Rep>(raw.reps),
+  };
+}
+
 export function Analytics() {
   const { token } = useAuth();
   const { t, lang } = useI18n();
@@ -41,7 +57,7 @@ export function Analytics() {
         if (repId) q.set('repId', repId);
         if (period) q.set('period', period);
         const res = await api.get(`/analytics?${q.toString()}`, authHeaders(token));
-        setData(res.data);
+        setData(normalizeAnalytics(res.data));
       } catch (err) {
         setError(true);
         toast.error(apiErrorMessage(err, t));
