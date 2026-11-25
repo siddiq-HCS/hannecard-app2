@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Alert, AppState, DeviceEventEmitter, Platform, View } from 'react-native';
 import { useRouter } from 'expo-router';
-import { api, resetSessionExpiryGuard } from '@/api/client';
+import { api, resetSessionExpiryGuard, setAuthToken } from '@/api/client';
 import { authStorage as storage } from '@/services/authStorage';
 import { getCurrentPosition } from '@/services/location';
 import { closeSocket } from '@/services/socket';
@@ -41,6 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const subscription = DeviceEventEmitter.addListener('auth:session-expired', () => {
       closeSocket();
+      setAuthToken(null);
       setToken(null);
       setUser(null);
       router.replace('/login');
@@ -55,6 +56,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const [storedToken, storedUser] = await Promise.all([storage.getItem('token'), storage.getItem('user')]);
         if (cancelled) return;
+        setAuthToken(storedToken);
         setToken(storedToken);
         let parsed: User | null = null;
         try {
@@ -81,6 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     await storage.setItem('token', t);
     await storage.setItem('user', JSON.stringify(u));
+    setAuthToken(t);
     resetSessionExpiryGuard();
     setToken(t);
     setUser(u);
@@ -106,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await storage.deleteItem('token');
     await storage.deleteItem('user');
     closeSocket();
+    setAuthToken(null);
     setToken(null);
     setUser(null);
   }, [token]);

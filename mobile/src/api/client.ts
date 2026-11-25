@@ -22,23 +22,56 @@ export const api = axios.create({
   timeout: DEFAULT_REQUEST_TIMEOUT,
 });
 
+let authToken: string | null = null;
+let authTokenInitialized = false;
+
+export function setAuthToken(token: string | null): void {
+  authToken = token;
+  authTokenInitialized = true;
+  if (token) {
+    api.defaults.headers.common.Authorization = `Bearer ${token}`;
+  } else {
+    delete api.defaults.headers.common.Authorization;
+  }
+}
+
 let sessionExpiryHandled = false;
 
 export function resetSessionExpiryGuard(): void {
   sessionExpiryHandled = false;
 }
 
+api.interceptors.request.use(async (config) => {
+  if (!config.headers.has('Authorization')) {
+    const token = authTokenInitialized ? authToken : await authStorage.getItem('token');
+    if (token) {
+      setAuthToken(token);
+      config.headers.set('Authorization', `Bearer ${token}`);
+    }
+  }
+  return config;
+});
+
 api.interceptors.response.use(
   (response) => response,
   async (error: unknown) => {
     const axiosError = error as {
       response?: { status?: number };
-      config?: { url?: string; baseURL?: string };
+      config?: { url?: string; baseURL?: string; headers?: { has?: (name: string) => boolean } };
     };
     const status = axiosError.response?.status;
     const requestUrl = axiosError.config?.url ?? '';
-    if (status === 401 && !/\/auth\/login(?:[/?#]|$)/i.test(requestUrl) && !sessionExpiryHandled) {
+    const hadAuthorization = axiosError.config?.headers?.has?.('Authorization') ?? false;
+    const isLoginPath = globalThis.location?.pathname === '/app/login';
+    if (
+      status === 401 &&
+      hadAuthorization &&
+      !isLoginPath &&
+      !/\/api\/v1\/auth\/login(?:[/?#]|$)|\/auth\/login(?:[/?#]|$)/i.test(requestUrl) &&
+      !sessionExpiryHandled
+    ) {
       sessionExpiryHandled = true;
+      setAuthToken(null);
       try {
         await authStorage.clear();
       } catch {
